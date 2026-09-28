@@ -1,0 +1,23 @@
+{
+  "human": {
+    "first": ["Aldric", "Bryn", "Cass", "Dorian", "Edda", "Fenn", "Greta", "Hollis", "Ines", "Jory", "Kestrel", "Lio", "Mara", "Nell", "Osric", "Pim", "Quill", "Rhea", "Soren", "Tamsin", "Ulla", "Vance", "Wren", "Yara", "Ansel", "Bettany", "Corin", "Della", "Emrys", "Fia", "Gideon", "Hesper", "Ivo", "Juno", "Kit", "Lenora", "Milo", "Nessa", "Orla", "Piers", "Rosalind", "Silas", "Tobin", "Vesna", "Willa", "Zeke"],
+    "last": ["Ashdown", "Barrow", "Coldwater", "Dunmore", "Elsworth", "Fairwick", "Grayling", "Hartley", "Ironside", "Kettle", "Larkin", "Marsh", "Nettle", "Oakes", "Penrose", "Quarry", "Redfern", "Stonebridge", "Thatcher", "Underhill", "Vane", "Wickham", "Yarrow", "Bellwright", "Candlewick"]
+  },
+  "tidefolk": {
+    "first": ["Marel", "Soona", "Kaiu", "Brine", "Lissa", "Oshen", "Coraly", "Tiel", "Wake", "Ryffa", "Nerin", "Pell", "Undi", "Shoal", "Maru", "Selka"],
+    "last": ["of the Ninth Tide", "Deepkeeper", "Saltmemory", "Bellwater", "Foamborn", "of the Pearl Steps", "Kelpwise", "Stillcurrent"]
+  },
+  "mothkin": {
+    "first": ["Vesper", "Lumi", "Duskin", "Aurelle", "Filament", "Wick", "Selene", "Nocturne", "Pallid", "Gossamer", "Ember", "Tallow", "Lucent", "Mothra", "Dimity", "Flicker"],
+    "last": ["of the Third Archive", "Lampwright", "Wickwatcher", "Candlescribe", "Glowkeeper", "of the Hanging Stacks", "Duskreader", "Lightlender"]
+  },
+  "barkborn": {
+    "first": ["Rowan", "Alder", "Hazel", "Burl", "Thorn", "Sorrel", "Birch", "Moss", "Hawthorn", "Elm", "Bramble", "Linden", "Sap", "Twig", "Heather", "Ash"],
+    "last": ["Graveseed", "of Old Maren's Grave", "Deeproot", "Leafcarrier", "Ringcounter", "of the Grave Orchard", "Barkheart", "Emberleaf"]
+  },
+  "khepri": {
+    "first": ["Kheti", "Sabu", "Nefra", "Imhet", "Tauret", "Ramu", "Seska", "Bastu", "Hekka", "Amuni", "Djet", "Kawi", "Merit", "Pashet", "Wenu", "Zuri"],
+    "last": ["Glasshull", "of the Dune Sea", "Sandshell", "Scarabright", "Duneshaper", "Sunkeel", "Goldcarapace", "of Scarab Gate"]
+  },
+  "guild_suggestions": ["The Bell Keepers", "The Last Ledger", "The Ink and Iron", "The Emberless", "The Written", "The Carrow Company", "The Grey Wardens", "The Remembered"]
+}

@@ -1,0 +1,18 @@
+# Godot
+.godot/
+/android/
+*.translation
+export_presets.cfg.bak
+
+# Build output
+/build/
+
+# Python / tooling
+.venv/
+__pycache__/
+*.pyc
+tools/_cache/
+
+# OS
+.DS_Store
+Thumbs.db

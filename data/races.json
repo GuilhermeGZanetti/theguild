@@ -1,0 +1,103 @@
+{
+  "human": {
+    "name": "Human",
+    "plural": "Humans",
+    "desc": "Found everywhere, sworn to no faction. Balanced.",
+    "racial": "Adaptable",
+    "racial_desc": "+10% XP.",
+    "mods": {"xp_pct": 0.1},
+    "stat": {},
+    "skin": [[244, 204, 170], [232, 180, 140], [206, 150, 110], [170, 112, 78], [128, 82, 58], [96, 62, 46]],
+    "skin2": [[204, 112, 110]],
+    "hair": [[62, 42, 36], [98, 60, 40], [150, 96, 52], [212, 168, 92], [226, 214, 176], [40, 36, 44], [168, 72, 48], [120, 120, 128]],
+    "weight": 60
+  },
+  "tidefolk": {
+    "name": "Tidefolk",
+    "plural": "Tidefolk",
+    "desc": "Amphibious sailors of the Saltborn Compact. Their memories live inside symbiotic jellyfish.",
+    "racial": "Tide-lungs",
+    "racial_desc": "+10 Dodge on water tiles; cannot drown.",
+    "mods": {"water_dodge": 10},
+    "stat": {"hp_pct": 0.12, "speed": -5},
+    "skin": [[96, 168, 164], [88, 158, 176], [106, 176, 158], [84, 150, 160]],
+    "skin2": [[58, 104, 118]],
+    "hair": [[40, 52, 92], [34, 44, 76], [52, 62, 110], [30, 58, 82]],
+    "weight": 10,
+    "faction": "saltborn",
+    "palette": {"eyes": [[30, 34, 62]], "feature": [[228, 172, 86], [238, 190, 104]], "glow": [[110, 196, 255], [140, 164, 255], [168, 140, 250], [116, 222, 250]], "leather": [[122, 80, 50], [106, 70, 48]]},
+    "looks": {
+      "warrior": {"cloth1": [[40, 52, 92], [36, 46, 82], [44, 60, 100]], "cloth2": [[224, 206, 166]]},
+      "rogue": {"cloth1": [[228, 212, 178], [220, 204, 168]], "cloth2": [[190, 60, 52], [176, 52, 64]]},
+      "ranger": {"cloth1": [[222, 206, 170]], "cloth2": [[44, 56, 96], [40, 70, 96]], "cape": [[196, 62, 52], [206, 92, 48]]},
+      "mystic": {"cloth1": [[228, 212, 176]], "cloth2": [[44, 56, 96]], "cape": [[92, 130, 70]]},
+      "tidecaller": {"cloth1": [[222, 206, 170]], "cloth2": [[44, 56, 96]], "cape": [[196, 62, 52]]}
+    }
+  },
+  "mothkin": {
+    "name": "Mothkin",
+    "plural": "Mothkin",
+    "desc": "Moth-winged archivists of the Lantern Conclave who store memories as light.",
+    "racial": "Lightbound",
+    "racial_desc": "Sees hidden units within 3 tiles.",
+    "mods": {"sight": 3},
+    "stat": {"accuracy": 5, "move": 1, "hp_pct": -0.12},
+    "skin": [[246, 222, 206], [242, 218, 214], [248, 228, 204]],
+    "skin2": [[132, 104, 184], [112, 96, 176], [150, 108, 168], [96, 110, 190]],
+    "hair": [[214, 200, 232], [232, 222, 206], [200, 186, 224], [226, 214, 236]],
+    "weight": 10,
+    "faction": "lantern",
+    "palette": {"eyes": [[70, 62, 146], [54, 60, 128]], "feature": [[228, 170, 82], [236, 186, 96]], "glow": [[120, 232, 250], [140, 220, 255]], "leather": [[120, 78, 50], [100, 70, 56]], "white": [[238, 226, 200]]},
+    "looks": {
+      "warrior": {"cloth1": [[52, 58, 112], [70, 60, 124]], "cloth2": [[228, 212, 178]], "cape": [[110, 86, 160], [90, 80, 150]]},
+      "rogue": {"cloth1": [[96, 70, 146], [82, 62, 130]], "cloth2": [[150, 60, 64], [130, 56, 70]]},
+      "ranger": {"cloth1": [[70, 62, 126], [60, 70, 120]], "cloth2": [[228, 212, 178]], "cape": [[56, 60, 118]]},
+      "mystic": {"cloth1": [[48, 54, 110], [58, 52, 118]], "cloth2": [[230, 214, 180]]},
+      "lanternbearer": {"cloth1": [[98, 72, 150]], "cloth2": [[230, 214, 180]]}
+    }
+  },
+  "barkborn": {
+    "name": "Barkborn",
+    "plural": "Barkborn",
+    "desc": "Wooden folk grown from seeds planted on graves. Each carries fragments of the dead.",
+    "racial": "Graft",
+    "racial_desc": "On death, leaves a seed: a Barkborn recruit with one of its traits appears next week.",
+    "mods": {"graft": 1},
+    "stat": {"defense": 4, "speed": -6},
+    "skin": [[140, 96, 64], [124, 86, 58], [154, 106, 70], [112, 80, 60]],
+    "skin2": [[84, 58, 42]],
+    "hair": [[226, 128, 50], [206, 84, 52], [216, 162, 58], [120, 160, 70]],
+    "weight": 10,
+    "faction": "rootwardens",
+    "palette": {"eyes": [[48, 30, 26], [40, 34, 30]], "feature": [[118, 150, 72], [210, 120, 56], [192, 72, 50]], "glow": [[150, 236, 190]], "wood": [[98, 70, 48]], "leather": [[110, 76, 50]], "white": [[240, 234, 214]]},
+    "looks": {
+      "warrior": {"hair": [[196, 62, 46], [214, 90, 46]], "feature": [[226, 150, 56]], "cloth1": [[118, 150, 72]], "cloth2": [[222, 180, 80]]},
+      "rogue": {"hair": [[112, 150, 70], [132, 160, 80]], "feature": [[92, 130, 64]], "cloth1": [[226, 214, 184]], "cloth2": [[210, 110, 60]]},
+      "ranger": {"hair": [[226, 128, 50], [214, 100, 50]], "cloth1": [[104, 140, 70]], "feature": [[222, 176, 60], [196, 76, 50]]},
+      "mystic": {"hair": [[226, 140, 56], [214, 110, 52]], "cloth1": [[100, 136, 70]], "feature": [[130, 164, 72]]},
+      "graftwarden": {"hair": [[226, 140, 56]], "cloth1": [[96, 130, 68]], "feature": [[196, 74, 50]], "cape": [[110, 140, 70]]}
+    }
+  },
+  "khepri": {
+    "name": "Khepri",
+    "plural": "Khepri",
+    "desc": "Beetle-folk merchants who sail the dunes in glass-hulled ships.",
+    "racial": "Carapace",
+    "racial_desc": "The first hit each quest deals half damage.",
+    "mods": {"carapace": 1},
+    "stat": {"crit": 6, "resolve": -10},
+    "skin": [[62, 46, 44], [54, 42, 48], [72, 52, 42]],
+    "skin2": [[40, 30, 34]],
+    "hair": [[178, 122, 58], [160, 104, 54], [140, 96, 60]],
+    "weight": 10,
+    "faction": "glass",
+    "palette": {"eyes": [[240, 150, 52], [250, 170, 70]], "feature": [[236, 150, 60], [224, 120, 50]], "glow": [[80, 210, 210], [100, 220, 200]], "leather": [[118, 76, 48], [96, 64, 46]], "white": [[236, 222, 190]]},
+    "looks": {
+      "warrior": {"cloth1": [[176, 58, 50], [160, 50, 46]], "cloth2": [[230, 214, 180]]},
+      "rogue": {"cloth1": [[64, 120, 96], [58, 110, 100]], "cloth2": [[230, 216, 184]]},
+      "ranger": {"cloth1": [[60, 130, 130]], "cloth2": [[214, 190, 146]]},
+      "mystic": {"cloth1": [[52, 66, 120], [48, 60, 110]], "cloth2": [[230, 214, 180]]},
+      "sandreaver": {"cloth1": [[226, 210, 176]], "cloth2": [[180, 56, 48]], "cape": [[92, 104, 72]]}
+    }
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "quick_hands": {"name": "Quick Hands", "desc": "-1 cooldown on all active skills.", "good": true, "mods": {"cooldown": -1}, "weight": 4},
+  "iron_skin": {"name": "Iron Skin", "desc": "+10% max Defense.", "good": true, "mods": {"def_pct": 0.1}, "weight": 6},
+  "eagle_eye": {"name": "Eagle Eye", "desc": "+10 Accuracy on ranged attacks.", "good": true, "mods": {"ranged_acc": 10}, "weight": 6},
+  "brave": {"name": "Brave", "desc": "Immune to Fear.", "good": true, "mods": {"fearless": 1}, "weight": 5},
+  "lucky": {"name": "Lucky", "desc": "Once per quest, survives a lethal hit with 1 HP.", "good": true, "mods": {"lucky": 1}, "weight": 4},
+  "tough": {"name": "Tough", "desc": "+10% max HP.", "good": true, "mods": {"hp_pct": 0.1}, "weight": 6},
+  "swift": {"name": "Swift", "desc": "+6 Speed.", "good": true, "mods": {"speed": 6}, "weight": 5},
+  "keen": {"name": "Keen", "desc": "+6 Crit.", "good": true, "mods": {"crit": 6}, "weight": 5},
+  "steady": {"name": "Steady", "desc": "+12 Resolve.", "good": true, "mods": {"resolve": 12}, "weight": 5},
+  "fast_learner": {"name": "Fast Learner", "desc": "+15% XP.", "good": true, "mods": {"xp_pct": 0.15}, "weight": 4},
+  "frugal": {"name": "Frugal", "desc": "Wage -20%.", "good": true, "mods": {"wage_pct": -0.2}, "weight": 4},
+  "hardy": {"name": "Hardy", "desc": "Injuries heal 25% faster.", "good": true, "mods": {"heal_pct": -0.25}, "weight": 4},
+
+  "coward": {"name": "Coward", "desc": "-15 Resolve. May flee when an ally dies nearby.", "good": false, "mods": {"resolve": -15, "coward": 1}, "weight": 5},
+  "clumsy": {"name": "Clumsy", "desc": "-5 Dodge, -5 Accuracy.", "good": false, "mods": {"dodge": -5, "accuracy": -5}, "weight": 6},
+  "slow_healer": {"name": "Slow Healer", "desc": "Injuries take 50% longer to heal.", "good": false, "mods": {"heal_pct": 0.5}, "weight": 5},
+  "greedy": {"name": "Greedy", "desc": "Wage +30%.", "good": false, "mods": {"wage_pct": 0.3}, "weight": 5},
+  "frail": {"name": "Frail", "desc": "-10% max HP.", "good": false, "mods": {"hp_pct": -0.1}, "weight": 5},
+  "sluggish": {"name": "Sluggish", "desc": "-6 Speed.", "good": false, "mods": {"speed": -6}, "weight": 5},
+  "dullard": {"name": "Dullard", "desc": "-15% XP.", "good": false, "mods": {"xp_pct": -0.15}, "weight": 4},
+  "hothead": {"name": "Hothead", "desc": "+10% damage, -8 Dodge.", "good": false, "mods": {"dmg_pct": 0.1, "dodge": -8}, "weight": 4},
+
+  "hollow": {"name": "Hollow", "desc": "Touched by the Hush. -25% XP.", "good": false, "mods": {"xp_pct": -0.25}, "weight": 0, "special": true},
+  "survivor": {"name": "Survivor", "desc": "Came back from the edge. +8 Resolve, +4 Defense.", "good": true, "mods": {"resolve": 8, "defense": 4}, "weight": 0, "special": true},
+  "bossbane": {"name": "Bossbane", "desc": "Slew a great foe. +15% damage against elites and bosses.", "good": true, "mods": {"elite_dmg": 0.15}, "weight": 0, "special": true},
+  "vengeful": {"name": "Vengeful", "desc": "Lost a friend in battle. +10% damage, -5 Resolve.", "good": true, "mods": {"dmg_pct": 0.1, "resolve": -5}, "weight": 0, "special": true},
+  "haunted": {"name": "Haunted", "desc": "Carries a permanent wound of the mind. -12 Resolve.", "good": false, "mods": {"resolve": -12}, "weight": 0, "special": true},
+
+  "lost_eye": {"name": "Lost Eye", "desc": "Permanent injury. -15 Accuracy.", "good": false, "mods": {"accuracy": -15}, "weight": 0, "injury": true},
+  "limp": {"name": "Limp", "desc": "Permanent injury. -1 Movement.", "good": false, "mods": {"move": -1}, "weight": 0, "injury": true},
+  "broken_hand": {"name": "Broken Hand", "desc": "Permanent injury. -15% damage.", "good": false, "mods": {"dmg_pct": -0.15}, "weight": 0, "injury": true},
+  "cracked_ribs": {"name": "Cracked Ribs", "desc": "Permanent injury. -15% max HP.", "good": false, "mods": {"hp_pct": -0.15}, "weight": 0, "injury": true},
+  "shaken": {"name": "Shaken", "desc": "Permanent injury. -15 Resolve, -5 Dodge.", "good": false, "mods": {"resolve": -15, "dodge": -5}, "weight": 0, "injury": true}
+}

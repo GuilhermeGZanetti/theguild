@@ -1,0 +1,41 @@
+{
+  "tiers": ["Worn", "Steel", "Masterwork", "Relic"],
+  "tier_metal": [[150, 150, 158], [176, 190, 206], [220, 196, 120], [196, 150, 230]],
+  "tier_trim": [[150, 120, 70], [214, 176, 80], [240, 214, 120], [250, 220, 250]],
+  "upgrade_cost": [[80, 3], [180, 8], [360, 16]],
+  "weapons": {
+    "sword": {"name": "Sword", "names": ["Worn Sword", "Steel Sword", "Masterwork Blade", "Relic Blade"], "stats": [{}, {"attack": 2, "accuracy": 2}, {"attack": 4, "accuracy": 4, "crit": 2}, {"attack": 7, "accuracy": 5, "crit": 4}]},
+    "daggers": {"name": "Daggers", "names": ["Chipped Daggers", "Steel Daggers", "Masterwork Knives", "Relic Fangs"], "stats": [{}, {"attack": 2, "crit": 2}, {"attack": 4, "crit": 4, "accuracy": 2}, {"attack": 6, "crit": 7, "accuracy": 3}]},
+    "bow": {"name": "Bow", "names": ["Old Shortbow", "Yew Bow", "Masterwork Longbow", "Relic Bow"], "stats": [{}, {"attack": 2, "accuracy": 3}, {"attack": 4, "accuracy": 5, "range": 1}, {"attack": 6, "accuracy": 7, "range": 1, "crit": 3}]},
+    "staff": {"name": "Staff", "names": ["Knotted Staff", "Carved Staff", "Masterwork Stave", "Relic Staff"], "stats": [{}, {"attack": 2, "resolve": 3}, {"attack": 4, "accuracy": 3, "resolve": 5}, {"attack": 7, "accuracy": 4, "resolve": 8}]},
+    "trident": {"name": "Trident", "names": ["Fisher's Trident", "Steel Trident", "Masterwork Trident", "Relic Trident"], "stats": [{}, {"attack": 2, "accuracy": 2}, {"attack": 4, "accuracy": 4, "defense": 1}, {"attack": 6, "accuracy": 5, "defense": 2, "crit": 2}]},
+    "lantern": {"name": "Lantern", "names": ["Dim Lantern", "Brass Lantern", "Masterwork Lantern", "Relic Lantern"], "stats": [{}, {"attack": 1, "resolve": 4}, {"attack": 3, "accuracy": 3, "resolve": 6}, {"attack": 5, "accuracy": 5, "resolve": 10}]},
+    "graftstaff": {"name": "Graftstaff", "names": ["Sapling Staff", "Heartwood Staff", "Masterwork Graftstaff", "Relic Grove-Staff"], "stats": [{}, {"attack": 2, "defense": 1}, {"attack": 3, "defense": 2, "hp": 4}, {"attack": 5, "defense": 3, "hp": 8}]},
+    "glassblades": {"name": "Glassblades", "names": ["Cloudy Glassblades", "Clear Glassblades", "Masterwork Glassblades", "Relic Glassblades"], "stats": [{}, {"attack": 2, "crit": 2}, {"attack": 4, "crit": 4}, {"attack": 6, "crit": 6, "accuracy": 3}]}
+  },
+  "armors": {
+    "heavy": {"name": "Heavy Armor", "names": ["Dented Mail", "Steel Plate", "Masterwork Plate", "Relic Plate"], "stats": [{}, {"defense": 3, "hp": 4}, {"defense": 6, "hp": 8}, {"defense": 9, "hp": 12, "resolve": 5}]},
+    "medium": {"name": "Medium Armor", "names": ["Patched Scale", "Steel Scale", "Masterwork Scale", "Relic Scale"], "stats": [{}, {"defense": 2, "dodge": 1, "hp": 3}, {"defense": 4, "dodge": 3, "hp": 6}, {"defense": 6, "dodge": 5, "hp": 9}]},
+    "light": {"name": "Light Armor", "names": ["Frayed Leathers", "Hardened Leathers", "Masterwork Leathers", "Relic Leathers"], "stats": [{}, {"defense": 1, "dodge": 3}, {"defense": 2, "dodge": 6, "speed": 2}, {"defense": 3, "dodge": 9, "speed": 4}]},
+    "robe": {"name": "Robe", "names": ["Threadbare Robe", "Woven Robe", "Masterwork Robe", "Relic Vestments"], "stats": [{}, {"defense": 1, "resolve": 4, "dodge": 1}, {"defense": 2, "resolve": 8, "dodge": 3}, {"defense": 3, "resolve": 12, "dodge": 5, "attack": 2}]}
+  },
+  "trinkets": {
+    "lucky_coin": {"name": "Lucky Coin", "desc": "+5 Crit.", "stats": {"crit": 5}, "price": 90},
+    "iron_charm": {"name": "Iron Charm", "desc": "+5 Defense.", "stats": {"defense": 5}, "price": 110},
+    "feather_token": {"name": "Feather Token", "desc": "+8 Dodge.", "stats": {"dodge": 8}, "price": 110},
+    "hawk_feather": {"name": "Hawk Feather", "desc": "+6 Accuracy.", "stats": {"accuracy": 6}, "price": 100},
+    "whetstone": {"name": "Whetstone Pendant", "desc": "+3 Attack.", "stats": {"attack": 3}, "price": 120},
+    "quick_boots": {"name": "Courier's Anklet", "desc": "+1 Movement.", "stats": {"move": 1}, "price": 160},
+    "ember_stone": {"name": "Ember Stone", "desc": "+2 Attack, +10 Burn chance.", "stats": {"attack": 2}, "mods": {"burn_chance": 10}, "price": 130},
+    "healers_satchel": {"name": "Healer's Satchel", "desc": "Heals are 20% stronger.", "stats": {}, "mods": {"heal_bonus": 0.2}, "price": 130},
+    "ledger_page": {"name": "Ledger Page", "desc": "A name written in old ink. +12 Resolve.", "stats": {"resolve": 12}, "price": 100},
+    "bell_shard": {"name": "Bell Shard", "desc": "A sliver of the Great Bell. +10 Resolve, immune to Fear.", "stats": {"resolve": 10}, "mods": {"fearless": 1}, "price": 260},
+    "speed_draught": {"name": "Quicksilver Vial", "desc": "+6 Speed.", "stats": {"speed": 6}, "price": 140}
+  },
+  "uniques": {
+    "coral_armor": {"name": "Coral Armor", "slot": "armor", "faction": "saltborn", "desc": "Living coral. +8 Defense; regenerates 5 Defense per turn.", "stats": {"defense": 8, "hp": 6}, "mods": {"def_regen": 5}, "price": 420},
+    "memory_lantern": {"name": "Memory Lantern", "slot": "trinket", "faction": "lantern", "desc": "Allies within 2 tiles are immune to Fear. +8 Resolve.", "stats": {"resolve": 8}, "mods": {"aura_fearless": 2}, "price": 380},
+    "barkskin": {"name": "Barkskin", "slot": "armor", "faction": "rootwardens", "desc": "Grows with its wearer: +2 max Defense for every quest survived (max +20).", "stats": {"defense": 3}, "mods": {"barkskin": 1}, "price": 380},
+    "glass_blades": {"name": "Caravan Glass Blades", "slot": "weapon", "faction": "glass", "desc": "+20 Crit and +4 Attack. Shatters after 5 critical hits.", "stats": {"crit": 20, "attack": 4}, "mods": {"shatter": 5}, "price": 400, "any_melee": true}
+  }
+}

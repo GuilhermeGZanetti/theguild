@@ -1,0 +1,118 @@
+{
+ "grounds": [
+  "grass",
+  "moss",
+  "leaves",
+  "dirt",
+  "mud",
+  "sand",
+  "wetsand",
+  "redsand",
+  "cobble",
+  "stonepath",
+  "planks",
+  "ash",
+  "void"
+ ],
+ "size": 48,
+ "biomes": {
+  "town": {
+   "cliff_index": 13,
+   "water_index": 14,
+   "water": [
+    72,
+    150,
+    170
+   ],
+   "grass": [
+    106,
+    160,
+    72
+   ]
+  },
+  "hush_town": {
+   "cliff_index": 13,
+   "water_index": 14,
+   "water": [
+    110,
+    120,
+    126
+   ],
+   "grass": [
+    120,
+    128,
+    110
+   ]
+  },
+  "coast": {
+   "cliff_index": 13,
+   "water_index": 14,
+   "water": [
+    52,
+    168,
+    180
+   ],
+   "grass": [
+    128,
+    170,
+    84
+   ]
+  },
+  "jungle": {
+   "cliff_index": 13,
+   "water_index": 14,
+   "water": [
+    60,
+    176,
+    170
+   ],
+   "grass": [
+    142,
+    196,
+    58
+   ]
+  },
+  "autumn": {
+   "cliff_index": 13,
+   "water_index": 14,
+   "water": [
+    86,
+    140,
+    140
+   ],
+   "grass": [
+    150,
+    160,
+    70
+   ]
+  },
+  "desert": {
+   "cliff_index": 13,
+   "water_index": 14,
+   "water": [
+    90,
+    170,
+    170
+   ],
+   "grass": [
+    170,
+    160,
+    96
+   ]
+  },
+  "hush": {
+   "cliff_index": 13,
+   "water_index": 14,
+   "water": [
+    96,
+    96,
+    104
+   ],
+   "grass": [
+    128,
+    132,
+    124
+   ]
+  }
+ }
+}

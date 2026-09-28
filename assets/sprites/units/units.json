@@ -1,0 +1,2188 @@
+{
+ "barkborn_graftwarden": {
+  "anchor": [
+   32,
+   49
+  ],
+  "anims": {
+   "attack": [
+    8,
+    4
+   ],
+   "cast": [
+    12,
+    4
+   ],
+   "death": [
+    22,
+    4
+   ],
+   "dodge": [
+    18,
+    2
+   ],
+   "downed": [
+    20,
+    2
+   ],
+   "hit": [
+    16,
+    2
+   ],
+   "idle": [
+    0,
+    4
+   ],
+   "idle_bandage": [
+    26,
+    4
+   ],
+   "walk": [
+    4,
+    4
+   ]
+  },
+  "bandage": true,
+  "canvas": 64
+ },
+ "barkborn_mystic": {
+  "anchor": [
+   32,
+   49
+  ],
+  "anims": {
+   "attack": [
+    8,
+    4
+   ],
+   "cast": [
+    12,
+    4
+   ],
+   "death": [
+    22,
+    4
+   ],
+   "dodge": [
+    18,
+    2
+   ],
+   "downed": [
+    20,
+    2
+   ],
+   "hit": [
+    16,
+    2
+   ],
+   "idle": [
+    0,
+    4
+   ],
+   "idle_bandage": [
+    26,
+    4
+   ],
+   "walk": [
+    4,
+    4
+   ]
+  },
+  "bandage": true,
+  "canvas": 64
+ },
+ "barkborn_ranger": {
+  "anchor": [
+   32,
+   49
+  ],
+  "anims": {
+   "attack": [
+    8,
+    4
+   ],
+   "cast": [
+    12,
+    4
+   ],
+   "death": [
+    22,
+    4
+   ],
+   "dodge": [
+    18,
+    2
+   ],
+   "downed": [
+    20,
+    2
+   ],
+   "hit": [
+    16,
+    2
+   ],
+   "idle": [
+    0,
+    4
+   ],
+   "idle_bandage": [
+    26,
+    4
+   ],
+   "walk": [
+    4,
+    4
+   ]
+  },
+  "bandage": true,
+  "canvas": 64
+ },
+ "barkborn_rogue": {
+  "anchor": [
+   32,
+   49
+  ],
+  "anims": {
+   "attack": [
+    8,
+    4
+   ],
+   "cast": [
+    12,
+    4
+   ],
+   "death": [
+    22,
+    4
+   ],
+   "dodge": [
+    18,
+    2
+   ],
+   "downed": [
+    20,
+    2
+   ],
+   "hit": [
+    16,
+    2
+   ],
+   "idle": [
+    0,
+    4
+   ],
+   "idle_bandage": [
+    26,
+    4
+   ],
+   "walk": [
+    4,
+    4
+   ]
+  },
+  "bandage": true,
+  "canvas": 64
+ },
+ "barkborn_warrior": {
+  "anchor": [
+   32,
+   49
+  ],
+  "anims": {
+   "attack": [
+    8,
+    4
+   ],
+   "cast": [
+    12,
+    4
+   ],
+   "death": [
+    22,
+    4
+   ],
+   "dodge": [
+    18,
+    2
+   ],
+   "downed": [
+    20,
+    2
+   ],
+   "hit": [
+    16,
+    2
+   ],
+   "idle": [
+    0,
+    4
+   ],
+   "idle_bandage": [
+    26,
+    4
+   ],
+   "walk": [
+    4,
+    4
+   ]
+  },
+  "bandage": true,
+  "canvas": 64
+ },
+ "deer": {
+  "anchor": [
+   48,
+   74
+  ],
+  "anims": {
+   "attack": [
+    8,
+    4
+   ],
+   "cast": [
+    12,
+    4
+   ],
+   "death": [
+    22,
+    4
+   ],
+   "dodge": [
+    18,
+    2
+   ],
+   "downed": [
+    20,
+    2
+   ],
+   "hit": [
+    16,
+    2
+   ],
+   "idle": [
+    0,
+    4
+   ],
+   "walk": [
+    4,
+    4
+   ]
+  },
+  "bandage": false,
+  "canvas": 96
+ },
+ "deer_elder": {
+  "anchor": [
+   48,
+   74
+  ],
+  "anims": {
+   "attack": [
+    8,
+    4
+   ],
+   "cast": [
+    12,
+    4
+   ],
+   "death": [
+    22,
+    4
+   ],
+   "dodge": [
+    18,
+    2
+   ],
+   "downed": [
+    20,
+    2
+   ],
+   "hit": [
+    16,
+    2
+   ],
+   "idle": [
+    0,
+    4
+   ],
+   "walk": [
+    4,
+    4
+   ]
+  },
+  "bandage": false,
+  "canvas": 96
+ },
+ "hollow": {
+  "anchor": [
+   32,
+   49
+  ],
+  "anims": {
+   "attack": [
+    8,
+    4
+   ],
+   "cast": [
+    12,
+    4
+   ],
+   "death": [
+    22,
+    4
+   ],
+   "dodge": [
+    18,
+    2
+   ],
+   "downed": [
+    20,
+    2
+   ],
+   "hit": [
+    16,
+    2
+   ],
+   "idle": [
+    0,
+    4
+   ],
+   "walk": [
+    4,
+    4
+   ]
+  },
+  "bandage": false,
+  "canvas": 64
+ },
+ "human_mystic_a": {
+  "anchor": [
+   32,
+   49
+  ],
+  "anims": {
+   "attack": [
+    8,
+    4
+   ],
+   "cast": [
+    12,
+    4
+   ],
+   "death": [
+    22,
+    4
+   ],
+   "dodge": [
+    18,
+    2
+   ],
+   "downed": [
+    20,
+    2
+   ],
+   "hit": [
+    16,
+    2
+   ],
+   "idle": [
+    0,
+    4
+   ],
+   "idle_bandage": [
+    26,
+    4
+   ],
+   "walk": [
+    4,
+    4
+   ]
+  },
+  "bandage": true,
+  "canvas": 64
+ },
+ "human_mystic_b": {
+  "anchor": [
+   32,
+   49
+  ],
+  "anims": {
+   "attack": [
+    8,
+    4
+   ],
+   "cast": [
+    12,
+    4
+   ],
+   "death": [
+    22,
+    4
+   ],
+   "dodge": [
+    18,
+    2
+   ],
+   "downed": [
+    20,
+    2
+   ],
+   "hit": [
+    16,
+    2
+   ],
+   "idle": [
+    0,
+    4
+   ],
+   "idle_bandage": [
+    26,
+    4
+   ],
+   "walk": [
+    4,
+    4
+   ]
+  },
+  "bandage": true,
+  "canvas": 64
+ },
+ "human_mystic_c": {
+  "anchor": [
+   32,
+   49
+  ],
+  "anims": {
+   "attack": [
+    8,
+    4
+   ],
+   "cast": [
+    12,
+    4
+   ],
+   "death": [
+    22,
+    4
+   ],
+   "dodge": [
+    18,
+    2
+   ],
+   "downed": [
+    20,
+    2
+   ],
+   "hit": [
+    16,
+    2
+   ],
+   "idle": [
+    0,
+    4
+   ],
+   "idle_bandage": [
+    26,
+    4
+   ],
+   "walk": [
+    4,
+    4
+   ]
+  },
+  "bandage": true,
+  "canvas": 64
+ },
+ "human_ranger_a": {
+  "anchor": [
+   32,
+   49
+  ],
+  "anims": {
+   "attack": [
+    8,
+    4
+   ],
+   "cast": [
+    12,
+    4
+   ],
+   "death": [
+    22,
+    4
+   ],
+   "dodge": [
+    18,
+    2
+   ],
+   "downed": [
+    20,
+    2
+   ],
+   "hit": [
+    16,
+    2
+   ],
+   "idle": [
+    0,
+    4
+   ],
+   "idle_bandage": [
+    26,
+    4
+   ],
+   "walk": [
+    4,
+    4
+   ]
+  },
+  "bandage": true,
+  "canvas": 64
+ },
+ "human_ranger_b": {
+  "anchor": [
+   32,
+   49
+  ],
+  "anims": {
+   "attack": [
+    8,
+    4
+   ],
+   "cast": [
+    12,
+    4
+   ],
+   "death": [
+    22,
+    4
+   ],
+   "dodge": [
+    18,
+    2
+   ],
+   "downed": [
+    20,
+    2
+   ],
+   "hit": [
+    16,
+    2
+   ],
+   "idle": [
+    0,
+    4
+   ],
+   "idle_bandage": [
+    26,
+    4
+   ],
+   "walk": [
+    4,
+    4
+   ]
+  },
+  "bandage": true,
+  "canvas": 64
+ },
+ "human_ranger_c": {
+  "anchor": [
+   32,
+   49
+  ],
+  "anims": {
+   "attack": [
+    8,
+    4
+   ],
+   "cast": [
+    12,
+    4
+   ],
+   "death": [
+    22,
+    4
+   ],
+   "dodge": [
+    18,
+    2
+   ],
+   "downed": [
+    20,
+    2
+   ],
+   "hit": [
+    16,
+    2
+   ],
+   "idle": [
+    0,
+    4
+   ],
+   "idle_bandage": [
+    26,
+    4
+   ],
+   "walk": [
+    4,
+    4
+   ]
+  },
+  "bandage": true,
+  "canvas": 64
+ },
+ "human_rogue_a": {
+  "anchor": [
+   32,
+   49
+  ],
+  "anims": {
+   "attack": [
+    8,
+    4
+   ],
+   "cast": [
+    12,
+    4
+   ],
+   "death": [
+    22,
+    4
+   ],
+   "dodge": [
+    18,
+    2
+   ],
+   "downed": [
+    20,
+    2
+   ],
+   "hit": [
+    16,
+    2
+   ],
+   "idle": [
+    0,
+    4
+   ],
+   "idle_bandage": [
+    26,
+    4
+   ],
+   "walk": [
+    4,
+    4
+   ]
+  },
+  "bandage": true,
+  "canvas": 64
+ },
+ "human_rogue_b": {
+  "anchor": [
+   32,
+   49
+  ],
+  "anims": {
+   "attack": [
+    8,
+    4
+   ],
+   "cast": [
+    12,
+    4
+   ],
+   "death": [
+    22,
+    4
+   ],
+   "dodge": [
+    18,
+    2
+   ],
+   "downed": [
+    20,
+    2
+   ],
+   "hit": [
+    16,
+    2
+   ],
+   "idle": [
+    0,
+    4
+   ],
+   "idle_bandage": [
+    26,
+    4
+   ],
+   "walk": [
+    4,
+    4
+   ]
+  },
+  "bandage": true,
+  "canvas": 64
+ },
+ "human_rogue_c": {
+  "anchor": [
+   32,
+   49
+  ],
+  "anims": {
+   "attack": [
+    8,
+    4
+   ],
+   "cast": [
+    12,
+    4
+   ],
+   "death": [
+    22,
+    4
+   ],
+   "dodge": [
+    18,
+    2
+   ],
+   "downed": [
+    20,
+    2
+   ],
+   "hit": [
+    16,
+    2
+   ],
+   "idle": [
+    0,
+    4
+   ],
+   "idle_bandage": [
+    26,
+    4
+   ],
+   "walk": [
+    4,
+    4
+   ]
+  },
+  "bandage": true,
+  "canvas": 64
+ },
+ "human_warrior_a": {
+  "anchor": [
+   32,
+   49
+  ],
+  "anims": {
+   "attack": [
+    8,
+    4
+   ],
+   "cast": [
+    12,
+    4
+   ],
+   "death": [
+    22,
+    4
+   ],
+   "dodge": [
+    18,
+    2
+   ],
+   "downed": [
+    20,
+    2
+   ],
+   "hit": [
+    16,
+    2
+   ],
+   "idle": [
+    0,
+    4
+   ],
+   "idle_bandage": [
+    26,
+    4
+   ],
+   "walk": [
+    4,
+    4
+   ]
+  },
+  "bandage": true,
+  "canvas": 64
+ },
+ "human_warrior_b": {
+  "anchor": [
+   32,
+   49
+  ],
+  "anims": {
+   "attack": [
+    8,
+    4
+   ],
+   "cast": [
+    12,
+    4
+   ],
+   "death": [
+    22,
+    4
+   ],
+   "dodge": [
+    18,
+    2
+   ],
+   "downed": [
+    20,
+    2
+   ],
+   "hit": [
+    16,
+    2
+   ],
+   "idle": [
+    0,
+    4
+   ],
+   "idle_bandage": [
+    26,
+    4
+   ],
+   "walk": [
+    4,
+    4
+   ]
+  },
+  "bandage": true,
+  "canvas": 64
+ },
+ "human_warrior_c": {
+  "anchor": [
+   32,
+   49
+  ],
+  "anims": {
+   "attack": [
+    8,
+    4
+   ],
+   "cast": [
+    12,
+    4
+   ],
+   "death": [
+    22,
+    4
+   ],
+   "dodge": [
+    18,
+    2
+   ],
+   "downed": [
+    20,
+    2
+   ],
+   "hit": [
+    16,
+    2
+   ],
+   "idle": [
+    0,
+    4
+   ],
+   "idle_bandage": [
+    26,
+    4
+   ],
+   "walk": [
+    4,
+    4
+   ]
+  },
+  "bandage": true,
+  "canvas": 64
+ },
+ "khepri_mystic": {
+  "anchor": [
+   32,
+   49
+  ],
+  "anims": {
+   "attack": [
+    8,
+    4
+   ],
+   "cast": [
+    12,
+    4
+   ],
+   "death": [
+    22,
+    4
+   ],
+   "dodge": [
+    18,
+    2
+   ],
+   "downed": [
+    20,
+    2
+   ],
+   "hit": [
+    16,
+    2
+   ],
+   "idle": [
+    0,
+    4
+   ],
+   "idle_bandage": [
+    26,
+    4
+   ],
+   "walk": [
+    4,
+    4
+   ]
+  },
+  "bandage": true,
+  "canvas": 64
+ },
+ "khepri_ranger": {
+  "anchor": [
+   32,
+   49
+  ],
+  "anims": {
+   "attack": [
+    8,
+    4
+   ],
+   "cast": [
+    12,
+    4
+   ],
+   "death": [
+    22,
+    4
+   ],
+   "dodge": [
+    18,
+    2
+   ],
+   "downed": [
+    20,
+    2
+   ],
+   "hit": [
+    16,
+    2
+   ],
+   "idle": [
+    0,
+    4
+   ],
+   "idle_bandage": [
+    26,
+    4
+   ],
+   "walk": [
+    4,
+    4
+   ]
+  },
+  "bandage": true,
+  "canvas": 64
+ },
+ "khepri_rogue": {
+  "anchor": [
+   32,
+   49
+  ],
+  "anims": {
+   "attack": [
+    8,
+    4
+   ],
+   "cast": [
+    12,
+    4
+   ],
+   "death": [
+    22,
+    4
+   ],
+   "dodge": [
+    18,
+    2
+   ],
+   "downed": [
+    20,
+    2
+   ],
+   "hit": [
+    16,
+    2
+   ],
+   "idle": [
+    0,
+    4
+   ],
+   "idle_bandage": [
+    26,
+    4
+   ],
+   "walk": [
+    4,
+    4
+   ]
+  },
+  "bandage": true,
+  "canvas": 64
+ },
+ "khepri_sandreaver": {
+  "anchor": [
+   32,
+   49
+  ],
+  "anims": {
+   "attack": [
+    8,
+    4
+   ],
+   "cast": [
+    12,
+    4
+   ],
+   "death": [
+    22,
+    4
+   ],
+   "dodge": [
+    18,
+    2
+   ],
+   "downed": [
+    20,
+    2
+   ],
+   "hit": [
+    16,
+    2
+   ],
+   "idle": [
+    0,
+    4
+   ],
+   "idle_bandage": [
+    26,
+    4
+   ],
+   "walk": [
+    4,
+    4
+   ]
+  },
+  "bandage": true,
+  "canvas": 64
+ },
+ "khepri_warrior": {
+  "anchor": [
+   32,
+   49
+  ],
+  "anims": {
+   "attack": [
+    8,
+    4
+   ],
+   "cast": [
+    12,
+    4
+   ],
+   "death": [
+    22,
+    4
+   ],
+   "dodge": [
+    18,
+    2
+   ],
+   "downed": [
+    20,
+    2
+   ],
+   "hit": [
+    16,
+    2
+   ],
+   "idle": [
+    0,
+    4
+   ],
+   "idle_bandage": [
+    26,
+    4
+   ],
+   "walk": [
+    4,
+    4
+   ]
+  },
+  "bandage": true,
+  "canvas": 64
+ },
+ "mothkin_lanternbearer": {
+  "anchor": [
+   32,
+   49
+  ],
+  "anims": {
+   "attack": [
+    8,
+    4
+   ],
+   "cast": [
+    12,
+    4
+   ],
+   "death": [
+    22,
+    4
+   ],
+   "dodge": [
+    18,
+    2
+   ],
+   "downed": [
+    20,
+    2
+   ],
+   "hit": [
+    16,
+    2
+   ],
+   "idle": [
+    0,
+    4
+   ],
+   "idle_bandage": [
+    26,
+    4
+   ],
+   "walk": [
+    4,
+    4
+   ]
+  },
+  "bandage": true,
+  "canvas": 64
+ },
+ "mothkin_mystic": {
+  "anchor": [
+   32,
+   49
+  ],
+  "anims": {
+   "attack": [
+    8,
+    4
+   ],
+   "cast": [
+    12,
+    4
+   ],
+   "death": [
+    22,
+    4
+   ],
+   "dodge": [
+    18,
+    2
+   ],
+   "downed": [
+    20,
+    2
+   ],
+   "hit": [
+    16,
+    2
+   ],
+   "idle": [
+    0,
+    4
+   ],
+   "idle_bandage": [
+    26,
+    4
+   ],
+   "walk": [
+    4,
+    4
+   ]
+  },
+  "bandage": true,
+  "canvas": 64
+ },
+ "mothkin_ranger": {
+  "anchor": [
+   32,
+   49
+  ],
+  "anims": {
+   "attack": [
+    8,
+    4
+   ],
+   "cast": [
+    12,
+    4
+   ],
+   "death": [
+    22,
+    4
+   ],
+   "dodge": [
+    18,
+    2
+   ],
+   "downed": [
+    20,
+    2
+   ],
+   "hit": [
+    16,
+    2
+   ],
+   "idle": [
+    0,
+    4
+   ],
+   "idle_bandage": [
+    26,
+    4
+   ],
+   "walk": [
+    4,
+    4
+   ]
+  },
+  "bandage": true,
+  "canvas": 64
+ },
+ "mothkin_rogue": {
+  "anchor": [
+   32,
+   49
+  ],
+  "anims": {
+   "attack": [
+    8,
+    4
+   ],
+   "cast": [
+    12,
+    4
+   ],
+   "death": [
+    22,
+    4
+   ],
+   "dodge": [
+    18,
+    2
+   ],
+   "downed": [
+    20,
+    2
+   ],
+   "hit": [
+    16,
+    2
+   ],
+   "idle": [
+    0,
+    4
+   ],
+   "idle_bandage": [
+    26,
+    4
+   ],
+   "walk": [
+    4,
+    4
+   ]
+  },
+  "bandage": true,
+  "canvas": 64
+ },
+ "mothkin_warrior": {
+  "anchor": [
+   32,
+   49
+  ],
+  "anims": {
+   "attack": [
+    8,
+    4
+   ],
+   "cast": [
+    12,
+    4
+   ],
+   "death": [
+    22,
+    4
+   ],
+   "dodge": [
+    18,
+    2
+   ],
+   "downed": [
+    20,
+    2
+   ],
+   "hit": [
+    16,
+    2
+   ],
+   "idle": [
+    0,
+    4
+   ],
+   "idle_bandage": [
+    26,
+    4
+   ],
+   "walk": [
+    4,
+    4
+   ]
+  },
+  "bandage": true,
+  "canvas": 64
+ },
+ "npc_villager": {
+  "anchor": [
+   32,
+   49
+  ],
+  "anims": {
+   "attack": [
+    8,
+    4
+   ],
+   "cast": [
+    12,
+    4
+   ],
+   "death": [
+    22,
+    4
+   ],
+   "dodge": [
+    18,
+    2
+   ],
+   "downed": [
+    20,
+    2
+   ],
+   "hit": [
+    16,
+    2
+   ],
+   "idle": [
+    0,
+    4
+   ],
+   "walk": [
+    4,
+    4
+   ]
+  },
+  "bandage": false,
+  "canvas": 64
+ },
+ "quietling": {
+  "anchor": [
+   32,
+   49
+  ],
+  "anims": {
+   "attack": [
+    8,
+    4
+   ],
+   "cast": [
+    12,
+    4
+   ],
+   "death": [
+    22,
+    4
+   ],
+   "dodge": [
+    18,
+    2
+   ],
+   "downed": [
+    20,
+    2
+   ],
+   "hit": [
+    16,
+    2
+   ],
+   "idle": [
+    0,
+    4
+   ],
+   "walk": [
+    4,
+    4
+   ]
+  },
+  "bandage": false,
+  "canvas": 64
+ },
+ "scorpion": {
+  "anchor": [
+   48,
+   74
+  ],
+  "anims": {
+   "attack": [
+    8,
+    4
+   ],
+   "cast": [
+    12,
+    4
+   ],
+   "death": [
+    22,
+    4
+   ],
+   "dodge": [
+    18,
+    2
+   ],
+   "downed": [
+    20,
+    2
+   ],
+   "hit": [
+    16,
+    2
+   ],
+   "idle": [
+    0,
+    4
+   ],
+   "walk": [
+    4,
+    4
+   ]
+  },
+  "bandage": false,
+  "canvas": 96
+ },
+ "scorpion_matriarch": {
+  "anchor": [
+   48,
+   74
+  ],
+  "anims": {
+   "attack": [
+    8,
+    4
+   ],
+   "cast": [
+    12,
+    4
+   ],
+   "death": [
+    22,
+    4
+   ],
+   "dodge": [
+    18,
+    2
+   ],
+   "downed": [
+    20,
+    2
+   ],
+   "hit": [
+    16,
+    2
+   ],
+   "idle": [
+    0,
+    4
+   ],
+   "walk": [
+    4,
+    4
+   ]
+  },
+  "bandage": false,
+  "canvas": 96
+ },
+ "serpent": {
+  "anchor": [
+   32,
+   49
+  ],
+  "anims": {
+   "attack": [
+    8,
+    4
+   ],
+   "cast": [
+    12,
+    4
+   ],
+   "death": [
+    22,
+    4
+   ],
+   "dodge": [
+    18,
+    2
+   ],
+   "downed": [
+    20,
+    2
+   ],
+   "hit": [
+    16,
+    2
+   ],
+   "idle": [
+    0,
+    4
+   ],
+   "walk": [
+    4,
+    4
+   ]
+  },
+  "bandage": false,
+  "canvas": 64
+ },
+ "serpent_elder": {
+  "anchor": [
+   48,
+   74
+  ],
+  "anims": {
+   "attack": [
+    8,
+    4
+   ],
+   "cast": [
+    12,
+    4
+   ],
+   "death": [
+    22,
+    4
+   ],
+   "dodge": [
+    18,
+    2
+   ],
+   "downed": [
+    20,
+    2
+   ],
+   "hit": [
+    16,
+    2
+   ],
+   "idle": [
+    0,
+    4
+   ],
+   "walk": [
+    4,
+    4
+   ]
+  },
+  "bandage": false,
+  "canvas": 96
+ },
+ "spirit": {
+  "anchor": [
+   32,
+   49
+  ],
+  "anims": {
+   "attack": [
+    8,
+    4
+   ],
+   "cast": [
+    12,
+    4
+   ],
+   "death": [
+    22,
+    4
+   ],
+   "dodge": [
+    18,
+    2
+   ],
+   "downed": [
+    20,
+    2
+   ],
+   "hit": [
+    16,
+    2
+   ],
+   "idle": [
+    0,
+    4
+   ],
+   "walk": [
+    4,
+    4
+   ]
+  },
+  "bandage": false,
+  "canvas": 64
+ },
+ "spirit_elder": {
+  "anchor": [
+   48,
+   74
+  ],
+  "anims": {
+   "attack": [
+    8,
+    4
+   ],
+   "cast": [
+    12,
+    4
+   ],
+   "death": [
+    22,
+    4
+   ],
+   "dodge": [
+    18,
+    2
+   ],
+   "downed": [
+    20,
+    2
+   ],
+   "hit": [
+    16,
+    2
+   ],
+   "idle": [
+    0,
+    4
+   ],
+   "walk": [
+    4,
+    4
+   ]
+  },
+  "bandage": false,
+  "canvas": 96
+ },
+ "stinger": {
+  "anchor": [
+   32,
+   49
+  ],
+  "anims": {
+   "attack": [
+    8,
+    4
+   ],
+   "cast": [
+    12,
+    4
+   ],
+   "death": [
+    22,
+    4
+   ],
+   "dodge": [
+    18,
+    2
+   ],
+   "downed": [
+    20,
+    2
+   ],
+   "hit": [
+    16,
+    2
+   ],
+   "idle": [
+    0,
+    4
+   ],
+   "walk": [
+    4,
+    4
+   ]
+  },
+  "bandage": false,
+  "canvas": 64
+ },
+ "stinger_queen": {
+  "anchor": [
+   48,
+   74
+  ],
+  "anims": {
+   "attack": [
+    8,
+    4
+   ],
+   "cast": [
+    12,
+    4
+   ],
+   "death": [
+    22,
+    4
+   ],
+   "dodge": [
+    18,
+    2
+   ],
+   "downed": [
+    20,
+    2
+   ],
+   "hit": [
+    16,
+    2
+   ],
+   "idle": [
+    0,
+    4
+   ],
+   "walk": [
+    4,
+    4
+   ]
+  },
+  "bandage": false,
+  "canvas": 96
+ },
+ "tidefolk_mystic": {
+  "anchor": [
+   32,
+   49
+  ],
+  "anims": {
+   "attack": [
+    8,
+    4
+   ],
+   "cast": [
+    12,
+    4
+   ],
+   "death": [
+    22,
+    4
+   ],
+   "dodge": [
+    18,
+    2
+   ],
+   "downed": [
+    20,
+    2
+   ],
+   "hit": [
+    16,
+    2
+   ],
+   "idle": [
+    0,
+    4
+   ],
+   "idle_bandage": [
+    26,
+    4
+   ],
+   "walk": [
+    4,
+    4
+   ]
+  },
+  "bandage": true,
+  "canvas": 64
+ },
+ "tidefolk_ranger": {
+  "anchor": [
+   32,
+   49
+  ],
+  "anims": {
+   "attack": [
+    8,
+    4
+   ],
+   "cast": [
+    12,
+    4
+   ],
+   "death": [
+    22,
+    4
+   ],
+   "dodge": [
+    18,
+    2
+   ],
+   "downed": [
+    20,
+    2
+   ],
+   "hit": [
+    16,
+    2
+   ],
+   "idle": [
+    0,
+    4
+   ],
+   "idle_bandage": [
+    26,
+    4
+   ],
+   "walk": [
+    4,
+    4
+   ]
+  },
+  "bandage": true,
+  "canvas": 64
+ },
+ "tidefolk_rogue": {
+  "anchor": [
+   32,
+   49
+  ],
+  "anims": {
+   "attack": [
+    8,
+    4
+   ],
+   "cast": [
+    12,
+    4
+   ],
+   "death": [
+    22,
+    4
+   ],
+   "dodge": [
+    18,
+    2
+   ],
+   "downed": [
+    20,
+    2
+   ],
+   "hit": [
+    16,
+    2
+   ],
+   "idle": [
+    0,
+    4
+   ],
+   "idle_bandage": [
+    26,
+    4
+   ],
+   "walk": [
+    4,
+    4
+   ]
+  },
+  "bandage": true,
+  "canvas": 64
+ },
+ "tidefolk_tidecaller": {
+  "anchor": [
+   32,
+   49
+  ],
+  "anims": {
+   "attack": [
+    8,
+    4
+   ],
+   "cast": [
+    12,
+    4
+   ],
+   "death": [
+    22,
+    4
+   ],
+   "dodge": [
+    18,
+    2
+   ],
+   "downed": [
+    20,
+    2
+   ],
+   "hit": [
+    16,
+    2
+   ],
+   "idle": [
+    0,
+    4
+   ],
+   "idle_bandage": [
+    26,
+    4
+   ],
+   "walk": [
+    4,
+    4
+   ]
+  },
+  "bandage": true,
+  "canvas": 64
+ },
+ "tidefolk_warrior": {
+  "anchor": [
+   32,
+   49
+  ],
+  "anims": {
+   "attack": [
+    8,
+    4
+   ],
+   "cast": [
+    12,
+    4
+   ],
+   "death": [
+    22,
+    4
+   ],
+   "dodge": [
+    18,
+    2
+   ],
+   "downed": [
+    20,
+    2
+   ],
+   "hit": [
+    16,
+    2
+   ],
+   "idle": [
+    0,
+    4
+   ],
+   "idle_bandage": [
+    26,
+    4
+   ],
+   "walk": [
+    4,
+    4
+   ]
+  },
+  "bandage": true,
+  "canvas": 64
+ },
+ "toad_brute": {
+  "anchor": [
+   32,
+   49
+  ],
+  "anims": {
+   "attack": [
+    8,
+    4
+   ],
+   "cast": [
+    12,
+    4
+   ],
+   "death": [
+    22,
+    4
+   ],
+   "dodge": [
+    18,
+    2
+   ],
+   "downed": [
+    20,
+    2
+   ],
+   "hit": [
+    16,
+    2
+   ],
+   "idle": [
+    0,
+    4
+   ],
+   "walk": [
+    4,
+    4
+   ]
+  },
+  "bandage": false,
+  "canvas": 64
+ },
+ "toad_slinger": {
+  "anchor": [
+   32,
+   49
+  ],
+  "anims": {
+   "attack": [
+    8,
+    4
+   ],
+   "cast": [
+    12,
+    4
+   ],
+   "death": [
+    22,
+    4
+   ],
+   "dodge": [
+    18,
+    2
+   ],
+   "downed": [
+    20,
+    2
+   ],
+   "hit": [
+    16,
+    2
+   ],
+   "idle": [
+    0,
+    4
+   ],
+   "walk": [
+    4,
+    4
+   ]
+  },
+  "bandage": false,
+  "canvas": 64
+ },
+ "unnamed": {
+  "anchor": [
+   64,
+   99
+  ],
+  "anims": {
+   "attack": [
+    8,
+    4
+   ],
+   "cast": [
+    12,
+    4
+   ],
+   "death": [
+    22,
+    4
+   ],
+   "dodge": [
+    18,
+    2
+   ],
+   "downed": [
+    20,
+    2
+   ],
+   "hit": [
+    16,
+    2
+   ],
+   "idle": [
+    0,
+    4
+   ],
+   "walk": [
+    4,
+    4
+   ]
+  },
+  "bandage": false,
+  "canvas": 128
+ },
+ "unwritten": {
+  "anchor": [
+   48,
+   74
+  ],
+  "anims": {
+   "attack": [
+    8,
+    4
+   ],
+   "cast": [
+    12,
+    4
+   ],
+   "death": [
+    22,
+    4
+   ],
+   "dodge": [
+    18,
+    2
+   ],
+   "downed": [
+    20,
+    2
+   ],
+   "hit": [
+    16,
+    2
+   ],
+   "idle": [
+    0,
+    4
+   ],
+   "walk": [
+    4,
+    4
+   ]
+  },
+  "bandage": false,
+  "canvas": 96
+ }
+}

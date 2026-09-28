@@ -1,0 +1,10 @@
+{
+  "knight": {"name": "Knight", "class": "warrior", "desc": "An oathbound shield. Tougher armor, punishing zones of control.", "passive": "knight_oath", "skill": "shield_wall", "stat": {"defense": 3, "hp": 8}},
+  "berserker": {"name": "Berserker", "class": "warrior", "desc": "Grows deadlier the closer to death.", "passive": "bloodlust", "skill": "whirlwind", "stat": {"attack": 3, "speed": 4}},
+  "assassin": {"name": "Assassin", "class": "rogue", "desc": "Every critical hit opens a wound.", "passive": "assassin_creed", "skill": "vanish", "stat": {"crit": 4, "attack": 2}},
+  "duelist": {"name": "Duelist", "class": "rogue", "desc": "Punishes every missed blow.", "passive": "riposte", "skill": "flurry", "stat": {"dodge": 5, "accuracy": 3}},
+  "sharpshooter": {"name": "Sharpshooter", "class": "ranger", "desc": "Longer reach and deadlier shots.", "passive": "sharpshooter_eye", "skill": "deadeye", "stat": {"accuracy": 5}},
+  "warden": {"name": "Warden", "class": "ranger", "desc": "Master of overwatch and area denial.", "passive": "warden_watch", "skill": "rain_of_arrows", "stat": {"speed": 4, "resolve": 5}},
+  "pyromancer": {"name": "Pyromancer", "class": "mystic", "desc": "Fire that clings and spreads.", "passive": "pyro_passion", "skill": "inferno", "stat": {"attack": 3}},
+  "oracle": {"name": "Oracle", "class": "mystic", "desc": "Sees a moment ahead. Stronger heals and steady allies.", "passive": "oracle_sight", "skill": "foresight", "stat": {"resolve": 8, "hp": 6}}
+}

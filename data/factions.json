@@ -1,0 +1,30 @@
+{
+  "saltborn": {
+    "name": "Saltborn Compact", "short": "Saltborn", "people": "Tidefolk", "race": "tidefolk", "region": "coast", "rival": "glass",
+    "answer": "Flee by sea; the ocean remembers.", "color": [84, 188, 196],
+    "desc": "Amphibious sailors who keep their memories inside symbiotic jellyfish. They hold the sea lanes of the Coast of the Drowned Bells.",
+    "unique_class": "tidecaller", "unique_item": "coral_armor",
+    "chain": ["The Drowned Bell", "The Tide Fleet"]
+  },
+  "lantern": {
+    "name": "Lantern Conclave", "short": "Conclave", "people": "Mothkin", "race": "mothkin", "region": "stilts", "rival": "rootwardens",
+    "answer": "Record everything; nothing may be forgotten.", "color": [240, 200, 96],
+    "desc": "Moth-winged archivists who store memories as light in lanterns, high on the Lampwick Stilts.",
+    "unique_class": "lanternbearer", "unique_item": "memory_lantern",
+    "chain": ["The Dimming Archive", "The Thousand Lanterns"]
+  },
+  "rootwardens": {
+    "name": "Rootwardens", "short": "Rootwardens", "people": "Barkborn", "race": "barkborn", "region": "ember", "rival": "lantern",
+    "answer": "Forgetting is natural; the Hush is a season that must pass.", "color": [206, 120, 60],
+    "desc": "Wooden folk grown from seeds planted on graves. They tend the Ember Wood, a forest in endless autumn.",
+    "unique_class": "graftwarden", "unique_item": "barkskin",
+    "chain": ["The Grave Orchard", "The Last Leaf"]
+  },
+  "glass": {
+    "name": "Glass Caravans", "short": "Caravans", "people": "Khepri", "race": "khepri", "region": "dunes", "rival": "saltborn",
+    "answer": "Sell what the Hush leaves behind.", "color": [196, 120, 200],
+    "desc": "Beetle-folk merchants who sail the Sunken Dunes in glass-hulled ships, trading in the ruins of forgotten cities.",
+    "unique_class": "sandreaver", "unique_item": "glass_blades",
+    "chain": ["The Salvage Rights", "The Glass Bottle"]
+  }
+}

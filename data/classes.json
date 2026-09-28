@@ -1,0 +1,87 @@
+{
+  "warrior": {
+    "name": "Warrior", "role": "Frontline. Holds zones of control and protects allies.",
+    "melee": true, "basic": "strike", "start_skill": "shield_bash", "look": "warrior",
+    "weapon_family": "sword", "armor_family": "heavy", "wage": 12,
+    "base": {"hp": 56, "defense": 9, "dodge": 6, "speed": 30, "move": 4, "crit": 6, "attack": 16, "accuracy": 70, "range": 1, "resolve": 45},
+    "growth": {"hp": 4.2, "defense": 0.8, "dodge": 0.35, "speed": 0.45, "crit": 0.3, "attack": 1.0, "accuracy": 1.0, "resolve": 1.2},
+    "potential_bias": ["hp", "defense"],
+    "branches": {"guardian": {"name": "Guardian", "skills": ["brace", "taunt", "bulwark", "last_stand"]},
+                  "warlord": {"name": "Warlord", "skills": ["cleave", "sunder", "rally", "executioner"]}},
+    "subclasses": ["knight", "berserker"]
+  },
+  "rogue": {
+    "name": "Rogue", "role": "Flanker. Burst damage and crippling debuffs.",
+    "melee": true, "basic": "stab", "start_skill": "backstab", "look": "rogue",
+    "weapon_family": "daggers", "armor_family": "light", "wage": 12,
+    "base": {"hp": 40, "defense": 4, "dodge": 22, "speed": 52, "move": 5, "crit": 14, "attack": 17, "accuracy": 74, "range": 1, "resolve": 32},
+    "growth": {"hp": 2.8, "defense": 0.35, "dodge": 0.9, "speed": 0.8, "crit": 0.7, "attack": 1.1, "accuracy": 1.1, "resolve": 0.9},
+    "potential_bias": ["dodge", "crit"],
+    "branches": {"shadow": {"name": "Shadow", "skills": ["shadowstep", "evasion", "smoke_bomb", "assassinate"]},
+                  "poisoner": {"name": "Poisoner", "skills": ["poisoned_blade", "throwing_knives", "crippling_strike", "venom_cloud"]}},
+    "subclasses": ["assassin", "duelist"]
+  },
+  "ranger": {
+    "name": "Ranger", "role": "Ranged damage and overwatch.",
+    "melee": false, "basic": "shoot", "start_skill": "aimed_shot", "look": "ranger",
+    "weapon_family": "bow", "armor_family": "light", "wage": 12,
+    "base": {"hp": 38, "defense": 4, "dodge": 12, "speed": 42, "move": 4, "crit": 10, "attack": 16, "accuracy": 78, "range": 5, "resolve": 35},
+    "growth": {"hp": 2.7, "defense": 0.35, "dodge": 0.55, "speed": 0.6, "crit": 0.55, "attack": 1.0, "accuracy": 1.3, "resolve": 1.0},
+    "potential_bias": ["accuracy", "attack"],
+    "branches": {"marksman": {"name": "Marksman", "skills": ["steady_hands", "piercing_shot", "suppress", "headshot"]},
+                  "hunter": {"name": "Hunter", "skills": ["pinning_arrow", "hunters_mark", "volley", "snare_trap"]}},
+    "subclasses": ["sharpshooter", "warden"]
+  },
+  "mystic": {
+    "name": "Mystic", "role": "Magic damage or healing, by specialization.",
+    "melee": false, "basic": "arcane_bolt", "start_skill": "mend", "look": "mystic",
+    "weapon_family": "staff", "armor_family": "robe", "wage": 13,
+    "base": {"hp": 34, "defense": 3, "dodge": 10, "speed": 38, "move": 4, "crit": 8, "attack": 18, "accuracy": 75, "range": 4, "resolve": 50},
+    "growth": {"hp": 2.5, "defense": 0.3, "dodge": 0.45, "speed": 0.55, "crit": 0.45, "attack": 1.25, "accuracy": 1.0, "resolve": 1.4},
+    "potential_bias": ["attack", "resolve"],
+    "branches": {"elemental": {"name": "Elemental", "skills": ["firebolt", "frost_lance", "flame_wave", "chain_lightning"]},
+                  "restoration": {"name": "Restoration", "skills": ["purify", "ward", "sanctuary", "resurgence"]}},
+    "subclasses": ["pyromancer", "oracle"]
+  },
+  "tidecaller": {
+    "name": "Tidecaller", "role": "Saltborn control mage. Pulls, pushes and drowns.", "faction": "saltborn", "race": "tidefolk",
+    "melee": false, "basic": "harpoon", "start_skill": "undertow", "look": "tidecaller",
+    "weapon_family": "trident", "armor_family": "medium", "wage": 20,
+    "base": {"hp": 48, "defense": 7, "dodge": 12, "speed": 36, "move": 4, "crit": 8, "attack": 16, "accuracy": 74, "range": 3, "resolve": 42},
+    "growth": {"hp": 3.5, "defense": 0.6, "dodge": 0.5, "speed": 0.5, "crit": 0.4, "attack": 1.05, "accuracy": 1.05, "resolve": 1.1},
+    "potential_bias": ["hp", "attack"],
+    "branches": {"tides": {"name": "Tides", "skills": ["riptide", "drown", "tidal_grace", "maelstrom"]}},
+    "subclasses": []
+  },
+  "lanternbearer": {
+    "name": "Lanternbearer", "role": "Conclave support. Reveals the hidden and cleanses the Hush.", "faction": "lantern", "race": "mothkin",
+    "melee": false, "basic": "light_bolt", "start_skill": "lantern_flare", "look": "lanternbearer",
+    "weapon_family": "lantern", "armor_family": "robe", "wage": 20,
+    "base": {"hp": 38, "defense": 4, "dodge": 14, "speed": 44, "move": 5, "crit": 8, "attack": 15, "accuracy": 78, "range": 4, "resolve": 60},
+    "growth": {"hp": 2.8, "defense": 0.35, "dodge": 0.6, "speed": 0.65, "crit": 0.4, "attack": 0.95, "accuracy": 1.15, "resolve": 1.6},
+    "potential_bias": ["resolve", "accuracy"],
+    "branches": {"light": {"name": "Light", "skills": ["reveal", "cleansing_light", "memory_ward", "beacon"]}},
+    "subclasses": []
+  },
+  "graftwarden": {
+    "name": "Graftwarden", "role": "Rootwarden guardian. Roots enemies; zone of control reaches 2 tiles.", "faction": "rootwardens", "race": "barkborn",
+    "melee": true, "basic": "staff_strike", "start_skill": "entangle", "look": "graftwarden",
+    "weapon_family": "graftstaff", "armor_family": "heavy", "wage": 20,
+    "base": {"hp": 60, "defense": 10, "dodge": 4, "speed": 28, "move": 4, "crit": 5, "attack": 15, "accuracy": 72, "range": 1, "resolve": 50},
+    "growth": {"hp": 4.4, "defense": 0.85, "dodge": 0.3, "speed": 0.4, "crit": 0.25, "attack": 0.95, "accuracy": 1.0, "resolve": 1.3},
+    "potential_bias": ["hp", "defense"],
+    "passives": ["deep_roots"],
+    "branches": {"grove": {"name": "Grove", "skills": ["thornwall", "sap_mend", "barkskin_surge", "grasping_grove"]}},
+    "subclasses": []
+  },
+  "sandreaver": {
+    "name": "Sandreaver", "role": "Caravan skirmisher. Burrows and resurfaces anywhere in range.", "faction": "glass", "race": "khepri",
+    "melee": true, "basic": "slash", "start_skill": "glass_edge", "look": "sandreaver",
+    "weapon_family": "glassblades", "armor_family": "light", "wage": 20,
+    "base": {"hp": 44, "defense": 7, "dodge": 16, "speed": 50, "move": 5, "crit": 18, "attack": 18, "accuracy": 74, "range": 1, "resolve": 30},
+    "growth": {"hp": 3.0, "defense": 0.5, "dodge": 0.75, "speed": 0.75, "crit": 0.75, "attack": 1.15, "accuracy": 1.05, "resolve": 0.8},
+    "potential_bias": ["crit", "attack"],
+    "branches": {"dunes": {"name": "Dunes", "skills": ["burrow", "sandblast", "dune_dancer", "shatterstorm"]}},
+    "subclasses": []
+  }
+}

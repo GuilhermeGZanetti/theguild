@@ -1,0 +1,28 @@
+{
+  "categories": {
+    "contract": {"name": "Contract", "group": "resource", "desc": "Paid work. Good gold.", "ignored": "Nothing happens.", "objectives": ["hunt", "clear", "escort", "defense"], "days": [2, 3], "icon": "gold"},
+    "recruit": {"name": "Recruit", "group": "resource", "desc": "A promising recruit needs rescuing. They will join the guild.", "ignored": "Nothing happens.", "objectives": ["rescue"], "days": [2, 3], "icon": "recruit"},
+    "salvage": {"name": "Salvage", "group": "resource", "desc": "Equipment and materials lie unclaimed.", "ignored": "Nothing happens.", "objectives": ["retrieve"], "days": [1, 2], "icon": "salvage"},
+    "training": {"name": "Training", "group": "resource", "desc": "A safe-ish fight. Bonus XP.", "ignored": "Nothing happens.", "objectives": ["clear", "survive"], "days": [1, 2], "icon": "training"},
+    "breach": {"name": "Hush Breach", "group": "strategic", "desc": "The Hush is pushing through. Drive it back.", "ignored": "The Hush rises by {hush}.", "objectives": ["survive", "clear", "defense"], "days": [2, 4], "icon": "hush"},
+    "crisis": {"name": "Faction Crisis", "group": "strategic", "desc": "A faction needs help. Power and reputation are at stake.", "ignored": "{faction} loses 1 Power.", "objectives": ["defense", "escort", "rescue", "clear"], "days": [2, 4], "icon": "crisis"},
+    "rivalry": {"name": "Rival Contract", "group": "strategic", "desc": "Help one faction at the expense of its rival. Taking one cancels the other.", "ignored": "Nothing happens.", "objectives": ["escort", "hunt", "clear"], "days": [2, 3], "icon": "rivalry"},
+    "chain": {"name": "Faction Chain", "group": "chain", "desc": "A special mission for a faction that trusts you.", "ignored": "The chain is delayed. After 3 weeks it may fail.", "objectives": ["hunt", "defense", "retrieve"], "days": [3, 5], "icon": "chain"},
+    "story": {"name": "Story", "group": "story", "desc": "Advances the story.", "ignored": "The story moves on without you: Hush +3, Renown -3.", "objectives": [], "days": [3, 4], "icon": "story"}
+  },
+  "objectives": {
+    "hunt": {"name": "Hunt", "desc": "Slay {target}. Other enemies may remain.", "titles": ["Hunt the {elite}", "A Bounty at {place}", "The {elite} of {place}"]},
+    "clear": {"name": "Clear", "desc": "Defeat every enemy.", "titles": ["Clear {place}", "Trouble at {place}", "Purge {place}"]},
+    "escort": {"name": "Escort", "desc": "Bring {vip} safely to the extraction zone.", "titles": ["Escort through {place}", "Safe Passage to {place}", "The {place} Convoy"]},
+    "rescue": {"name": "Rescue", "desc": "Free the captive and bring them to the extraction zone.", "titles": ["Rescue at {place}", "Captive of {place}", "Cut the Ropes at {place}"]},
+    "retrieve": {"name": "Retrieve", "desc": "Recover {n} caches, then extract or finish the enemy.", "titles": ["Salvage {place}", "Lost Goods of {place}", "Scavenge {place}"]},
+    "defense": {"name": "Defense", "desc": "Protect the {object} for {turns} rounds.", "titles": ["Hold {place}", "Defend {place}", "Stand Fast at {place}"]},
+    "survive": {"name": "Survive", "desc": "Survive for {turns} rounds.", "titles": ["Survive {place}", "The Long Night at {place}", "Weather the Storm at {place}"]}
+  },
+  "vips": {"carrow": "the tax clerk", "coast": "the Saltborn pilot", "stilts": "the lantern courier", "ember": "the seed-bearer", "dunes": "the glass merchant", "unremembered": "the last witness"},
+  "objects": {"carrow": "grain cart", "coast": "signal bell", "stilts": "memory lantern", "ember": "grave sapling", "dunes": "glass hull", "unremembered": "ledger lectern"},
+  "rivalries": [
+    {"a": "saltborn", "b": "glass", "a_title": "Escort the Salt Convoy", "b_title": "Raid the Salt Convoy", "a_desc": "The Saltborn need their convoy through the dunes road.", "b_desc": "The Caravans pay well to see that convoy never arrives."},
+    {"a": "lantern", "b": "rootwardens", "a_title": "Recover the Burnt Archive", "b_title": "Let the Archive Burn", "a_desc": "The Conclave wants its scorched records saved.", "b_desc": "The Rootwardens ask you to guard the fire-line and let the old records go."}
+  ]
+}

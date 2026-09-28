@@ -1,0 +1,76 @@
+{
+  "random": {
+    "minstrel": {"title": "A Minstrel at the Hearth", "text": "A traveling minstrel offers to write a song about the guild, for a price.", "choices": [
+      {"label": "Pay 40 gold for the song", "cost": {"gold": 40}, "effects": {"renown": 8}, "result": "The song is catchy. By week's end, children in the street are singing it."},
+      {"label": "Send them on their way", "effects": {}, "result": "The minstrel shrugs and plays for the fishmongers instead."}]},
+    "brawl": {"title": "Tavern Brawl", "text": "Two of your members came to blows over a card game. The common room is a mess.", "needs": 2, "choices": [
+      {"label": "Dock both their wages (+30 gold)", "effects": {"gold": 30, "member_resolve": -5}, "result": "They grumble, but the chairs get fixed."},
+      {"label": "Let them settle it in the training ring", "effects": {"member_xp": 40}, "result": "Bruised, sweaty, and friends again. Both learned something."}]},
+    "tax": {"title": "The Tax Collector", "text": "Carrow's tax collector reminds you that guilds pay a levy. He is very polite about it.", "choices": [
+      {"label": "Pay the levy (60 gold)", "cost": {"gold": 60}, "effects": {"renown": 4}, "result": "The town council notes the guild is in good standing."},
+      {"label": "Refuse", "effects": {"renown": -8}, "result": "Doors in Carrow close a little faster when you pass."}]},
+    "stranger_name": {"title": "A Stranger's Name", "text": "An old woman begs you to write her husband's name in the ledger. She has already forgotten his face.", "choices": [
+      {"label": "Write it in the ledger", "effects": {"hush": -2}, "result": "She cries, and thanks you, and leaves lighter than she came."},
+      {"label": "The ledger is for the guild", "effects": {"hush": 1}, "result": "She nods and walks away. By morning she will not remember asking."}]},
+    "scavenger": {"title": "Scrap Seller", "text": "A scavenger offers a crate of salvaged metal.", "choices": [
+      {"label": "Buy it (50 gold for 5 materials)", "cost": {"gold": 50}, "effects": {"materials": 5}, "result": "Good metal, only a little rusted."},
+      {"label": "No thanks", "effects": {}, "result": "He sells it to the smith down the road."}]},
+    "sick": {"title": "Fever in the Bunks", "text": "A fever is spreading through the barracks.", "choices": [
+      {"label": "Buy medicine (50 gold)", "cost": {"gold": 50}, "effects": {}, "result": "The fever breaks by midweek."},
+      {"label": "Let it run its course", "effects": {"member_injure": 1}, "result": "One member is laid up for a week."}]},
+    "veteran_tale": {"title": "A Veteran's Tale", "text": "An old soldier drinks at your bar and tells stories of the great guilds that marched into the Hush.", "choices": [
+      {"label": "Buy their drinks all night (20 gold)", "cost": {"gold": 20}, "effects": {"member_xp_all": 20}, "result": "Your members listen closely. Some of those tricks might keep them alive."},
+      {"label": "Close up early", "effects": {}, "result": "The old soldier wanders off into the night."}]},
+    "lost_child": {"title": "Lost Child", "text": "A child walks into the tavern and cannot say where they live. The street they describe no longer exists.", "choices": [
+      {"label": "Take them in; ask around (-20 gold)", "cost": {"gold": 20}, "effects": {"renown": 6, "hush": -1}, "result": "A baker's family takes the child in. You write the child's name in the ledger, just in case."},
+      {"label": "Send them to the temple", "effects": {}, "result": "The priests promise to care for them."}]},
+    "rival_guild": {"title": "Rival Bid", "text": "A mercenary band is undercutting your contracts in Carrow.", "choices": [
+      {"label": "Undercut them back (-10% gold next week)", "effects": {"renown": 5, "flag": "undercut"}, "result": "The clients come back to you."},
+      {"label": "Ignore them", "effects": {"renown": -4}, "result": "You lose a little face in the market."}]},
+    "shrine_offering": {"title": "The Bell-Wardens' Alms", "text": "The Bell-wardens ask for alms to keep candles lit around the cracked Bell.", "choices": [
+      {"label": "Donate 50 gold", "cost": {"gold": 50}, "effects": {"hush": -3}, "result": "The Bell does not ring. But the square feels a little less quiet."},
+      {"label": "Decline", "effects": {}, "result": "The wardens bow and move on."}]},
+    "named_wren": {"title": "A Hand in the Strongbox", "named": "wren", "text": "You catch a girl with her arm elbow-deep in the guild's strongbox. She was very nearly good enough not to be caught. She offers to work off the debt.", "choices": [
+      {"label": "Take her on", "effects": {"named_recruit": "wren"}, "result": "Wren Tallowmere joins the guild. The strongbox gets a second lock anyway."},
+      {"label": "Hand her to the watch", "effects": {"renown": 3}, "result": "The watch thanks you. Carrow's merchants hear about it."}]},
+    "named_hesk": {"title": "A Captain Without a Ship", "named": "hesk", "text": "An old Tidefolk captain drinks alone at your bar. The jellyfish at his shoulder glows for a ship the Hush took, with all his crew. He asks if a guild needs a man who has nothing left to lose.", "choices": [
+      {"label": "Give him a place (60 gold for his debts)", "cost": {"gold": 60}, "effects": {"named_recruit": "hesk"}, "result": "Old Hesk pays his bar tab with your gold and swears on the ledger."},
+      {"label": "Buy him one more drink", "effects": {"hush": -1}, "result": "He tells you his crew's names, one by one, and you write them down."}]},
+    "named_ilyra": {"title": "The Runaway Archivist", "named": "ilyra", "text": "A young Mothkin knocks after midnight, wings wet, a lantern of stolen memories under her cloak. The Conclave wants it back. She wants to use it.", "choices": [
+      {"label": "Shelter her (40 gold to the Conclave's searchers)", "cost": {"gold": 40}, "effects": {"named_recruit": "ilyra"}, "result": "The searchers take the gold and forget your door. Ilyra Wickwright unpacks her books."},
+      {"label": "Send her home", "effects": {"renown": 2}, "result": "The Conclave sends a polite note of thanks."}]},
+    "named_bramble": {"title": "The Seed at the Door", "named": "bramble", "text": "Someone planted a seed by the tavern door last autumn. This morning a Barkborn stood up out of the flowerbed, wearing a carved mask and carrying one of your old axes.", "choices": [
+      {"label": "Welcome them to the guild", "effects": {"named_recruit": "bramble"}, "result": "Bramblemask nods once and takes a seat by the fire, as if it always had one."},
+      {"label": "Show them the road to the Ember Wood", "effects": {"materials": 3}, "result": "They leave you an armful of hardwood as thanks."}]},
+    "named_sef": {"title": "A Debt in Glass", "named": "sef", "text": "A Khepri caravan guard, dismissed for losing a cargo of glass to raiders, offers the guild her bow. She says the raiders are still out there, and she remembers every one of their faces.", "choices": [
+      {"label": "Hire her (50 gold)", "cost": {"gold": 50}, "effects": {"named_recruit": "sef"}, "result": "Sef Amberglass strings her bow on your table."},
+      {"label": "Wish her luck", "effects": {}, "result": "She shoulders her pack and walks toward the dunes."}]}
+  },
+  "faction": {
+    "tide_fleet": {"title": "The Tide Fleet", "text": "The Saltborn Compact is strong. Its fleet opens the sea routes: coastal missions pay 25% more."},
+    "trade_cut": {"title": "Trade Routes Cut", "text": "The Glass Caravans are failing. Without their ships, all prices in Carrow rise 20%."},
+    "healing_sap": {"title": "Healing Sap", "text": "The Rootwardens are thriving and share their healing sap: injuries recover 1 week faster."},
+    "conclave_falls": {"title": "The Lanterns Go Out", "text": "The Lantern Conclave has collapsed. Without its archivists, the Memorial no longer protects names from the Hush."},
+    "open_war": {"title": "Open War", "text": "{a} and {b} are both at the height of their power, and both claim the same ground. They are at war. The guild must pick a side; the other will become Hostile."},
+    "collapse": {"title": "{faction} Collapses", "text": "{faction} has lost everything. The Hush swallows {region}. The Hush rises by 15. A handful of refugees come to the tavern looking for work."},
+    "ambush": {"title": "Ambush!", "text": "{faction} is hostile to the guild. Its agents have joined the enemy on this mission."}
+  },
+  "named": {
+    "wren": {"name": "Wren Tallowmere", "cls": "rogue", "race": "human", "tier": 3, "level": 3, "traits": ["lucky", "swift"],
+      "bio": "A street thief from Carrow's lower market who tried to rob the guild and was hired instead."},
+    "hesk": {"name": "Old Hesk", "cls": "warrior", "race": "tidefolk", "tier": 2, "level": 5, "traits": ["iron_skin", "brave", "slow_healer"],
+      "bio": "A Saltborn captain who lost his ship and crew to the Hush. His jellyfish still remembers all their names."},
+    "ilyra": {"name": "Ilyra Wickwright", "cls": "mystic", "race": "mothkin", "tier": 3, "level": 2, "traits": ["quick_hands", "fast_learner", "frail"],
+      "bio": "A Lantern Conclave archivist who ran away with a lantern of forbidden memories."},
+    "bramble": {"name": "Bramblemask", "cls": "warrior", "race": "barkborn", "tier": 2, "level": 4, "traits": ["tough", "steady"],
+      "bio": "Grew from a seed someone planted by the tavern door. Carries fragments of a guild warrior nobody remembers."},
+    "sef": {"name": "Sef Amberglass", "cls": "ranger", "race": "khepri", "tier": 2, "level": 3, "traits": ["eagle_eye", "keen", "vengeful"],
+      "bio": "A Glass Caravans guard hunting the raiders who cost her a cargo and her post."}
+  },
+  "hush_stages": {
+    "calm": "The Hush is Calm.",
+    "fading": "The Hush is Fading. Fewer missions reach the board, and Hush creatures join ordinary fights.",
+    "forgetting": "The Hush is Forgetting. Recruits may be Hollow. Prices rise. Regions darken week by week.",
+    "unremembered": "The Hush is Unremembered. Members at home may forget the guild entirely. The weakest faction crumbles."
+  }
+}

@@ -1,0 +1,82 @@
+{
+  "intro": [
+    "For centuries the Great Bell of Carrow rang once a day, and its sound kept the Hush beyond the edges of the map.",
+    "Twenty years ago the Bell cracked. The great guilds marched into the Hush to reforge it and never returned. No one remembers their names.",
+    "Now the grey silence creeps back. Villages vanish from maps and from memory. Neighbors forget they ever existed.",
+    "You have inherited an abandoned tavern in Carrow, an old guild emblem nobody can identify, and a ledger full of blank pages where names used to be.",
+    "Written names resist the Hush. Write yours."
+  ],
+  "acts": {
+    "1": {"name": "Act I: The Blank Pages", "desc": "Local work around Carrow. Learn what the Hush does, and who once owned the ledger."},
+    "2": {"name": "Act II: The Four Answers", "desc": "Each faction offers its own way to stop the Hush. Your choices decide which rise and which fall."},
+    "3": {"name": "Act III: The Unremembered", "desc": "Enter the Hush and reach its heart."}
+  },
+  "missions": {
+    "s1": {
+      "act": 1, "min_week": 1, "min_renown": 0, "region": "carrow", "objective": "hunt", "skulls": 1, "days": 2,
+      "title": "The Bell-Thief", "boss": "brigand_captain", "enemies": {"brigand": 2, "brigand_archer": 1},
+      "brief": "A brigand called Mott has been prying bronze from the cracked Bell to sell by the pound. The Bell-wardens will pay the new guild to stop him. It is not glorious work. It is a start.",
+      "outro": "Among Mott's loot, wrapped in oilcloth, is a page torn from a guild ledger. The ink has faded to grey. Where a name should be, there is only a smudge that slides away when you look at it.",
+      "reward": {"gold": 160, "renown": 10, "item": "ledger_page", "hush": -3}
+    },
+    "s2": {
+      "act": 1, "min_week": 3, "min_renown": 10, "region": "coast", "objective": "retrieve", "skulls": 2, "days": 3,
+      "title": "The Grey Shore", "enemies": {"hollow": 3, "stinger": 1}, "hush_map": 2, "caches": 3,
+      "brief": "Fishermen say a stretch of Saltbone Beach has gone quiet. The waves make no sound. Pages like the one you found have been washing up in the surf. Collect them before the tide takes them back.",
+      "outro": "Every page holds a name you cannot read, and every name belonged to your guild. The Hollows on the shore wore the old emblem on their rotted coats. The Hush does not only take places. It takes the people who fought it.",
+      "reward": {"gold": 180, "renown": 12, "hush": -6}
+    },
+    "s3": {
+      "act": 1, "min_week": 5, "min_renown": 25, "region": "carrow", "objective": "survive", "skulls": 2, "days": 3, "turns": 7,
+      "title": "The Old Guildhall", "enemies": {"hollow": 3, "quietling": 1}, "hush_map": 2, "biome": "hush_town",
+      "brief": "The ledger's pages point to a ruined hall on Carrow's northern edge, where the old guild met. Something still lives there, and it does not like being remembered. Hold the hall until the founder's sigil can be pried from the hearthstone.",
+      "outro": "The sigil matches the emblem above your door. Carved beneath it, half-erased, is the founder's creed: 'We are what the realm refuses to forget.' Word spreads. The four great factions of Ambral want to meet the guild that walked out of the old hall alive.",
+      "reward": {"gold": 220, "renown": 20, "hush": -10}, "next_act": 2
+    },
+    "s4": {
+      "act": 2, "min_week": 8, "min_renown": 70, "region": "ember", "objective": "hunt", "skulls": 3, "days": 4,
+      "title": "The Founder's Trail", "boss": "spirit_elder", "enemies": {"masked_spirit": 2, "rot_deer": 2},
+      "brief": "The Rootwardens remember a woman who crossed the Ember Wood twenty years ago, carrying a ledger and a bell-hammer. A masked Elder guards the shrine where she rested. It will not give up her journal willingly.",
+      "outro": "The journal's last entry is steady and calm: 'The Hush cannot be destroyed. Only fed. If it must eat a name, let it eat mine.' The signature has been scraped away by something that was not a knife.",
+      "reward": {"gold": 280, "renown": 20, "hush": -10, "item": "bell_shard"}
+    },
+    "s5": {
+      "act": 2, "min_week": 11, "min_renown": 130, "region": "coast", "objective": "defense", "skulls": 4, "days": 4, "turns": 8,
+      "title": "The Sunken Belfry", "enemies": {"reef_raider": 2, "stinger": 1, "hollow": 2}, "hush_map": 3, "boss": "stinger_queen",
+      "brief": "At low tide, the drowned belfry off the coast rises from the sea. Inside hangs the Bell's lost clapper. Hold the belfry long enough to ring it once, and the Hush will show you the road to its heart.",
+      "outro": "The clapper strikes. For one heartbeat every sound in Ambral returns at once. In the silence after, you see her: a figure made of grey, far inside the Hush, holding the realm's forgetting in her arms like a child. The guild's founder. The Unnamed.",
+      "reward": {"gold": 320, "renown": 25, "hush": -10}, "next_act": 3
+    },
+    "s6": {
+      "act": 3, "min_week": 13, "min_renown": 160, "region": "unremembered", "objective": "clear", "skulls": 4, "days": 4,
+      "title": "The Grey Road", "enemies": {"hollow": 4, "quietling": 2}, "elite_count": 1, "hush_map": 4,
+      "brief": "The road into the Hush is paved with things the realm forgot: signposts to vanished villages, doors without houses. Clear the way to the Heart.",
+      "outro": "Beyond the Grey Road the fog parts on a hall you know: your own tavern, rebuilt from forgetting. She is waiting inside.",
+      "reward": {"gold": 300, "renown": 25, "hush": -10}, "unlock_final": true
+    },
+    "final": {
+      "act": 3, "min_week": 1, "min_renown": 0, "region": "unremembered", "objective": "final", "skulls": 5, "days": 5,
+      "title": "The Heart of the Hush", "boss": "the_unnamed", "enemies": {"hollow": 3, "quietling": 1}, "hush_map": 5, "pages": 3,
+      "brief": "The Unnamed erases one of your skills in every phase of the fight. Recover the three lost pages of the old ledger during the battle to restore her name and break her. Your fallen who were never written in the Memorial will walk beside her.",
+      "outro": "",
+      "reward": {"gold": 0, "renown": 100}
+    }
+  },
+  "ignored_story": "The story moves on without you. The Hush rises by 3 and the guild loses 3 Renown. The mission will return next week.",
+  "endings": {
+    "lantern": {"title": "The Bell Reforged", "text": ["With the Conclave's lanterns burning at every window, the Great Bell is reforged from the clapper and a thousand kept memories.", "It rings, and the Hush is sealed forever beyond the edge of the map.", "The price is paid in the only coin the Bell accepts. The realm forgets the guild's name. Somewhere in Carrow a tavern stands empty, and a ledger lies open, full of blank pages.", "But the pages are warm."]},
+    "rootwardens": {"title": "The Long Autumn", "text": ["The Rootwardens plant a seed in the Heart of the Hush, and the Unnamed is finally allowed to rest.", "The Hush does not die. It becomes a tide that comes and goes with the seasons, and the realm learns to live with forgetting.", "Every autumn, the people of Ambral write their names on leaves and let them fall. Every spring, a few of them are remembered."]},
+    "saltborn": {"title": "Carried to Sea", "text": ["The Tide Fleet binds the Hush in a net of living jellyfish and carries it out beyond the horizon.", "The Coast of the Drowned Bells is lost; the sea there is silent now, and ships steer wide of it.", "The rest of the realm is saved. On calm nights, sailors swear they can hear a bell ringing under the water."]},
+    "glass": {"title": "The Glass Bottle", "text": ["The Caravans' glassblowers seal the Hush inside a bottle no larger than a heart.", "The realm is saved. The skies clear. Villages that were forgotten reappear on the maps, confused and grateful.", "And the Glass Caravans now own the only weapon in Ambral that can erase a city from memory. They have promised never to use it. They are merchants. Promises have a price."]},
+    "none": {"title": "Alone", "text": ["No faction answers the call. The guild walks into the Heart of the Hush alone, and walks out again, fewer.", "The Unnamed is gone. The Hush thins, slowly, like fog at noon.", "In Carrow, the Memorial wall holds {memorial} names. Every one of them is remembered. That, in the end, is what the guild was for."]}
+  },
+  "defeat": {
+    "hush": {"title": "Silence", "text": ["The Hush reaches one hundred.", "The last sound in Ambral is a bell that nobody hears. Then even the idea of a bell is gone.", "The realm is forgotten."]},
+    "factions": {"title": "The Realm Unravels", "text": ["Two of the great factions have collapsed. Without them, the roads empty and the maps go grey.", "The guild's ledger is the last record of Ambral. Then the ink fades too."]},
+    "roster": {"title": "Empty Hall", "text": ["There is no one left to send, and no gold to hire anyone.", "The tavern's door swings in the wind. The emblem above it is forgotten again."]},
+    "wages": {"title": "Unpaid", "text": ["Three weeks without wages. The last of your members take their gear and go.", "A guild is its people. Without them, it is just a sign above a door."]},
+    "final": {"title": "Swallowed", "text": ["The squad falls in the Heart of the Hush.", "Their names join the others in the grey. The Unnamed holds them gently, as she holds everything now."]}
+  },
+  "unnamed_lines": ["...who are you? I had a name once. It was the first thing I gave away.", "You carry my ledger. You carry them. Put them down. It is easier to forget.", "Another page... I remember... a tavern. Laughter. A bell.", "Say it. Say my name. I have been waiting twenty years for someone to say it."],
+  "unnamed_name": "Maren Ashgrove"
+}

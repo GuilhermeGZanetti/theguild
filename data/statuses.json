@@ -1,0 +1,23 @@
+{
+  "poison": {"name": "Poison", "desc": "Takes damage each turn, ignoring Defense.", "bad": true, "dot": true, "color": [130, 200, 80]},
+  "bleed": {"name": "Bleed", "desc": "Takes damage each turn. Stacks up to 3 times.", "bad": true, "dot": true, "stacks": 3, "color": [210, 60, 60]},
+  "burn": {"name": "Burn", "desc": "Takes damage each turn. Spreads fire to flammable ground.", "bad": true, "dot": true, "color": [250, 140, 50]},
+  "paralysis": {"name": "Paralysis", "desc": "Skips the next turn.", "bad": true, "color": [150, 200, 250]},
+  "stun": {"name": "Stun", "desc": "Loses the Action next turn but can still move.", "bad": true, "color": [250, 220, 90]},
+  "fear": {"name": "Fear", "desc": "Cannot attack; flees from the source.", "bad": true, "color": [150, 110, 190]},
+  "root": {"name": "Root", "desc": "Cannot move.", "bad": true, "color": [120, 160, 70]},
+  "blind": {"name": "Blind", "desc": "Accuracy reduced.", "bad": true, "color": [220, 220, 200]},
+  "pinned": {"name": "Pinned", "desc": "Accuracy reduced and cannot move.", "bad": true, "color": [200, 170, 120]},
+  "marked": {"name": "Marked", "desc": "Attacks against this unit gain hit chance.", "bad": true, "color": [240, 90, 60]},
+  "taunted": {"name": "Taunted", "desc": "Must attack the one who taunted it.", "bad": true, "color": [230, 110, 70]},
+  "silenced": {"name": "Hushed", "desc": "A skill was erased by the Hush.", "bad": true, "color": [150, 150, 160]},
+  "dodge_up": {"name": "Evasive", "desc": "Dodge increased.", "bad": false, "color": [120, 220, 220]},
+  "rallied": {"name": "Rallied", "desc": "+Resolve and +Accuracy.", "bad": false, "color": [240, 200, 90]},
+  "inspired": {"name": "Inspired", "desc": "Accuracy increased.", "bad": false, "color": [250, 230, 150]},
+  "warded": {"name": "Warded", "desc": "Defense increased.", "bad": false, "color": [140, 180, 250]},
+  "regen": {"name": "Regeneration", "desc": "Heals each turn.", "bad": false, "color": [120, 230, 130]},
+  "last_stand": {"name": "Last Stand", "desc": "Cannot drop below 1 HP.", "bad": false, "color": [250, 120, 90]},
+  "shielded": {"name": "Shield Wall", "desc": "Counts as being in half cover.", "bad": false, "color": [190, 190, 210]},
+  "defending": {"name": "Defending", "desc": "+20 Dodge and +25% critical defense until next turn.", "bad": false, "color": [170, 200, 240]},
+  "overwatch": {"name": "Overwatch", "desc": "Attacks the first enemy that moves in range.", "bad": false, "color": [240, 210, 110]}
+}
