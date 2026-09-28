@@ -65,7 +65,13 @@ func _battle(region: String, far := false, when := "day") -> void:
 
 ## Every race in every look, in its game palette, on a small plaza.
 func _lineup(only: String) -> void:
-	var races: Array = ["tidefolk", "mothkin", "barkborn", "khepri"] if only == "" else [only]
+	# one row per race with genders alternating, or both genders of one race ("lineup_human")
+	var rows: Array = []
+	if only == "":
+		for r in ["tidefolk", "mothkin", "barkborn", "khepri"]:
+			rows.append([r, ""])
+	else:
+		rows = [[only, "m"], [only, "f"]]
 	var faction := {"tidefolk": "tidecaller", "mothkin": "lanternbearer", "barkborn": "graftwarden", "khepri": "sandreaver"}
 	var g := BattleGrid.new(26, 26)
 	g.biome = "town"
@@ -79,10 +85,15 @@ func _lineup(only: String) -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 3
 	var views := []
-	for r in races.size():
-		var looks: Array = ["warrior", "rogue", "ranger", "mystic", faction[races[r]]]
+	for r in rows.size():
+		var race: String = rows[r][0]
+		var looks: Array = ["warrior", "rogue", "ranger", "mystic"]
+		if faction.has(race):
+			looks.append(faction[race])
 		for i in looks.size():
-			var m := Member.create(rng, looks[i], races[r], 1, 2)
+			var m := Member.create(rng, looks[i], race, 1, 2)
+			m.gender = rows[r][1] if rows[r][1] != "" else ["m", "f"][(i + r) % 2]
+			m.pick_look(rng)
 			var uv := UnitView.new()
 			mv.add_child(uv)
 			uv.setup(m.variant, m.palette, wv.pitch)
@@ -90,8 +101,8 @@ func _lineup(only: String) -> void:
 			uv.position = mv.unit_pos(Vector2i(3 + i * 2 + r * 4, 11 - i * 2 + r * 4))
 			uv.face(Vector2i(1, 1))
 			views.append(uv)
-	wv.focus(Vector3(7.0 + races.size() * 1.5, 0.6, 7.0 + races.size() * 1.5), true)
-	if races.size() > 2:
+	wv.focus(Vector3(7.0 + rows.size() * 1.5, 0.6, 7.0 + rows.size() * 1.5), true)
+	if rows.size() > 2:
 		wv.world_scale = maxi(1, wv.world_scale - 1)
 	for i in 40:
 		var bv := wv.basis_vectors()

@@ -1207,6 +1207,9 @@ func named_recruit(id: String) -> Member:
 	var d: Dictionary = DB.events["named"][id]
 	var m := Member.create(rng, d["cls"], d["race"], int(d["tier"]), int(d.get("level", 1)), week)
 	m.name = d["name"]
+	if d.has("gender"):
+		m.gender = d["gender"]
+		m.pick_look(rng)
 	m.traits.clear()
 	for t in d["traits"]:
 		m.add_trait(t)

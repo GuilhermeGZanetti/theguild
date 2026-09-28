@@ -1,4 +1,4 @@
-# Regenerates every generated asset of A Guilda.
+﻿# Regenerates every generated asset of A Guilda.
 #   powershell -ExecutionPolicy Bypass -File tools/build_assets.ps1 [-Only units,props,textures,ui,audio]
 param([string]$Only = "units,props,textures,ui,audio")
 
@@ -21,6 +21,9 @@ function Run-Py($script, $argsList) {
 
 if ($steps -contains "units") {
     Write-Host "== units: rendering in Blender (4 shards)"
+    # start clean so units that were renamed or dropped don't linger in the sheets
+    if (Test-Path "tools/_cache/units") { Remove-Item "tools/_cache/units" -Recurse -Force }
+    New-Item -ItemType Directory -Force "tools/_cache/units" | Out-Null
     $jobs = @()
     for ($i = 0; $i -lt 4; $i++) {
         $jobs += Start-Process -FilePath $Blender -ArgumentList @("-b", "--factory-startup", "--python", "tools/blender/units.py", "--", "--out", "tools/_cache/units", "--shard", "$i/4") -NoNewWindow -PassThru -RedirectStandardOutput "tools/_cache/units_$i.log"

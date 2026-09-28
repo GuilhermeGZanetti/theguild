@@ -1,6 +1,6 @@
-"""Review sheet for the race models: each variant in its race palette
-(first choice of every list in data/races.json), 4 idle directions, an attack
-frame and the portrait.
+"""Review sheet for the race models: the masculine and feminine variant of
+every class in its race palette (first choice of every list in
+data/races.json), 4 idle directions, an attack frame and the portrait.
 
     python tools/py/race_sheet.py [race ...]  -> tools/_cache/preview/races.png
 """
@@ -22,34 +22,36 @@ BASE = {"cloth1": (64, 124, 170), "cloth2": (186, 70, 64), "leather": (126, 84, 
         "white": (236, 230, 218), "bandage": (242, 236, 224), "eyes": (38, 28, 48)}
 
 
-def palette_for(race, look):
+def palette_for(race, look, gender):
     rd = RACES[race]
     pal = dict(BASE)
     for k in ("skin", "skin2", "hair"):
         pal[k] = tuple(rd[k][0])
     for k, v in rd.get("palette", {}).items():
         pal[k] = tuple(v[0])
-    for k, v in rd.get("looks", {}).get(look, {}).items():
-        pal[k] = tuple(v[0])
+    for key in (look, look + "_" + gender):
+        for k, v in rd.get("looks", {}).get(key, {}).items():
+            pal[k] = tuple(v[0])
     pal.setdefault("feature", (200, 150, 90))
     return pal
 
 
 def main():
-    races = sys.argv[1:] or ["tidefolk", "mothkin", "barkborn", "khepri"]
+    races = sys.argv[1:] or ["human", "tidefolk", "mothkin", "barkborn", "khepri"]
     idx = json.load(open(os.path.join(S.OUT, "units.json")))
     rows = []
     for race in races:
-        for look in ["warrior", "rogue", "ranger", "mystic", LOOKS[race]]:
-            rows.append((race, look, f"{race}_{look}"))
+        for look in ["warrior", "rogue", "ranger", "mystic"] + ([LOOKS[race]] if race in LOOKS else []):
+            for g in ("m", "f"):
+                rows.append((race, look, g, f"{race}_{look}_{g}" + ("_a" if race == "human" else "")))
     cv = 64
     sheet = Image.new("RGBA", (6 * cv, len(rows) * (cv + 8)), (200, 196, 184, 255))
     d = ImageDraw.Draw(sheet)
-    for r, (race, look, vid) in enumerate(rows):
+    for r, (race, look, g, vid) in enumerate(rows):
         if vid not in idx:
             continue
         m = idx[vid]
-        pal = palette_for(race, look)
+        pal = palette_for(race, look, g)
         im = np.asarray(Image.open(os.path.join(S.OUT, vid + ".png")))
         atk = m["anims"]["attack"][0] + 2
         frames = [im[k * cv:(k + 1) * cv, 0:cv] for k in range(4)] + [im[0:cv, atk * cv:(atk + 1) * cv]]

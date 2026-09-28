@@ -197,6 +197,9 @@ static func clear(n: Node) -> void:
 
 static func portrait(variant: String, palette: Dictionary, bandaged := false, grey := 0.0) -> TextureRect:
 	## Index portrait recoloured through the unit palette via a CanvasItem shader.
+	variant = Member.fix_variant(variant)
+	if not ResourceLoader.exists("res://assets/sprites/units/%s_portrait.png" % variant):
+		variant = "human_warrior_m_a"
 	var path := "res://assets/sprites/units/%s_portrait%s.png" % [variant, "_b" if bandaged else ""]
 	if not ResourceLoader.exists(path):
 		path = "res://assets/sprites/units/%s_portrait.png" % variant

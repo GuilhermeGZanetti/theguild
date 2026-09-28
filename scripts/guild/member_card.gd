@@ -35,7 +35,7 @@ static func portrait(m: Member, size := 24, grey := 0.0) -> Control:
 
 
 static func portrait_dict(d: Dictionary, size := 24, grey := 0.9) -> Control:
-	var p := UIKit.portrait(d.get("variant", "human_warrior_a"), d.get("palette", {}), false, grey)
+	var p := UIKit.portrait(d.get("variant", "human_warrior_m_a"), d.get("palette", {}), false, grey)
 	p.custom_minimum_size = Vector2(size, size)
 	var at := AtlasTexture.new()
 	at.atlas = p.texture

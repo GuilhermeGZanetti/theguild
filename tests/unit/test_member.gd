@@ -72,3 +72,41 @@ func test_serialization_roundtrip():
 	assert_eq(m2.level, m.level)
 	assert_eq(m2.stats()["attack"], m.stats()["attack"])
 	assert_eq(m2.traits, m.traits)
+
+
+func test_every_class_look_has_both_gendered_sprites():
+	for race in Member.PLAYABLE:
+		for cls in DB.classes:
+			var c: Dictionary = DB.classes[cls]
+			if c.has("race") and c["race"] != race:
+				continue
+			for g in ["m", "f"]:
+				var v := Member.look_variant(race, c["look"], g)
+				assert_true(DB.units.has(v), "sprite for " + v)
+
+
+func test_members_get_a_gender_and_matching_sprite():
+	var seen := {}
+	for i in 30:
+		var m := Member.create(rng, "warrior", "tidefolk", 1)
+		assert_true(m.gender in ["m", "f"])
+		assert_eq(m.variant, "tidefolk_warrior_" + m.gender)
+		seen[m.gender] = true
+	assert_eq(seen.size(), 2, "both genders are rolled")
+	var h := Member.create(rng, "rogue", "human", 1)
+	assert_true(h.variant.begins_with("human_rogue_%s_" % h.gender))
+
+
+func test_old_saves_migrate_to_gendered_sprites():
+	var m := Member.create(rng, "rogue", "human", 1)
+	var d := m.to_dict()
+	d.erase("gender")
+	d["variant"] = "human_rogue_b"
+	var back := Member.from_dict(d)
+	assert_eq(back.variant, "human_rogue_m_a")
+	assert_eq(back.gender, "m")
+	assert_eq(Member.fix_variant("tidefolk_warrior"), "tidefolk_warrior_m")
+	assert_eq(Member.fix_variant("mothkin_lanternbearer"), "mothkin_lanternbearer_f")
+	assert_eq(Member.fix_variant("human_mystic_c"), "human_mystic_f_b")
+	assert_eq(Member.fix_variant("khepri_rogue_f"), "khepri_rogue_f")
+	assert_eq(Member.fix_variant("toad_brute"), "toad_brute")

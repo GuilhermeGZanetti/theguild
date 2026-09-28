@@ -14,7 +14,18 @@ const FEATURE := {
 	"khepri": [[60, 52, 74], [70, 130, 110], [150, 90, 40]],
 }
 const GLOW := {"mystic": [[130, 236, 255], [206, 150, 255], [255, 170, 120]], "lanternbearer": [[255, 214, 110]], "sandreaver": [[150, 232, 240]], "tidecaller": [[150, 240, 230]]}
-const PALETTE_VERSION := 2   # bump when race palettes change: older saves are repainted
+const PALETTE_VERSION := 3   # bump when race palettes change: older saves are repainted
+const PLAYABLE := ["human", "tidefolk", "mothkin", "barkborn", "khepri"]
+## Before gendered models each race/class had one design, drawn from the
+## concept art; old saves keep the gender of the model they already showed.
+const CONCEPT_GENDER := {
+	"tidefolk": {"warrior": "m", "rogue": "f", "ranger": "m", "mystic": "f", "tidecaller": "m"},
+	"mothkin": {"warrior": "m", "rogue": "f", "ranger": "m", "mystic": "m", "lanternbearer": "f"},
+	"barkborn": {"warrior": "m", "rogue": "f", "ranger": "m", "mystic": "m", "graftwarden": "m"},
+	"khepri": {"warrior": "m", "rogue": "f", "ranger": "f", "mystic": "m", "sandreaver": "m"},
+}
+## Old human hair styles a/b/c -> [gender, style].
+const OLD_HUMAN := {"a": ["f", "a"], "b": ["m", "a"], "c": ["f", "b"]}
 const CONFLICTS := [["tough", "frail"], ["swift", "sluggish"], ["frugal", "greedy"], ["fast_learner", "dullard"], ["brave", "coward"], ["hardy", "slow_healer"], ["keen", "clumsy"]]
 const GROWTH_STATS := ["hp", "defense", "dodge", "speed", "crit", "attack", "accuracy", "resolve"]
 
@@ -37,6 +48,7 @@ var equipment := {"weapon": {}, "armor": {}, "trinket": {}}
 var injury := {}
 var days_used := 0
 var history := {"quests": 0, "kills": 0, "near_deaths": 0, "joined": 1, "downed": 0}
+var gender := ""   # "m" or "f": which of the class's two models this member uses
 var variant := ""
 var palette := {}
 var status := "active"
@@ -92,7 +104,8 @@ static func create(rng: RandomNumberGenerator, p_cls: String, p_race: String, p_
 		m.skills.append(p)
 	m.equipment["weapon"] = Items.weapon(c["weapon_family"], 1)
 	m.equipment["armor"] = Items.armor(c["armor_family"], 1)
-	m.name = random_name(rng, p_race)
+	m.gender = "f" if rng.randi() % 2 == 0 else "m"
+	m.name = random_name(rng, p_race, m.gender)
 	m.history["joined"] = week
 	m.pick_look(rng)
 	for i in range(1, p_level):
@@ -102,9 +115,9 @@ static func create(rng: RandomNumberGenerator, p_cls: String, p_race: String, p_
 	return m
 
 
-static func random_name(rng: RandomNumberGenerator, p_race: String) -> String:
+static func random_name(rng: RandomNumberGenerator, p_race: String, p_gender := "") -> String:
 	var n: Dictionary = DB.names.get(p_race, DB.names["human"])
-	var first: Array = n["first"]
+	var first: Array = n.get("first_" + p_gender, n["first"])
 	var last: Array = n["last"]
 	return "%s %s" % [first[rng.randi() % first.size()], last[rng.randi() % last.size()]]
 
@@ -155,13 +168,32 @@ func add_trait(t: String) -> bool:
 
 
 func pick_look(rng: RandomNumberGenerator) -> void:
-	var c: Dictionary = DB.classes[cls]
-	var look: String = c["look"]
-	if race == "human" and look in ["warrior", "rogue", "ranger", "mystic"]:
-		variant = "human_%s_%s" % [look, ["a", "b", "c"][rng.randi() % 3]]
-	else:
-		variant = "%s_%s" % [race, look]
+	if gender == "":
+		gender = "f" if rng.randi() % 2 == 0 else "m"
+	variant = look_variant(race, DB.classes[cls]["look"], gender, rng.randi() % 2)
 	paint(rng)
+
+
+## Sprite id of a class look: <race>_<look>_<m|f>, humans also pick one of
+## two hair styles (_a/_b).
+static func look_variant(p_race: String, look: String, p_gender: String, style := 0) -> String:
+	if p_race == "human":
+		return "human_%s_%s_%s" % [look, p_gender, "ab"[style % 2]]
+	return "%s_%s_%s" % [p_race, look, p_gender]
+
+
+## Maps a sprite id from before gendered models (human_warrior_a,
+## tidefolk_rogue) to its current id; current ids pass through.
+static func fix_variant(v: String) -> String:
+	var p := v.split("_")
+	if p.is_empty() or not (p[0] in PLAYABLE):
+		return v
+	if p[0] == "human" and p.size() == 3 and OLD_HUMAN.has(p[2]):
+		var gs: Array = OLD_HUMAN[p[2]]
+		return "human_%s_%s_%s" % [p[1], gs[0], gs[1]]
+	if p[0] != "human" and p.size() == 2:
+		return "%s_%s_%s" % [p[0], p[1], CONCEPT_GENDER.get(p[0], {}).get(p[1], "m")]
+	return v
 
 
 ## Colours for the sprite: race and look palettes from races.json (the concept
@@ -180,9 +212,10 @@ func paint(rng: RandomNumberGenerator) -> void:
 	var rp: Dictionary = rd.get("palette", {})
 	for k in rp:
 		palette[k] = pick.call(rp[k])
-	var lp: Dictionary = rd.get("looks", {}).get(look, {})
-	for k in lp:
-		palette[k] = pick.call(lp[k])
+	for key in [look, look + "_" + gender]:
+		var lp: Dictionary = rd.get("looks", {}).get(key, {})
+		for k in lp:
+			palette[k] = pick.call(lp[k])
 	palette["v"] = PALETTE_VERSION
 	refresh_gear_colors()
 
@@ -406,7 +439,7 @@ func to_dict() -> Dictionary:
 		"id": id, "name": name, "race": race, "cls": cls, "subclass": subclass, "level": level, "xp": xp,
 		"tier": tier, "base": base, "grown": grown, "potential": potential, "traits": traits,
 		"skills": skills, "loadout": loadout, "skill_points": skill_points, "equipment": equipment,
-		"injury": injury, "days_used": days_used, "history": history, "variant": variant, "palette": palette,
+		"injury": injury, "days_used": days_used, "history": history, "gender": gender, "variant": variant, "palette": palette,
 		"status": status, "death": death, "memorial": memorial, "reveal": reveal, "bio": bio, "hire_cost": hire_cost,
 	}
 
@@ -428,6 +461,10 @@ static func from_dict(d: Dictionary) -> Member:
 		m.potential[k] = int(m.potential[k])
 	if not m.injury.is_empty():
 		m.injury["weeks"] = int(m.injury.get("weeks", 1))
+	m.variant = fix_variant(m.variant)
+	if m.gender == "" and m.race in PLAYABLE:
+		var parts := m.variant.split("_")
+		m.gender = parts[2] if parts.size() > 2 and parts[2] in ["m", "f"] else "m"
 	if int(m.palette.get("v", 1)) < PALETTE_VERSION and DB.races.has(m.race) and DB.classes.has(m.cls):
 		var rng := RandomNumberGenerator.new()
 		rng.seed = m.id * 7919 + hash(m.name)

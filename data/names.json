@@ -1,6 +1,8 @@
 {
   "human": {
     "first": ["Aldric", "Bryn", "Cass", "Dorian", "Edda", "Fenn", "Greta", "Hollis", "Ines", "Jory", "Kestrel", "Lio", "Mara", "Nell", "Osric", "Pim", "Quill", "Rhea", "Soren", "Tamsin", "Ulla", "Vance", "Wren", "Yara", "Ansel", "Bettany", "Corin", "Della", "Emrys", "Fia", "Gideon", "Hesper", "Ivo", "Juno", "Kit", "Lenora", "Milo", "Nessa", "Orla", "Piers", "Rosalind", "Silas", "Tobin", "Vesna", "Willa", "Zeke"],
+    "first_m": ["Aldric", "Bryn", "Cass", "Dorian", "Fenn", "Hollis", "Jory", "Kestrel", "Lio", "Osric", "Pim", "Quill", "Soren", "Vance", "Ansel", "Corin", "Emrys", "Gideon", "Ivo", "Kit", "Milo", "Piers", "Silas", "Tobin", "Zeke"],
+    "first_f": ["Bryn", "Cass", "Edda", "Greta", "Ines", "Kestrel", "Mara", "Nell", "Quill", "Rhea", "Tamsin", "Ulla", "Wren", "Yara", "Bettany", "Della", "Fia", "Hesper", "Juno", "Kit", "Lenora", "Nessa", "Orla", "Rosalind", "Vesna", "Willa"],
     "last": ["Ashdown", "Barrow", "Coldwater", "Dunmore", "Elsworth", "Fairwick", "Grayling", "Hartley", "Ironside", "Kettle", "Larkin", "Marsh", "Nettle", "Oakes", "Penrose", "Quarry", "Redfern", "Stonebridge", "Thatcher", "Underhill", "Vane", "Wickham", "Yarrow", "Bellwright", "Candlewick"]
   },
   "tidefolk": {

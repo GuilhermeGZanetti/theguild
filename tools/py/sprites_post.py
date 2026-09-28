@@ -6,6 +6,8 @@ Output: assets/sprites/units/<id>.png            index sheet (rows=dirs, cols=fr
         assets/sprites/units/<id>_portrait_b.png bandaged portrait (players)
         assets/sprites/units/units.json          frame tables for the game
 Encoding: R = slot*16 (15 = outline), G = shade*85 (outline: G = inner slot*16), A = 255.
+Render input with depth 0 (B = 0) marks priority pixels (eye highlights) that
+win the downsample vote even when they cover little of a pixel.
 """
 import os
 import sys
@@ -36,6 +38,7 @@ WEIGHTS[8] = 1.4   # trim
 WEIGHTS[9] = 1.2   # wood (bows, staves)
 WEIGHTS[14] = 1.5  # bandage
 SHADE_T = (0.40, 0.60, 0.86)
+PRIO_W = 14.0
 
 
 def downsample(img):
@@ -45,13 +48,15 @@ def downsample(img):
     alpha = a[..., 3] > 127
     slot = (a[..., 0].astype(np.int32)) // 16
     shade = a[..., 1].astype(np.float32) / 255.0
-    depth = a[..., 2].astype(np.float32) / 255.0
+    prio = alpha & (a[..., 2] < 3)
+    depth = np.where(prio, 0.5, a[..., 2].astype(np.float32) / 255.0)
     onehot = (slot[..., None] == np.arange(16)[None, None, :]) & alpha[..., None]
     oh = onehot.reshape(h, SS, w, SS, 16).sum(axis=(1, 3)).astype(np.float32)
+    ph = (onehot & prio[..., None]).reshape(h, SS, w, SS, 16).sum(axis=(1, 3)).astype(np.float32)
     cov = oh.sum(axis=2)
     sh = (onehot * shade[..., None]).reshape(h, SS, w, SS, 16).sum(axis=(1, 3))
     dp = (onehot * depth[..., None]).reshape(h, SS, w, SS, 16).sum(axis=(1, 3))
-    score = oh * WEIGHTS[None, None, :]
+    score = oh * WEIGHTS[None, None, :] + ph * PRIO_W
     best = np.argmax(score, axis=2)
     cnt = np.take_along_axis(oh, best[..., None], axis=2)[..., 0]
     s_mean = np.take_along_axis(sh, best[..., None], axis=2)[..., 0] / np.maximum(cnt, 1)
@@ -61,7 +66,7 @@ def downsample(img):
     return opaque, best, s_mean, d_mean
 
 
-def quantize(opaque, slot, shade, depth):
+def quantize(opaque, slot, shade, depth, portrait=False):
     lvl = np.zeros(shade.shape, dtype=np.int32)
     for t in SHADE_T:
         lvl += (shade >= t).astype(np.int32)
@@ -82,7 +87,7 @@ def quantize(opaque, slot, shade, depth):
         inner |= opaque & nb_op & (nb_sl != slot) & (nb_dp < depth - 0.045)
     keep = (slot == EYES) | (slot == GLOW)
     lvl = np.where(inner & ~keep, np.minimum(lvl, 0), lvl)
-    lvl = np.where(slot == EYES, 1, lvl)
+    lvl = np.where(slot == EYES, np.clip(lvl, 0, 3) if portrait else np.minimum(lvl, 1), lvl)
     lvl = np.where(slot == GLOW, np.maximum(lvl, 2), lvl)
     return lvl
 
@@ -114,10 +119,10 @@ def encode(opaque, slot, lvl):
     return out
 
 
-def process_frame(path):
+def process_frame(path, portrait=False):
     img = Image.open(path)
     opaque, slot, shade, depth = downsample(img)
-    lvl = quantize(opaque, slot, shade, depth)
+    lvl = quantize(opaque, slot, shade, depth, portrait)
     return encode(opaque, slot, lvl)
 
 
@@ -166,10 +171,10 @@ def build(vid, preview=False):
             col += 1
     os.makedirs(OUT, exist_ok=True)
     Image.fromarray(sheet, "RGBA").save(os.path.join(OUT, vid + ".png"))
-    port = process_frame(os.path.join(src, "portrait.png"))
+    port = process_frame(os.path.join(src, "portrait.png"), portrait=True)
     Image.fromarray(port, "RGBA").save(os.path.join(OUT, vid + "_portrait.png"))
     if meta.get("bandage"):
-        pb = process_frame(os.path.join(src, "bandage_portrait.png"))
+        pb = process_frame(os.path.join(src, "bandage_portrait.png"), portrait=True)
         Image.fromarray(pb, "RGBA").save(os.path.join(OUT, vid + "_portrait_b.png"))
     if preview:
         prev_dir = os.path.join(ROOT, "tools", "_cache", "preview")
@@ -193,13 +198,24 @@ def main():
     args = sys.argv[1:]
     preview = "--preview" in args
     ids = [a for a in args if not a.startswith("--")]
-    if not ids:
+    full = not ids
+    if full:
         ids = sorted(d for d in os.listdir(CACHE) if os.path.isfile(os.path.join(CACHE, d, "meta.json")))
     index_path = os.path.join(OUT, "units.json")
     index = json.load(open(index_path)) if os.path.exists(index_path) else {}
     for vid in ids:
         index[vid] = build(vid, preview)
         print("[post]", vid, flush=True)
+    if full:
+        # a full build owns the folder: drop units that are no longer rendered
+        for vid in sorted(set(index) - set(ids)):
+            del index[vid]
+            for name in (vid + ".png", vid + "_portrait.png", vid + "_portrait_b.png"):
+                for f in (name, name + ".import"):
+                    fp = os.path.join(OUT, f)
+                    if os.path.exists(fp):
+                        os.remove(fp)
+            print("[post] removed stale", vid, flush=True)
     json.dump(index, open(index_path, "w"), indent=1, sort_keys=True)
 
 

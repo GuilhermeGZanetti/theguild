@@ -1,9 +1,14 @@
 """Render every unit of A Guilda as index-encoded sprite frames.
 
-Run:  blender -b --factory-startup --python tools/blender/units.py -- --out tools/_cache/units [--only id1,id2]
+Run:  blender -b --factory-startup --python tools/blender/units.py -- --out tools/_cache/units [--only id1,id2] [--quick]
 
 Output per variant: <out>/<id>/<anim>_<dir>_<frame>.png at 4x resolution plus
 <out>/<id>/portrait.png. tools/py/sprites_post.py builds the final sheets.
+--quick renders only the idle pose in each direction, one attack frame and
+the portrait (for tools/py/model_sheet.py).
+
+Playable races are modelled in characters.py (a masculine and a feminine
+variant of every class); the enemies are built here.
 """
 import sys
 import os
@@ -15,7 +20,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import bpy  # noqa: E402
 from mathutils import Vector  # noqa: E402
 import bl_common as C  # noqa: E402
-import race_looks as RL  # noqa: E402
+import characters as CH  # noqa: E402
 
 # (name, frames) — shared with sprites_post.py and the game (unit_sprite.gd)
 ANIMS = [("idle", 4), ("walk", 4), ("attack", 4), ("cast", 4), ("hit", 2),
@@ -26,26 +31,25 @@ DIRS = [45.0, -45.0, -135.0, 135.0]   # front-right, front-left, back-left, back
 # ======================================================================
 # Variant catalogue
 # ======================================================================
+FACTION_LOOK = {"tidefolk": "tidecaller", "mothkin": "lanternbearer", "barkborn": "graftwarden", "khepri": "sandreaver"}
+
+
 def variants():
+    """Playable variants: <race>_<look>_<m|f> (humans add a hairstyle: _a/_b)."""
     v = []
-    races = ["human", "tidefolk", "mothkin", "barkborn", "khepri"]
-    for race in races:
-        hairs = ["a", "b", "c"] if race == "human" else ["a"]
-        for look in ["warrior", "rogue", "ranger", "mystic"]:
-            for h in hairs:
-                vid = f"{race}_{look}" + (f"_{h}" if race == "human" else "")
-                v.append({"id": vid, "rig": "humanoid", "race": race, "look": look, "hair": h,
-                          "canvas": 64, "bandage": True})
-    # faction classes (race locked)
-    v.append({"id": "tidefolk_tidecaller", "rig": "humanoid", "race": "tidefolk", "look": "tidecaller", "hair": "a", "canvas": 64, "bandage": True})
-    v.append({"id": "mothkin_lanternbearer", "rig": "humanoid", "race": "mothkin", "look": "lanternbearer", "hair": "a", "canvas": 64, "bandage": True})
-    v.append({"id": "barkborn_graftwarden", "rig": "humanoid", "race": "barkborn", "look": "graftwarden", "hair": "a", "canvas": 64, "bandage": True})
-    v.append({"id": "khepri_sandreaver", "rig": "humanoid", "race": "khepri", "look": "sandreaver", "hair": "a", "canvas": 64, "bandage": True})
+    for race in CH.RACES:
+        looks = ["warrior", "rogue", "ranger", "mystic"] + ([FACTION_LOOK[race]] if race in FACTION_LOOK else [])
+        for look in looks:
+            for g in ("m", "f"):
+                for h in (["a", "b"] if race == "human" else ["a"]):
+                    vid = f"{race}_{look}_{g}" + (f"_{h}" if race == "human" else "")
+                    v.append({"id": vid, "rig": "humanoid", "race": race, "look": look, "gender": g, "hair": h,
+                              "canvas": 64, "bandage": True})
     # humanoid enemies
     v.append({"id": "toad_brute", "rig": "humanoid", "race": "toad", "look": "brute", "hair": "a", "canvas": 64})
     v.append({"id": "toad_slinger", "rig": "humanoid", "race": "toad", "look": "ranger", "hair": "a", "canvas": 64})
     v.append({"id": "hollow", "rig": "humanoid", "race": "hollow", "look": "hollow", "hair": "a", "canvas": 64})
-    v.append({"id": "npc_villager", "rig": "humanoid", "race": "human", "look": "villager", "hair": "c", "canvas": 64})
+    v.append({"id": "npc_villager", "rig": "humanoid", "race": "human", "look": "villager", "gender": "f", "hair": "b", "canvas": 64})
     # creatures
     v.append({"id": "stinger", "rig": "floater", "kind": "stinger", "canvas": 64})
     v.append({"id": "stinger_queen", "rig": "floater", "kind": "stinger", "canvas": 96, "scale": 1.55})
@@ -71,8 +75,8 @@ class Rig(dict):
 
 
 def build_humanoid(spec, bandage=False):
-    race, look, hair = spec["race"], spec["look"], spec.get("hair", "a")
-    tall = {"unwritten": 1.3, "unnamed": 1.55}.get(race, 1.0) * RL.TALL.get((race, look), 1.0)
+    race, look = spec["race"], spec["look"]
+    tall = CH.tall_of(spec) if race in CH.RACES else {"unwritten": 1.3, "unnamed": 1.55}.get(race, 1.0)
     R = Rig()
     root = C.pivot("root")
     body = C.pivot("body", (0, 0, 0), root)
@@ -90,16 +94,13 @@ def build_humanoid(spec, bandage=False):
              armR=armR, armL=armL, handR=handR, handL=handL, legR=legR, legL=legL,
              race=race, look=look, tall=tall)
 
-    if race in RL.RACES:
-        RL.build(R, spec, sys.modules[__name__], bandage)
-        if bandage:
-            C.torus("bandage", (0, -0.01, 0.36), (1.0, 1.0, 0.8), (-14, 0, 0), parent=head, R=0.315, r=0.034)
-            C.box("bandage", (0.09, -0.06, -0.08), (0.06, 0.02, 0.1), parent=torso)
+    if race in CH.RACES:
+        CH.build(R, spec, bandage)
         return R
 
-    robe = look in ("mystic", "lanternbearer", "hollow", "unwritten", "unnamed", "graftwarden")
-    skin_arms = look in ("tidecaller", "brute")
-
+    # ---- enemies: toads, the hollow and the two bosses
+    robe = look in ("hollow", "unwritten", "unnamed")
+    skin_arms = look == "brute"
     # ---- torso
     C.sphere("cloth1", (0, 0, 0.22 * tall), (0.165, 0.13, 0.25 * tall), parent=torso)
     C.torus("leather", (0, 0, 0.07 * tall), (1, 0.82, 1), parent=torso, R=0.16, r=0.028)
@@ -118,7 +119,7 @@ def build_humanoid(spec, bandage=False):
     for side, arm, hand in ((-1, armR, handR), (1, armL, handL)):
         sleeve = "skin" if skin_arms else "cloth1"
         C.cyl(sleeve, (0, 0, -0.12 * tall), parent=arm, r=0.052, depth=0.22 * tall)
-        C.sphere("cloth2" if look not in ("brute", "tidecaller") else "leather", (0, 0, -0.215 * tall), (0.06, 0.06, 0.035), parent=arm)
+        C.sphere("leather" if skin_arms else "cloth2", (0, 0, -0.215 * tall), (0.06, 0.06, 0.035), parent=arm)
         C.sphere("skin2" if race in ("hollow", "unnamed") else "skin", (0, 0, 0.03), (0.058, 0.058, 0.058), parent=hand)
     # ---- head
     hs = 1.0 if race != "unnamed" else 0.92
@@ -127,7 +128,7 @@ def build_humanoid(spec, bandage=False):
         head_mesh.scale = (0.36, 0.3, 0.24)
         head_mesh.location = (0, -0.02, 0.22)
     eyes(race, head)
-    hairdo(race, hair, look, head, torso)
+    hairdo(race, head)
     outfit(look, R)
     if bandage:
         C.torus("bandage", (0, -0.01, 0.36), (1.0, 1.0, 0.8), (-14, 0, 0), parent=head, R=0.305, r=0.034)
@@ -144,71 +145,12 @@ def eyes(race, head):
             C.sphere("eyes", (s * 0.155, -0.19, 0.39), (0.04, 0.03, 0.05), parent=head)
         C.tube("eyes", [(-0.18, -0.265, 0.17), (0, -0.30, 0.15), (0.18, -0.265, 0.17)], radius=0.012, parent=head)
         return
-    big = race in ("mothkin", "khepri")
     for s in (-1, 1):
-        if big:
-            C.sphere("eyes", (s * 0.12, -0.255, 0.25), (0.07, 0.045, 0.085), parent=head)
-            C.sphere("white", (s * 0.105, -0.29, 0.29), (0.018, 0.012, 0.02), parent=head)
-        else:
-            C.sphere("eyes", (s * 0.11, -0.268, 0.25), (0.036, 0.03, 0.068), parent=head)
-    if race not in ("mothkin", "khepri", "unwritten"):
-        C.sphere("skin2", (0, -0.29, 0.17), (0.035, 0.02, 0.012), parent=head)  # mouth / blush line
+        C.sphere("eyes", (s * 0.11, -0.268, 0.25), (0.036, 0.03, 0.068), parent=head)
 
 
-def hairdo(race, hair, look, head, torso):
-    if race == "human":
-        if look == "villager":
-            hair = "c"
-        C.sphere("hair", (0, 0.04, 0.34), (0.33, 0.325, 0.3), parent=head)
-        if hair == "a":      # bangs + high ponytail
-            C.sphere("hair", (0.0, -0.2, 0.44), (0.25, 0.12, 0.12), (0, 0, 0), parent=head)
-            C.sphere("hair", (-0.18, -0.18, 0.36), (0.09, 0.1, 0.14), parent=head)
-            C.tube("hair", [(0, 0.26, 0.5), (0, 0.42, 0.42), (0, 0.44, 0.18), (0.02, 0.38, 0.02)],
-                   radius=0.1, parent=head, taper=[0.8, 1.0, 0.8, 0.35])
-            C.torus("cloth2", (0, 0.28, 0.5), (1, 1, 1), (70, 0, 0), parent=head, R=0.06, r=0.022)
-        elif hair == "b":    # short spiky
-            for (x, y, z, rx, ry) in [(0, -0.12, 0.6, -35, 0), (-0.17, -0.02, 0.55, -10, -35), (0.17, -0.02, 0.55, -10, 35),
-                                      (0, 0.18, 0.56, 30, 0), (-0.14, 0.2, 0.44, 45, -30), (0.14, 0.2, 0.44, 45, 30),
-                                      (-0.26, -0.08, 0.38, -10, -60), (0.26, -0.08, 0.38, -10, 60)]:
-                C.cone("hair", (x, y, z), (1, 1, 1), (rx, ry, 0), parent=head, r1=0.1, r2=0.0, depth=0.2, verts=8)
-            C.sphere("hair", (0.0, -0.22, 0.43), (0.24, 0.1, 0.1), parent=head)
-        else:                # long bob
-            C.sphere("hair", (0.0, -0.21, 0.43), (0.26, 0.11, 0.12), parent=head)
-            for s in (-1, 1):
-                C.sphere("hair", (s * 0.26, -0.02, 0.2), (0.11, 0.17, 0.26), parent=head)
-            C.sphere("hair", (0, 0.16, 0.2), (0.3, 0.2, 0.3), parent=head)
-    elif race == "tidefolk":
-        # symbiotic jellyfish living on the head
-        C.sphere("hair", (0, 0.03, 0.46), (0.3, 0.3, 0.2), parent=head)
-        C.torus("feature", (0, 0.03, 0.4), (1, 1, 0.5), parent=head, R=0.28, r=0.04)
-        C.sphere("glow", (0, 0.0, 0.5), (0.08, 0.08, 0.06), parent=head)
-        for i in range(5):
-            a = math.radians(-60 + i * 30 + 180)
-            x, y = math.sin(a) * 0.22, 0.05 - math.cos(a) * 0.22
-            C.tube("hair", [(x, y, 0.4), (x * 1.1, y * 1.1 + 0.03, 0.2), (x * 1.05, y * 1.15 + 0.06, 0.02)],
-                   radius=0.03, parent=head, taper=[1, 0.8, 0.4])
-        for s in (-1, 1):
-            C.cone("feature", (s * 0.32, 0.02, 0.28), (0.35, 1.0, 1.0), (0, s * 90, 0), parent=head, r1=0.1, r2=0.0, depth=0.18, verts=8)
-    elif race == "mothkin":
-        C.sphere("hair", (0, 0.05, 0.42), (0.27, 0.27, 0.2), parent=head)
-        C.torus("white", (0, 0, -0.02), (1, 1, 0.8), parent=head, R=0.15, r=0.07)
-        for s in (-1, 1):
-            C.tube("feature", [(s * 0.08, -0.1, 0.52), (s * 0.18, -0.2, 0.72), (s * 0.32, -0.18, 0.82)], radius=0.018, parent=head)
-            C.sphere("feature", (s * 0.33, -0.18, 0.82), (0.07, 0.03, 0.05), (0, s * 20, 0), parent=head)
-            C.sphere("feature", (s * 0.2, 0.16, 0.32), (0.22, 0.025, 0.28), (10, 0, s * -25), parent=torso)
-            C.sphere("feature", (s * 0.16, 0.15, 0.08), (0.14, 0.02, 0.16), (-10, 0, s * -35), parent=torso)
-    elif race == "barkborn":
-        for (x, y, z, r) in [(0, 0.02, 0.56, 0.16), (-0.17, 0.02, 0.5, 0.13), (0.17, 0.02, 0.5, 0.13), (0, 0.18, 0.48, 0.14),
-                             (-0.1, -0.12, 0.53, 0.11), (0.12, -0.12, 0.52, 0.1), (-0.24, 0.12, 0.38, 0.1), (0.24, 0.12, 0.38, 0.1)]:
-            C.ico("hair", (x, y, z), (1, 1, 0.85), parent=head, r=r, sub=1)
-        for s in (-1, 1):
-            C.tube("wood", [(s * 0.18, 0.0, 0.5), (s * 0.28, -0.02, 0.66), (s * 0.34, 0.02, 0.76)], radius=0.022, parent=head)
-    elif race == "khepri":
-        C.sphere("hair", (0, 0.06, 0.34), (0.335, 0.33, 0.3), parent=head)
-        C.cone("feature", (0, -0.2, 0.58), (1, 0.7, 1), (-30, 0, 0), parent=head, r1=0.07, r2=0.0, depth=0.26, verts=8)
-        for s in (-1, 1):
-            C.cone("feature", (s * 0.1, -0.26, 0.06), (1, 1, 1), (60, 0, s * 20), parent=head, r1=0.035, r2=0.0, depth=0.12, verts=6)
-    elif race == "hollow":
+def hairdo(race, head):
+    if race == "hollow":
         C.sphere("cloth2", (0, 0.04, 0.32), (0.34, 0.33, 0.33), parent=head)
         C.sphere("skin2", (0, -0.23, 0.25), (0.2, 0.08, 0.2), parent=head)
     elif race == "unwritten":
@@ -225,61 +167,15 @@ def hairdo(race, hair, look, head, torso):
 
 
 def outfit(look, R):
-    torso, handR, handL, armR, armL = R["torso"], R["handR"], R["handL"], R["armR"], R["armL"]
+    torso, handR, armR, armL = R["torso"], R["handR"], R["armR"], R["armL"]
     t = R["tall"]
-    if look == "warrior":
-        C.sphere("metal", (0, -0.012, 0.25), (0.178, 0.14, 0.2), parent=torso)
-        C.torus("trim", (0, 0, 0.4), (1, 0.85, 1), parent=torso, R=0.13, r=0.03)
-        for s in (-1, 1):
-            C.sphere("metal", (s * 0.2, 0, 0.4), (0.1, 0.1, 0.07), parent=torso)
-        sword(handR)
-        wL = C.pivot("shield", (0.05, -0.1, 0.1), handL)
-        C.cyl("wood", (0, 0, 0), (1, 1, 1), (90, 0, 0), parent=wL, r=0.17, depth=0.04, verts=20)
-        C.torus("metal", (0, -0.02, 0), (1, 1, 1), (90, 0, 0), parent=wL, R=0.17, r=0.022)
-        C.sphere("trim", (0, -0.04, 0), (0.055, 0.03, 0.055), parent=wL)
-    elif look == "rogue":
-        C.sphere("leather", (0, -0.01, 0.27), (0.172, 0.135, 0.17), parent=torso)
-        C.torus("cloth2", (0, 0, 0.42), (1, 1, 1.3), parent=torso, R=0.13, r=0.05)
-        C.tube("cloth2", [(0.05, 0.12, 0.42), (0.1, 0.25, 0.3), (0.14, 0.33, 0.12)], radius=0.045, parent=torso, taper=[1, 0.9, 0.6])
-        dagger(handR)
-        dagger(handL)
-    elif look == "ranger":
+    if look == "ranger":            # toad slinger
         C.sphere("leather", (0, -0.01, 0.27), (0.17, 0.134, 0.17), parent=torso)
         C.sphere("cape", (0, 0.1, 0.2), (0.2, 0.08, 0.26), parent=torso)
         C.cyl("leather", (0.06, 0.16, 0.3), (1, 1, 1), (-15, 20, 0), parent=torso, r=0.06, depth=0.34)
         for dx in (-0.02, 0.02, 0.0):
             C.cone("white", (0.1 + dx, 0.2, 0.52), (1, 0.5, 1), (-15, 20, 0), parent=torso, r1=0.03, r2=0.0, depth=0.08, verts=4)
-        bow(handL)
-    elif look in ("mystic",):
-        C.torus("cloth2", (0, 0, 0.07), (1, 0.82, 1), parent=torso, R=0.17, r=0.035)
-        hat = C.pivot("hat", (0, 0.02, 0.52), R["head"])
-        C.cyl("cloth2", (0, 0, 0), (1, 1, 1), parent=hat, r=0.4, depth=0.04, verts=24)
-        C.cone("cloth2", (0, 0.02, 0.22), (1, 1, 1), (-12, 0, 0), parent=hat, r1=0.24, r2=0.02, depth=0.46, verts=16)
-        C.torus("trim", (0, 0, 0.04), (1, 1, 1), parent=hat, R=0.235, r=0.022)
-        staff(handR, "glow")
-    elif look == "tidecaller":
-        C.sphere("cloth1", (0, -0.01, 0.27), (0.17, 0.134, 0.18), parent=torso)
-        C.sphere("trim", (-0.2, 0, 0.42), (0.11, 0.1, 0.08), parent=torso)
-        C.ico("trim", (-0.24, 0, 0.5), (1, 1, 1), parent=torso, r=0.05, sub=1)
-        C.ico("trim", (-0.16, 0.03, 0.52), (1, 1, 1), parent=torso, r=0.04, sub=1)
-        trident(handR)
-    elif look == "lanternbearer":
-        C.torus("cloth2", (0, 0, 0.07), (1, 0.82, 1), parent=torso, R=0.17, r=0.035)
-        C.sphere("cloth2", (0, 0.06, 0.42), (0.2, 0.17, 0.08), parent=torso)
-        lantern(handR)
-    elif look == "graftwarden":
-        C.sphere("wood", (0, -0.012, 0.25), (0.178, 0.14, 0.2), parent=torso)
-        C.sphere("cape", (0, 0.11, 0.2), (0.21, 0.08, 0.3), parent=torso)
-        for (x, z) in ((-0.12, 0.34), (0.1, 0.3), (0.0, 0.12)):
-            C.ico("cape", (x, 0.16, z), (1, 1, 1), parent=torso, r=0.08, sub=1)
-        C.tube("wood", [(0, 0, -0.4), (0.03, -0.02, 0.0), (-0.02, 0.0, 0.3), (0.05, 0.0, 0.58), (0.12, 0.0, 0.66)], radius=0.03, parent=handR)
-        C.ico("feature", (0.12, 0.0, 0.7), (1, 1, 1), parent=handR, r=0.06, sub=1)
-    elif look == "sandreaver":
-        C.sphere("cloth1", (0, -0.01, 0.27), (0.172, 0.135, 0.18), parent=torso)
-        C.torus("cloth2", (0, 0, 0.44), (1, 1, 1.5), parent=torso, R=0.12, r=0.06)
-        C.tube("cloth2", [(-0.05, 0.12, 0.44), (-0.12, 0.28, 0.34), (-0.2, 0.36, 0.16)], radius=0.045, parent=torso, taper=[1, 0.9, 0.5])
-        glass_blade(handR)
-        glass_blade(handL)
+        bow(R["handL"])
     elif look == "brute":
         C.sphere("skin2", (0, -0.03, 0.2), (0.15, 0.12, 0.18), parent=torso)
         C.tube("leather", [(-0.16, -0.13, 0.42), (0.0, -0.15, 0.25), (0.16, -0.12, 0.06)], radius=0.025, parent=torso)
@@ -288,8 +184,6 @@ def outfit(look, R):
         for s in (-1, 1):
             arm = armR if s < 0 else armL
             C.cone("skin2", (0, 0, -0.38), (1, 1, 1), (180, 0, 0), parent=arm, r1=0.03, r2=0.0, depth=0.12, verts=6)
-    elif look == "villager":
-        C.sphere("cloth2", (0, -0.03, 0.14), (0.16, 0.11, 0.14), parent=torso)  # apron
     elif look == "unwritten":
         C.tube("feature", [(0, 0, -0.6), (0, 0, 0.9)], radius=0.035, parent=handR)
         C.cone("white", (0, 0, 1.05), (1, 0.35, 1), parent=handR, r1=0.1, r2=0.0, depth=0.42, verts=10)
@@ -303,63 +197,11 @@ def outfit(look, R):
             C.box("white", (math.cos(a) * 0.5, math.sin(a) * 0.5, 0.0), (0.14, 0.02, 0.18), (0, 0, math.degrees(a) + 90), parent=crown)
 
 
-def sword(hand):
-    w = C.pivot("weapon", (0, -0.02, 0.02), hand)
-    C.cyl("leather", (0, 0, 0), (1, 1, 1), (90, 0, 0), parent=w, r=0.022, depth=0.1)
-    C.box("trim", (0, -0.06, 0), (0.15, 0.03, 0.035), parent=w)
-    C.box("metal", (0, -0.28, 0), (0.05, 0.42, 0.016), parent=w)
-    C.cone("metal", (0, -0.51, 0), (1, 1, 0.3), (90, 0, 0), parent=w, r1=0.025, r2=0.0, depth=0.06, verts=4)
-
-
-def dagger(hand):
-    w = C.pivot("weapon", (0, -0.02, 0.0), hand)
-    C.cyl("leather", (0, 0, 0), (1, 1, 1), (90, 0, 0), parent=w, r=0.018, depth=0.07)
-    C.box("trim", (0, -0.045, 0), (0.08, 0.02, 0.02), parent=w)
-    C.box("metal", (0, -0.15, 0), (0.035, 0.2, 0.012), parent=w)
-
-
 def bow(hand):
     w = C.pivot("weapon", (0.0, -0.03, 0.0), hand)
     pts = [(0, -0.02, 0.36), (0, -0.13, 0.2), (0, -0.16, 0.0), (0, -0.13, -0.2), (0, -0.02, -0.36)]
     C.tube("wood", pts, radius=0.022, parent=w, taper=[0.6, 1, 1.2, 1, 0.6])
     C.tube("white", [(0, -0.02, 0.35), (0, 0.02, 0.0), (0, -0.02, -0.35)], radius=0.006, parent=w)
-
-
-def staff(hand, gem):
-    w = C.pivot("weapon", (0, 0, 0), hand)
-    C.cyl("wood", (0, 0, 0.06), (1, 1, 1), parent=w, r=0.025, depth=0.95)
-    C.torus("trim", (0, 0, 0.52), (1, 1, 1), parent=w, R=0.05, r=0.018)
-    for a in (0, 120, 240):
-        C.cone("trim", (math.cos(math.radians(a)) * 0.05, math.sin(math.radians(a)) * 0.05, 0.6), (1, 1, 1),
-               (0, 0, 0), parent=w, r1=0.02, r2=0.0, depth=0.12, verts=4)
-    C.ico(gem, (0, 0, 0.62), (1, 1, 1.2), parent=w, r=0.065, sub=1)
-
-
-def trident(hand):
-    w = C.pivot("weapon", (0, 0, 0), hand)
-    C.cyl("wood", (0, 0, 0.1), (1, 1, 1), parent=w, r=0.022, depth=1.0)
-    C.box("metal", (0, 0, 0.6), (0.2, 0.03, 0.03), parent=w)
-    for x in (-0.09, 0.0, 0.09):
-        C.cone("metal", (x, 0, 0.72), (1, 1, 1), parent=w, r1=0.022, r2=0.0, depth=0.24, verts=4)
-
-
-def lantern(hand):
-    w = C.pivot("weapon", (0, 0, 0), hand)
-    C.cyl("wood", (0, 0, 0.18), (1, 1, 1), parent=w, r=0.022, depth=0.95)
-    C.tube("wood", [(0, 0, 0.64), (0, -0.14, 0.72), (0, -0.2, 0.62)], radius=0.018, parent=w)
-    C.cyl("metal", (0, -0.2, 0.57), (1, 1, 1), parent=w, r=0.07, depth=0.03, verts=8)
-    C.sphere("glow", (0, -0.2, 0.47), (0.06, 0.06, 0.08), parent=w)
-    C.cyl("metal", (0, -0.2, 0.37), (1, 1, 1), parent=w, r=0.07, depth=0.03, verts=8)
-    for a in (45, 135, 225, 315):
-        x, y = math.cos(math.radians(a)) * 0.06, math.sin(math.radians(a)) * 0.06
-        C.cyl("metal", (x, -0.2 + y, 0.47), (1, 1, 1), parent=w, r=0.01, depth=0.2, verts=4)
-
-
-def glass_blade(hand):
-    w = C.pivot("weapon", (0, -0.02, 0), hand)
-    C.cyl("leather", (0, 0, 0), (1, 1, 1), (90, 0, 0), parent=w, r=0.02, depth=0.08)
-    C.tube("glow", [(0, -0.04, 0), (0, -0.2, 0.05), (0, -0.34, 0.14), (0, -0.4, 0.26)], radius=0.03, parent=w,
-           taper=[1.2, 1.1, 0.8, 0.2])
 
 
 def cleaver(hand):
@@ -853,16 +695,27 @@ def portrait_camera(scene, center, ortho, pitch_deg):
     return cam
 
 
-def render_variant(spec, out_root):
+def show_only(where):
+    """Objects tagged by C.only_in render only in sprite frames or only in portraits."""
+    for obj in bpy.data.objects:
+        tag = obj.get("only")
+        if tag:
+            obj.hide_render = tag != where
+
+
+QUICK = [("idle", 1), ("attack", 3)]
+
+
+def render_variant(spec, out_root, quick=False):
     scale = spec.get("scale", 1.0) * CHAR_SCALE
     canvas = spec["canvas"]
     anchor = (canvas // 2, int(canvas * 0.78))
-    todo = [(False, ANIMS)]
-    if spec.get("bandage"):
+    todo = [(False, ANIMS if not quick else QUICK)]
+    if spec.get("bandage") and not quick:
         todo.append((True, [("idle", 4)]))
     out_dir = os.path.join(out_root, spec["id"])
     os.makedirs(out_dir, exist_ok=True)
-    meta = {"id": spec["id"], "canvas": canvas, "anchor": anchor, "anims": ANIMS, "bandage": bool(spec.get("bandage"))}
+    meta = {"id": spec["id"], "canvas": canvas, "anchor": anchor, "anims": ANIMS, "bandage": bool(spec.get("bandage")), "quick": quick}
     for bandaged, anims in todo:
         scene = C.reset_scene()
         cam, fwd, up, right = C.setup_camera(scene, (canvas, canvas), anchor)
@@ -875,22 +728,31 @@ def render_variant(spec, out_root):
         poser = POSERS[spec["rig"]]
         yaw = C.pivot("yaw")
         R["root"].parent = yaw
+        show_only("sprite")
         for di, deg in enumerate(DIRS):
             yaw.rotation_euler = (0, 0, math.radians(deg))
             for anim, n in anims:
-                for f in range(n):
+                frames = range(n) if not quick else ([0] if anim == "idle" else [2])
+                if quick and anim == "attack" and di != 0:
+                    continue
+                for f in frames:
                     reset_pose(R)
-                    poser(R, anim, f, n)
+                    poser(R, anim, f, 4 if quick else n)
                     name = ("bandage_" if bandaged else "") + f"{anim}_{di}_{f}.png"
                     C.render_to(os.path.join(out_dir, name))
+        show_only("portrait")
         # portrait: close-up of the head, front-right idle
         if spec["rig"] == "humanoid":
             yaw.rotation_euler = (0, 0, math.radians(28))
             reset_pose(R)
             pose_humanoid(R, "idle", 0, 4)
             big = R["race"] in ("unnamed", "unwritten")
-            hz = (0.84 * R["tall"] + 0.22) * scale
-            portrait_camera(scene, Vector((0, 0, hz)), 0.8 * scale * (1.25 if big else 1.0), 12)
+            if R["race"] in CH.RACES:
+                hz = (0.84 * R["tall"] + 0.265) * scale
+                portrait_camera(scene, Vector((0, 0, hz)), 0.86 * scale, 12)
+            else:
+                hz = (0.84 * R["tall"] + 0.22) * scale
+                portrait_camera(scene, Vector((0, 0, hz)), 0.8 * scale * (1.25 if big else 1.0), 12)
             C.render_to(os.path.join(out_dir, ("bandage_" if bandaged else "") + "portrait.png"))
         else:
             yaw.rotation_euler = (0, 0, math.radians(35))
@@ -911,6 +773,7 @@ def main():
     out = "tools/_cache/units"
     only = None
     shard, nshards = 0, 1
+    quick = False
     i = 0
     while i < len(argv):
         if argv[i] == "--out":
@@ -922,6 +785,9 @@ def main():
         elif argv[i] == "--shard":
             shard, nshards = [int(x) for x in argv[i + 1].split("/")]
             i += 2
+        elif argv[i] == "--quick":
+            quick = True
+            i += 1
         else:
             i += 1
     out = os.path.abspath(out)
@@ -929,7 +795,7 @@ def main():
     specs = [s for k, s in enumerate(specs) if k % nshards == shard]
     for s in specs:
         t0 = time.time()
-        render_variant(s, out)
+        render_variant(s, out, quick)
         print(f"[units] {s['id']} done in {time.time() - t0:.1f}s", flush=True)
 
 

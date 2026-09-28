@@ -57,7 +57,7 @@ Download a build, or open the project in **Godot 4.7.2** and press Play (main sc
   - Missions take place by day, at dusk or by night; at night lanterns and fires light the map under the moon.
   - Toon lighting with hue-shifted shadows, per-region palettes, depth outlines, and desaturation that follows the local Hush.
   - Billboard chibi sprites in 4 directions, drawn from the same 30° angle as the maps.
-  - The Tidefolk, Mothkin, Barkborn and Khepri follow the concept sheets in `concept_art/`, one design per class, each in its race's palette.
+  - Anime-style chibi models: the Tidefolk, Mothkin, Barkborn and Khepri follow the concept sheets in `concept_art/`, and every class of every race has a masculine and a feminine model, each in its race's palette.
 - **Audio**
   - Procedurally synthesized folk music in the guild.
   - Combat music with a danger layer that rises as the squad gets hurt.
@@ -94,13 +94,13 @@ Pass `-Only units,props,textures,ui,audio` to rebuild a subset.
 
 | Step | Tool | Output |
 |-|-|-|
-| units | Blender `tools/blender/units.py` (race models in `race_looks.py`), then `tools/py/sprites_post.py` | Index-colour sprite sheets (4 directions × 30 frames), portraits and `units.json` |
+| units | Blender `tools/blender/units.py` (anime-style playable models in `characters.py`), then `tools/py/sprites_post.py` | Index-colour sprite sheets (4 directions × 30 frames), portraits and `units.json` |
 | props | Blender `tools/blender/props.py` | 77 low-poly `.glb` props with palette-slot vertex colours |
 | textures | `tools/py/textures.py` | Ground atlases, prop palettes per region, decoration sheet |
 | ui | `tools/py/ui_art.py` | Panels, buttons, icons, emblems, world map |
 | audio | `tools/py/audio.py` | Music loops and sound effects (numpy synthesis) |
 
-Blender must be installed; the Python tools run in `.venv` (numpy and Pillow). Race and class colours live in `data/races.json` (`palette` and `looks`). `tools/py/race_sheet.py` builds a review sheet of the race models in those colours.
+Blender must be installed; the Python tools run in `.venv` (numpy and Pillow). Race and class colours live in `data/races.json` (`palette` and `looks`). Every class of every playable race has a masculine and a feminine model (`<race>_<look>_<m|f>`, humans add a hairstyle `_a`/`_b`), modelled after the sheets in `concept_art/`. `tools/py/race_sheet.py` builds a review sheet of the race models in those colours; for model work, `units.py --quick` plus `tools/py/model_sheet.py` renders a fast hi-res preview.
 
 ## Tests and checks
 

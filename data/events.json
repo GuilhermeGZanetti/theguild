@@ -56,15 +56,15 @@
     "ambush": {"title": "Ambush!", "text": "{faction} is hostile to the guild. Its agents have joined the enemy on this mission."}
   },
   "named": {
-    "wren": {"name": "Wren Tallowmere", "cls": "rogue", "race": "human", "tier": 3, "level": 3, "traits": ["lucky", "swift"],
+    "wren": {"name": "Wren Tallowmere", "gender": "f", "cls": "rogue", "race": "human", "tier": 3, "level": 3, "traits": ["lucky", "swift"],
       "bio": "A street thief from Carrow's lower market who tried to rob the guild and was hired instead."},
-    "hesk": {"name": "Old Hesk", "cls": "warrior", "race": "tidefolk", "tier": 2, "level": 5, "traits": ["iron_skin", "brave", "slow_healer"],
+    "hesk": {"name": "Old Hesk", "gender": "m", "cls": "warrior", "race": "tidefolk", "tier": 2, "level": 5, "traits": ["iron_skin", "brave", "slow_healer"],
       "bio": "A Saltborn captain who lost his ship and crew to the Hush. His jellyfish still remembers all their names."},
-    "ilyra": {"name": "Ilyra Wickwright", "cls": "mystic", "race": "mothkin", "tier": 3, "level": 2, "traits": ["quick_hands", "fast_learner", "frail"],
+    "ilyra": {"name": "Ilyra Wickwright", "gender": "f", "cls": "mystic", "race": "mothkin", "tier": 3, "level": 2, "traits": ["quick_hands", "fast_learner", "frail"],
       "bio": "A Lantern Conclave archivist who ran away with a lantern of forbidden memories."},
-    "bramble": {"name": "Bramblemask", "cls": "warrior", "race": "barkborn", "tier": 2, "level": 4, "traits": ["tough", "steady"],
+    "bramble": {"name": "Bramblemask", "gender": "m", "cls": "warrior", "race": "barkborn", "tier": 2, "level": 4, "traits": ["tough", "steady"],
       "bio": "Grew from a seed someone planted by the tavern door. Carries fragments of a guild warrior nobody remembers."},
-    "sef": {"name": "Sef Amberglass", "cls": "ranger", "race": "khepri", "tier": 2, "level": 3, "traits": ["eagle_eye", "keen", "vengeful"],
+    "sef": {"name": "Sef Amberglass", "gender": "f", "cls": "ranger", "race": "khepri", "tier": 2, "level": 3, "traits": ["eagle_eye", "keen", "vengeful"],
       "bio": "A Glass Caravans guard hunting the raiders who cost her a cargo and her post."}
   },
   "hush_stages": {

@@ -37,7 +37,7 @@ var is_ghost := false
 
 
 func setup(p_variant: String, palette: Dictionary, p_pitch: float, region := "") -> void:
-	variant = p_variant
+	variant = Member.fix_variant(p_variant)
 	pitch = p_pitch
 	if variant.begins_with("__object_"):
 		_setup_object(region)
@@ -45,8 +45,8 @@ func setup(p_variant: String, palette: Dictionary, p_pitch: float, region := "")
 	meta = DB.units.get(variant, {})
 	if meta.is_empty():
 		push_warning("Missing sprite " + variant)
-		meta = DB.units.get("human_warrior_a", {})
-		variant = "human_warrior_a"
+		meta = DB.units.get("human_warrior_m_a", {})
+		variant = "human_warrior_m_a"
 	canvas = int(meta.get("canvas", 64))
 	var tex := _sheet(variant)
 	mat = ShaderMaterial.new()
