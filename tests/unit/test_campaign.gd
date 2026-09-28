@@ -136,6 +136,29 @@ func test_conflicting_missions_cancel_each_other():
 	assert_eq(int(c.factions["glass"]["power"]), 4)
 
 
+func test_carried_out_corpse_stays_dead():
+	var c := _new()
+	var ma := c._make_mission("rivalry", "coast", "saltborn")
+	ma["rival"] = "glass"
+	var squad := c.available_members(1).slice(0, 4)
+	var b := BattleFactory.build(ma, squad, c.battle_context(ma))
+	var victim: BattleUnit = null
+	for u in b.units:
+		if u.team == BattleUnit.TEAM_PLAYER and u.member != null:
+			victim = u
+			break
+	b.start()
+	b._apply_damage(victim, victim.max_hp() * 5, null)
+	assert_eq(victim.state, "dead", "overkill kills outright")
+	victim.state = "recovered"   # what do_extract sets on a carried corpse
+	b._finish("victory")
+	assert_false(b.bonus[0]["done"], "a death breaks the no-downs bonus")
+	var rep := c.finish_mission(ma, b)
+	assert_eq(victim.member.status, "dead")
+	assert_true(victim.member.name in rep["deaths"])
+	assert_false(victim.member.name in rep["lost_items"], "carried out, so the gear comes home")
+
+
 func test_simulated_campaign_runs():
 	## An autopilot plays 20 weeks with AI battles to catch crashes and
 	## sanity-check the economy.

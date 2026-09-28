@@ -313,6 +313,23 @@ func move_budget(u: BattleUnit) -> int:
 	return maxi(b, 1)
 
 
+## Running doubles the move but spends the action too, so it needs one left.
+func run_budget(u: BattleUnit) -> int:
+	if u.acted or u.carrying >= 0:
+		return 0
+	return move_budget(u) * 2
+
+
+## Movement reach including the run band; cells costing more than
+## move_budget() are run-only.
+func reachable_with_run(u: BattleUnit) -> Dictionary:
+	return reachable(u, maxi(move_budget(u), run_budget(u)))
+
+
+func is_run(u: BattleUnit, reach: Dictionary, dest: Vector2i) -> bool:
+	return reach.has(dest) and int(reach[dest]["cost"]) > move_budget(u)
+
+
 ## Dijkstra over the grid honouring height, water, units and zones of control.
 ## Returns cell -> {"cost", "prev", "zoc"}.
 func reachable(u: BattleUnit, budget := -1) -> Dictionary:
@@ -410,10 +427,13 @@ func aoo_attackers(u: BattleUnit, path: Array) -> Array:
 
 
 func do_move(u: BattleUnit, dest: Vector2i) -> bool:
-	var reach := reachable(u)
+	var reach := reachable_with_run(u)
 	var path := path_to(u, dest, reach)
 	if path.is_empty():
 		return false
+	if is_run(u, reach, dest):
+		u.acted = true
+		emit({"t": "float", "uid": u.uid, "text": "Run!", "kind": "warn"})
 	u.moved = true
 	for o in aoo_attackers(u, path):
 		if not u.active():
@@ -1596,7 +1616,7 @@ func _finish(res: String) -> void:
 	over = true
 	result = res
 	if res == "victory":
-		if downs == 0:
+		if downs == 0 and deaths == 0:
 			mark_bonus("no_downs")
 		if round_num <= int(mission.get("par_rounds", 8)):
 			mark_bonus("fast")

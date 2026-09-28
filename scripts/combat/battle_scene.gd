@@ -4,8 +4,18 @@ extends Control
 
 signal turn_finished
 
-const C_MOVE := Color(0.22, 0.45, 1.0, 0.3)
-const C_MOVE_B := Color(0.35, 0.62, 1.0, 1.0)
+const C_MOVE := Color(0.1, 0.38, 1.0, 0.5)
+const C_MOVE_B := Color(0.5, 0.8, 1.0, 1.0)
+const C_MOVE_G := Color(0.05, 0.2, 0.7, 0.55)
+const C_RUN := Color(1.0, 0.72, 0.0, 0.5)
+const C_RUN_B := Color(1.0, 0.9, 0.2, 1.0)
+const C_RUN_G := Color(0.6, 0.38, 0.0, 0.55)
+const C_RIM := Color(0.05, 0.04, 0.08, 0.75)
+const C_TARGET := Color(1.0, 0.15, 0.1, 0.45)
+const C_TARGET_B := Color(1.0, 0.3, 0.2, 1.0)
+const C_ACTIVE := Color(1.0, 0.85, 0.3, 0.4)
+const C_ACTIVE_B := Color(1.0, 0.92, 0.5, 1.0)
+const EDGE_BOLD := 3.0 / 24.0
 const C_ZOC := Color(1.0, 0.55, 0.2, 0.22)
 const C_ENEMY := Color(1.0, 0.3, 0.25, 0.16)
 const C_ENEMY_B := Color(1.0, 0.45, 0.35, 0.85)
@@ -47,6 +57,8 @@ var hover_cell := Vector2i(-1, -1)
 var hover_uid := -1
 var active: BattleUnit = null
 var cover_icons: Array = []
+var turn_arrow: Polygon2D = null
+var turn_unit: BattleUnit = null     # whoever's turn it is, player or AI
 var menu: Control = null
 var dragging := false
 var drag_last := Vector2.ZERO
@@ -158,6 +170,7 @@ func _loop() -> void:
 			break
 		if battle.current != u:
 			continue
+		turn_unit = u
 		if _player_controls(u):
 			_begin_player_turn(u)
 			await turn_finished
@@ -165,8 +178,10 @@ func _loop() -> void:
 			_focus_unit(u)
 			hud.refresh_unit(u)
 			await get_tree().create_timer(0.3 / Settings.combat_speed).timeout
+			_draw_ranges()
 			battle.ai.take_turn(u)
 			await _play(battle.pop_events())
+		turn_unit = null
 		_refresh_all()
 	_on_battle_end()
 
@@ -190,17 +205,18 @@ func _begin_player_turn(u: BattleUnit) -> void:
 		Dialogs.message(self, "Your first fight",
 			("Each turn a member may [color=#%s]move[/color] (blue tiles) and take [color=#%s]one action[/color].\n\n" +
 			"• Click a blue tile to move. Hovering shows the path, cover and attacks of opportunity.\n" +
-			"• Click an enemy to attack, or pick a skill below (keys 1-6). Hit and crit chances show before you commit.\n" +
+			"• Yellow tiles are a [color=#%s]Run[/color]: twice as far, but it uses up the action too.\n" +
+			"• Enemies marked red can be attacked from where you stand: click one, or pick a skill below (keys 1-6). Hit and crit chances show before you commit.\n" +
 			"• Orange tiles are enemy zones of control: stepping in stops you; leaving provokes a free attack.\n" +
 			"• A member at 0 HP is [color=#%s]Downed[/color] and bleeds out. Stabilize them (G) or carry them (C) to the green extraction zone.\n\n" +
-			"Q/E rotate the camera, the mouse wheel zooms, Space ends the turn.") % [g, g, UITheme.RED.to_html(false)],
+			"Q/E rotate the camera, the mouse wheel zooms, Space ends the turn.") % [g, g, g, UITheme.RED.to_html(false)],
 			Callable(), "To battle", 320)
 
 
 func _refresh_player() -> void:
 	if active == null:
 		return
-	reach = battle.reachable(active) if not active.moved else {}
+	reach = battle.reachable_with_run(active) if not active.moved else {}
 	_refresh_all()
 	_update_hover()
 
@@ -232,11 +248,8 @@ func _refresh_all() -> void:
 
 func _end_player_turn() -> void:
 	state = "busy"
-	overlay.clear("move")
-	overlay.clear("range")
-	overlay.clear("aoe")
-	overlay.clear("path")
-	overlay.clear("zoc")
+	for l in ["move", "run", "range", "target", "active", "aoe", "path", "zoc"]:
+		overlay.clear(l)
 	hud.hide_preview()
 	_clear_cover_icons()
 	active = null
@@ -428,6 +441,31 @@ func _process(delta: float) -> void:
 	hud.update_bars(battle, views)
 	if not cover_icons.is_empty():
 		_place_cover_icons()
+	_update_turn_marker()
+
+
+## Bobbing arrow over the unit whose turn it is; keeps the gold tile under it.
+func _update_turn_marker() -> void:
+	if turn_arrow == null:
+		turn_arrow = Polygon2D.new()
+		turn_arrow.polygon = PackedVector2Array([Vector2(-13, -18), Vector2(13, -18), Vector2(0, 0)])
+		var rim := Line2D.new()
+		rim.points = PackedVector2Array([Vector2(-13, -18), Vector2(13, -18), Vector2(0, 0), Vector2(-13, -18)])
+		rim.width = 3.0
+		rim.default_color = Color(0.2, 0.12, 0.02)
+		turn_arrow.add_child(rim)
+		hud.float_layer.add_child(turn_arrow)
+	var u := turn_unit
+	var show: bool = u != null and u.alive() and u.carried_by < 0 and views.has(u.uid) and views[u.uid].visible
+	turn_arrow.visible = show
+	if not show:
+		return
+	var t := Time.get_ticks_msec() / 1000.0
+	turn_arrow.position = wv.world_to_screen(_head(u)) + Vector2(0, -10 + sin(t * 5.0) * 4.0)
+	turn_arrow.color = UITheme.GOLD if u.team == BattleUnit.TEAM_PLAYER else UITheme.RED
+	if u.pos != turn_arrow.get_meta("cell", Vector2i(-99, -99)):
+		turn_arrow.set_meta("cell", u.pos)
+		overlay.show_cells("active", [u.pos], C_ACTIVE, C_ACTIVE_B, 0.0, EDGE_BOLD, Color(0, 0, 0, 0), C_RIM)
 
 
 func _focus_unit(u: BattleUnit) -> void:
@@ -533,8 +571,16 @@ func _update_hover() -> void:
 		var danger: Array = []
 		if not aoo.is_empty():
 			danger.append(active.pos)
-		overlay.show_path(path, Color(1, 1, 1, 0.9) if aoo.is_empty() else Color(1, 0.6, 0.4, 0.95), danger)
+		var running := battle.is_run(active, reach, hover_cell)
+		var pc := Color(1, 1, 1, 0.9) if not running else Color(1, 0.9, 0.35, 0.95)
+		overlay.show_path(path, pc if aoo.is_empty() else Color(1, 0.6, 0.4, 0.95), danger)
 		_show_cover_icons(hover_cell, aoo.size())
+		if running:
+			var l := UIKit.label("RUN: no action after", 8, UITheme.GOLD, UITheme.pixel_font)
+			l.set_meta("world", map_view.cell_top(hover_cell) + Vector3(0, 1.1, 0))
+			hud.float_layer.add_child(l)
+			cover_icons.append(l)
+			_place_cover_icons()
 
 
 func _click() -> void:
@@ -560,9 +606,10 @@ func _click() -> void:
 
 # ---------------------------------------------------------------- ranges & cover
 func _draw_ranges() -> void:
-	overlay.clear("move")
-	overlay.clear("range")
-	overlay.clear("zoc")
+	for l in ["move", "run", "range", "target", "active", "zoc"]:
+		overlay.clear(l)
+	if turn_unit != null and turn_unit.alive() and turn_unit.carried_by < 0:
+		overlay.show_cells("active", [turn_unit.pos], C_ACTIVE, C_ACTIVE_B, 0.0, EDGE_BOLD, Color(0, 0, 0, 0), C_RIM)
 	if state != "player" or active == null:
 		return
 	if mode == "target":
@@ -570,10 +617,11 @@ func _draw_ranges() -> void:
 		var cells := battle.valid_targets(active, selected_skill)
 		var tgt: String = s.get("target", "enemy")
 		if tgt in ["tile", "empty_tile"]:
-			overlay.show_cells("range", cells, C_TILE, Color(1, 0.85, 0.4, 0.7))
+			overlay.show_cells("range", cells, C_TILE, Color(1, 0.85, 0.4, 0.7), 0.0, EDGE_BOLD)
 		elif tgt in ["ally", "ally_or_self"]:
-			overlay.show_cells("range", cells, C_ALLY, C_ALLY_B)
+			overlay.show_cells("range", cells, C_ALLY, C_ALLY_B, 0.0, EDGE_BOLD)
 		else:
+			_show_targets(cells)
 			var rr := battle.skill_range(active, s, active.pos)
 			var area := battle.grid.cells_in_radius(active.pos, rr[2])
 			var inr: Array = []
@@ -581,19 +629,36 @@ func _draw_ranges() -> void:
 				var d := Rules.distance(active.pos, c)
 				if d >= rr[0] and d <= rr[2] and (s.get("range", {}).get("kind", "") != "melee" or Rules.chebyshev(active.pos, c) == 1):
 					inr.append(c)
-			overlay.show_cells("range", inr, C_ENEMY, C_ENEMY_B)
+			overlay.show_cells("range", inr, C_ENEMY, C_ENEMY_B, 0.0, EDGE_BOLD)
 		return
+	if battle.can_use(active, active.basic):
+		_show_targets(battle.valid_targets(active, active.basic))
 	if not reach.is_empty():
 		var cells: Array = []
+		var run: Array = []
 		var zoc: Array = []
 		for c in reach:
 			if reach[c].get("pass_only", false) or c == active.pos:
 				continue
-			cells.append(c)
+			if battle.is_run(active, reach, c):
+				run.append(c)
+			else:
+				cells.append(c)
 			if reach[c]["zoc"]:
 				zoc.append(c)
-		overlay.show_cells("move", cells, C_MOVE, C_MOVE_B)
+		overlay.show_cells("run", run, C_RUN, C_RUN_B, 0.0, EDGE_BOLD, C_RUN_G, C_RIM)
+		overlay.show_cells("move", cells, C_MOVE, C_MOVE_B, 0.0, EDGE_BOLD, C_MOVE_G, C_RIM)
 		overlay.show_cells("zoc", zoc, C_ZOC, Color(1, 0.6, 0.25, 0.0))
+
+
+## Pulsing red squares under the enemies that can be hit right now.
+func _show_targets(cells: Array) -> void:
+	var foes: Array = []
+	for c in cells:
+		var o := battle.unit_at(c)
+		if o and o.hostile_to(active) and views.has(o.uid) and views[o.uid].visible:
+			foes.append(c)
+	overlay.show_cells("target", foes, C_TARGET, C_TARGET_B, 0.04, EDGE_BOLD, Color(0, 0, 0, 0), C_RIM)
 
 
 func _show_cover_icons(cell: Vector2i, aoo: int) -> void:

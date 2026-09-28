@@ -769,7 +769,7 @@ func finish_mission(mission: Dictionary, battle: Battle) -> Dictionary:
 			squad_units.append(u)
 	var survivors := 0
 	for u in squad_units:
-		if u.state != "dead" and not (u.state == "downed" and not victory and u.carried_by < 0):
+		if u.state != "dead" and u.state != "recovered" and not (u.state == "downed" and not victory and u.carried_by < 0):
 			survivors += 1
 	# --- deaths (including downed left behind on a failed mission)
 	for u in squad_units:
@@ -779,7 +779,8 @@ func finish_mission(mission: Dictionary, battle: Battle) -> Dictionary:
 		m.history["kills"] += u.kills
 		stats["kills"] += u.kills
 		var left_behind: bool = not victory and u.state == "downed"
-		if u.state == "dead" or left_behind:
+		# "recovered" = a dead body carried out: still dead, but the gear comes home
+		if u.state == "dead" or u.state == "recovered" or left_behind:
 			var recovered: bool = u.state == "recovered" or (victory and u.state == "dead")
 			_member_died(m, mission, "Left behind" if left_behind else "Slain", recovered)
 			rep["deaths"].append(m.name)

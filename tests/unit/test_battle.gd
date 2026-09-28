@@ -33,6 +33,38 @@ func test_entering_zoc_ends_movement():
 	assert_false(reach.has(Vector2i(6, 4)) and reach[Vector2i(6, 4)]["cost"] <= 4 and not _has_non_zoc_route(b, p, Vector2i(6, 4)), "cannot walk through a ZOC")
 
 
+func test_run_doubles_move_and_spends_the_action():
+	var b := _flat_battle(20, 20)
+	var p := b.add_unit(_warrior(0, Vector2i(0, 0)))
+	b.add_unit(_warrior(1, Vector2i(19, 19)))
+	b.start()
+	b._begin_turn(p)
+	var mv := b.move_budget(p)
+	var reach := b.reachable_with_run(p)
+	var walk := Vector2i(mv, 0)
+	var run := Vector2i(mv * 2, 0)
+	assert_false(b.is_run(p, reach, walk), "within the move budget is a walk")
+	assert_true(b.is_run(p, reach, run), "beyond it is a run")
+	assert_false(reach.has(Vector2i(mv * 2 + 1, 0)), "run is capped at double")
+	assert_true(b.do_move(p, run))
+	assert_eq(p.pos, run)
+	assert_true(p.acted, "running uses the action")
+
+
+func test_walk_keeps_the_action_and_no_run_after_acting():
+	var b := _flat_battle(20, 20)
+	var p := b.add_unit(_warrior(0, Vector2i(0, 0)))
+	b.add_unit(_warrior(1, Vector2i(19, 19)))
+	b.start()
+	b._begin_turn(p)
+	var mv := b.move_budget(p)
+	assert_true(b.do_move(p, Vector2i(mv, 0)))
+	assert_false(p.acted, "a normal move leaves the action")
+	b._begin_turn(p)
+	p.acted = true
+	assert_false(b.do_move(p, Vector2i(mv + 1, mv)), "can't run once the action is spent")
+
+
 func _has_non_zoc_route(b: Battle, u: BattleUnit, dest: Vector2i) -> bool:
 	var reach := b.reachable(u)
 	var path := b.path_to(u, dest, reach)
