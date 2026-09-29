@@ -20,6 +20,18 @@ const PROPS := {
 	"lectern": [1, true, false, true], "bell_tower": [2, true, true, false], "bell_tower_part": [2, true, true, false],
 }
 
+## Objectives played on big patrolled maps under fog of war.
+const EXPLORE := ["clear", "hunt", "retrieve", "rescue", "escort"]
+## A ground that stands out from the biome's own patches: the trail must read at a glance.
+const TRAIL_GROUND := {"town": "dirt", "hush_town": "dirt", "coast": "stonepath", "jungle": "planks",
+	"autumn": "stonepath", "desert": "cobble", "hush": "cobble"}
+const CAMP := {
+	"town": ["stall", "cart", "barrel", "crate", "crates"], "hush_town": ["lectern", "wall_broken", "barrel", "crate", "doorframe"],
+	"coast": ["tent", "boat", "barrel", "crate", "crates"], "jungle": ["tent", "barrel", "crate", "crates", "log"],
+	"autumn": ["tent", "log", "crate", "barrel", "stump"], "desert": ["tent", "pots", "crate", "crates", "cart"],
+	"hush": ["lectern", "column_broken", "wall_broken", "crate", "signpost"],
+}
+
 const BIOME := {
 	"town": {"ground": "cobble", "patch": "grass", "patch2": "dirt", "cliff": "stone"},
 	"hush_town": {"ground": "cobble", "patch": "ash", "patch2": "dirt", "cliff": "stone"},
@@ -36,6 +48,12 @@ var noise := FastNoiseLite.new()
 var noise2 := FastNoiseLite.new()
 var biome := "town"
 var reserved := {}
+var explore := false
+var trail: Array = []
+
+
+static func is_explore(mission: Dictionary) -> bool:
+	return mission.get("objective", "clear") in EXPLORE and not mission.get("small_map", false)
 
 
 func generate(mission: Dictionary, p_rng: RandomNumberGenerator, squad_size: int) -> Dictionary:
@@ -43,17 +61,25 @@ func generate(mission: Dictionary, p_rng: RandomNumberGenerator, squad_size: int
 	var region: String = mission.get("region", "carrow")
 	biome = mission.get("biome", DB.regions.get(region, {}).get("biome", "town"))
 	var objective: String = mission.get("objective", "clear")
+	explore = is_explore(mission)
 	var w := 16
 	var h := 16
-	if objective == "escort":
+	if explore:
+		# long maps: the squad lands in the south, the objective waits in the north
+		w = 22
+		h = 36
+		if objective == "escort":
+			w = 18
+			h = 40
+	elif objective == "escort":
 		w = 14
 		h = 20
 	elif objective == "final":
 		w = 17
 		h = 17
 	elif objective in ["survive", "defense"]:
-		w = 16
-		h = 15
+		w = 18
+		h = 20
 	g = BattleGrid.new(w, h)
 	g.biome = biome
 	g.region = region
@@ -63,14 +89,18 @@ func generate(mission: Dictionary, p_rng: RandomNumberGenerator, squad_size: int
 	noise2.seed = rng.randi()
 	noise2.frequency = 0.18
 	reserved.clear()
+	trail = []
 	_heights()
 	_ground()
 	_biome_features()
-	var out := _spawns(objective, squad_size)
+	var out := _explore_layout(objective) if explore else _spawns(objective, squad_size)
 	_objective_props(objective, mission, out)
 	_scatter_props()
+	if explore:
+		_camp(out["objective_area"]["center"], int(out["objective_area"]["r"]))
 	_decorate()
 	_ensure_connected(out)
+	out["explore"] = explore
 	out["grid"] = g
 	return out
 
@@ -128,18 +158,31 @@ func _biome_features() -> void:
 		"coast":
 			_sea()
 		"jungle":
-			_canals()
+			if explore:
+				_canals(5, g.h / 2 - 3)
+				_canals(g.h / 2 + 2, g.h - 9)
+			else:
+				_canals()
 		"town", "hush_town":
-			_streets()
+			if explore:
+				_streets(Rect2i(0, 0, g.w, g.h / 2))
+				_streets(Rect2i(0, g.h / 2, g.w, g.h - g.h / 2))
+			else:
+				_streets()
 		"autumn":
-			_path("dirt")
+			if not explore:
+				_path("dirt")
 			if rng.randf() < 0.5:
 				_stream()
 		"desert":
-			_path("stonepath")
+			if not explore:
+				_path("stonepath")
 		"hush":
 			_voids()
-			_path("stonepath")
+			if explore:
+				_voids()
+			else:
+				_path("stonepath")
 
 
 func _sea() -> void:
@@ -164,7 +207,7 @@ func _sea() -> void:
 				tl["h"] = mini(tl["h"], 1)
 				tl["ground"] = "sand"
 	# tide pools
-	for i in rng.randi_range(1, 2):
+	for i in rng.randi_range(1, 2) * (2 if explore else 1):
 		var c := Vector2i(rng.randi_range(6, g.w - 3), rng.randi_range(3, g.h - 5))
 		for p in g.cells_in_radius(c, 1):
 			if rng.randf() < 0.7 and g.height(p) <= 1:
@@ -173,9 +216,11 @@ func _sea() -> void:
 				g.t(p)["ground"] = "wetsand"
 
 
-func _canals() -> void:
+func _canals(y_lo := 5, y_hi := -1) -> void:
 	# one horizontal and sometimes a vertical canal, with plank bridges
-	var cy := rng.randi_range(5, g.h - 7)
+	if y_hi < 0:
+		y_hi = g.h - 7
+	var cy := rng.randi_range(y_lo, maxi(y_lo, y_hi))
 	for x in g.w:
 		var y := cy + int(noise.get_noise_1d(x * 9.0) * 1.5)
 		for dy in 2:
@@ -196,7 +241,7 @@ func _canals() -> void:
 					g.t(p)["ground"] = "planks"
 	if rng.randf() < 0.5:
 		var cx := rng.randi_range(4, g.w - 5)
-		for y in range(0, cy):
+		for y in range(maxi(0, y_lo - 5), cy):
 			var p := Vector2i(cx, y)
 			var tl := g.t(p)
 			if tl["ground"] != "planks":
@@ -216,10 +261,16 @@ func _stream() -> void:
 		tl["ground"] = "mud"
 
 
-func _streets() -> void:
-	var sy := rng.randi_range(5, g.h - 6)
-	var sx := rng.randi_range(4, g.w - 5)
+func _streets(area := Rect2i()) -> void:
+	if area.size == Vector2i.ZERO:
+		area = Rect2i(0, 0, g.w, g.h)
+	var ax := area.position.x
+	var ay := area.position.y
+	var sy := ay + rng.randi_range(5, maxi(5, area.size.y - 6))
+	var sx := ax + rng.randi_range(4, maxi(4, area.size.x - 5))
 	for p in g.all_cells():
+		if not area.has_point(p):
+			continue
 		var tl := g.t(p)
 		if absi(p.y - sy) <= 1 or absi(p.x - sx) <= 1:
 			tl["ground"] = "cobble"
@@ -227,8 +278,10 @@ func _streets() -> void:
 		elif tl["ground"] == "cobble":
 			tl["ground"] = "grass" if rng.randf() < 0.6 else "dirt"
 	# houses in the quadrants
-	var quads := [Rect2i(0, 0, sx - 1, sy - 1), Rect2i(sx + 2, 0, g.w - sx - 2, sy - 1),
-			Rect2i(0, sy + 2, sx - 1, g.h - sy - 2), Rect2i(sx + 2, sy + 2, g.w - sx - 2, g.h - sy - 2)]
+	var ex := area.end.x
+	var ey := area.end.y
+	var quads := [Rect2i(ax, ay, sx - ax - 1, sy - ay - 1), Rect2i(sx + 2, ay, ex - sx - 2, sy - ay - 1),
+			Rect2i(ax, sy + 2, sx - ax - 1, ey - sy - 2), Rect2i(sx + 2, sy + 2, ex - sx - 2, ey - sy - 2)]
 	for q in quads:
 		if q.size.x >= 5 and q.size.y >= 4 and rng.randf() < 0.75:
 			var hw := rng.randi_range(2, 3)
@@ -371,6 +424,9 @@ func _spawns(objective: String, squad_size: int) -> Dictionary:
 
 
 func _objective_props(objective: String, mission: Dictionary, out: Dictionary) -> void:
+	if explore:
+		_explore_objectives(objective, mission, out)
+		return
 	match objective:
 		"retrieve":
 			var n := int(mission.get("caches", 3))
@@ -589,7 +645,7 @@ func _flood(start: Vector2i) -> Dictionary:
 func _ensure_connected(out: Dictionary) -> void:
 	var start: Vector2i = out["player_spawns"][0]
 	var important: Array = []
-	important.append_array(out["enemy_spawns"].slice(0, 12))
+	important.append_array(out["enemy_spawns"].slice(0, 12 if not explore else 60))
 	for p in g.all_cells():
 		if not g.t(p)["obj"].is_empty():
 			important.append(p)
@@ -612,6 +668,9 @@ func _ensure_connected(out: Dictionary) -> void:
 		if reach2.has(p) and g.standable(p):
 			es.append(p)
 	out["enemy_spawns"] = es
+	for pd in out.get("pods", []):
+		pd["cells"] = pd["cells"].filter(func(c): return reach2.has(c) and g.standable(c))
+		pd["route"] = pd["route"].filter(func(c): return reach2.has(c))
 	var edges: Array = []
 	for p in out["edge_spawns"]:
 		if reach2.has(p):
@@ -619,10 +678,11 @@ func _ensure_connected(out: Dictionary) -> void:
 	out["edge_spawns"] = edges
 
 
-func _carve(a: Vector2i, b: Vector2i) -> void:
+func _carve(a: Vector2i, b: Vector2i, limit := 200) -> Array:
 	var p := a
 	var guard := 0
-	while p != b and guard < 80:
+	var walked: Array = [a]
+	while p != b and guard < limit:
 		guard += 1
 		var d := b - p
 		var step := Vector2i(signi(d.x), 0) if absi(d.x) > absi(d.y) or (absi(d.x) == absi(d.y) and rng.randf() < 0.5) else Vector2i(0, signi(d.y))
@@ -647,3 +707,264 @@ func _carve(a: Vector2i, b: Vector2i) -> void:
 		elif dh < -1:
 			tn["h"] = g.height(p) - 1
 		p = n
+		walked.append(p)
+	return walked
+
+
+# ---------------------------------------------------------------- exploration maps
+## Squad landing in the south, a clearing with the objective in the north and
+## a winding trail between them, with patrolling pods along the way.
+func _explore_layout(objective: String) -> Dictionary:
+	var out := {"player_spawns": [], "enemy_spawns": [], "edge_spawns": [], "pods": [],
+		"player_facing": Vector2i(0, -1), "enemy_facing": Vector2i(0, 1)}
+	var cx := g.w / 2
+	var zone: Array = []
+	for y in range(g.h - 3, g.h):
+		for x in range(cx - 3, cx + 4):
+			zone.append(Vector2i(x, y))
+	for p in zone:
+		_clear(p)
+		reserved[p] = true
+		var tl := g.t(p)
+		if tl["water"] > 0:
+			tl["water"] = 0
+			tl["ground"] = BIOME[biome]["patch2"]
+	_flatten(zone)
+	# the objective clearing
+	var half := g.w / 2 - 6
+	var oc := Vector2i(clampi(cx + rng.randi_range(-half, half), 6, g.w - 7), 3 if objective == "escort" else 5)
+	var area_r := 4
+	_clearing(oc, area_r)
+	out["objective_area"] = {"center": oc, "r": area_r}
+	# the trail
+	var start := Vector2i(cx, g.h - 4)
+	trail = _make_trail(start, oc + Vector2i(0, 1))
+	out["route"] = trail
+	# extraction: home in the south; escorts and rescues also leave from the north
+	var ext: Array = []
+	if objective in ["escort", "rescue"]:
+		var north: Array = []
+		for x in range(oc.x - 2, oc.x + 3):
+			for y in range(0, 2):
+				north.append(Vector2i(x, y))
+		_flatten(north)
+		for p in north:
+			_clear(p)
+			reserved[p] = true
+			g.t(p)["water"] = 0
+		ext.append_array(north)
+	if objective != "escort":
+		for x in range(cx - 2, cx + 3):
+			ext.append(Vector2i(x, g.h - 1))
+	for p in ext:
+		g.t(p)["extract"] = true
+	out["extract"] = ext
+	var ps: Array = []
+	for y in [g.h - 2, g.h - 3, g.h - 1]:
+		for x in [cx, cx - 1, cx + 1, cx - 2, cx + 2, cx - 3, cx + 3]:
+			var sp := Vector2i(x, y)
+			if not g.standable(sp):
+				continue
+			if objective == "escort" and sp == Vector2i(cx, g.h - 2):
+				continue
+			ps.append(sp)
+	out["player_spawns"] = ps
+	out["vip_spawn"] = Vector2i(cx, g.h - 2)
+	out["object_spawn"] = Vector2i(cx, g.h - 5)
+	# pods: stations beside the trail, their beats crossing it; one guards the objective
+	var pods: Array = []
+	# trail pods spread over the stretch between the landing and the clearing
+	var band: Array = []
+	for i in trail.size():
+		var c: Vector2i = trail[i]
+		if Rules.chebyshev(c, start) >= 10 and Rules.chebyshev(c, oc) >= area_r + 3:
+			band.append(i)
+	var n_pods := clampi(band.size() / 6, 1, 3) if not band.is_empty() else 0
+	for k in n_pods:
+		var i: int = band[clampi(roundi((k + 0.5) * band.size() / float(n_pods)), 0, band.size() - 1)]
+		var tp: Vector2i = trail[i]
+		var side := -1 if rng.randf() < 0.5 else 1
+		var station := _find_spot(tp + Vector2i(side * rng.randi_range(2, 4), rng.randi_range(-1, 1)), 3)
+		if station == Vector2i(-1, -1):
+			continue
+		var beat: Array = []
+		if rng.randf() < 0.75:
+			var across := _find_spot(tp + Vector2i(-side * rng.randi_range(2, 4), rng.randi_range(-2, 2)), 3)
+			var further := _find_spot(trail[mini(trail.size() - 1, i + 5)] + Vector2i(side * 2, 0), 3)
+			for c in [station, across, further]:
+				if c != Vector2i(-1, -1) and not c in beat:
+					beat.append(c)
+					reserved[c] = true   # keep the beat free of props
+		pods.append({"cells": _pod_cells(station), "route": beat if beat.size() >= 2 else [], "objective": false})
+	var guard := _find_spot(oc + Vector2i(0, -1), 2)
+	pods.append({"cells": _pod_cells(guard if guard != Vector2i(-1, -1) else oc), "route": [], "objective": true})
+	out["pods"] = pods
+	var es: Array = []
+	for pd in pods:
+		es.append_array(pd["cells"])
+	out["enemy_spawns"] = es
+	return out
+
+
+func _in_circle(p: Vector2i, c: Vector2i, r: int) -> bool:
+	var d := p - c
+	return d.x * d.x + d.y * d.y <= r * r + r
+
+
+## A rough clearing: heights eased toward their average, water drained, the
+## middle kept free of scattered props.
+func _clearing(c: Vector2i, r: int) -> void:
+	var cells: Array = []
+	var total := 0
+	for p in g.cells_in_radius(c, r):
+		if _in_circle(p, c, r):
+			cells.append(p)
+			total += g.height(p)
+	var avg := roundi(float(total) / maxf(cells.size(), 1))
+	for p in cells:
+		var tl := g.t(p)
+		tl["h"] = avg if Rules.chebyshev(p, c) <= 2 else roundi((tl["h"] + avg) / 2.0)
+		if tl["water"] > 0:
+			tl["water"] = 0
+			tl["ground"] = BIOME[biome]["patch2"]
+		if Rules.chebyshev(p, c) <= 2:
+			_clear(p)
+			reserved[p] = true
+
+
+## Carves a walkable, bridged, two-wide trail through the control points and
+## lines it with signposts. Returns the trail cells from start to end.
+func _make_trail(a: Vector2i, b: Vector2i) -> Array:
+	var pts: Array = [a]
+	var n := maxi(2, absi(b.y - a.y) / 6)
+	var sway := -1 if rng.randf() < 0.5 else 1
+	for i in range(1, n):
+		# swing from side to side on the way north
+		var f := float(i) / n
+		var x := clampi(roundi(lerpf(a.x, b.x, f)) + sway * rng.randi_range(3, 6), 4, g.w - 5)
+		sway = -sway
+		pts.append(Vector2i(x, roundi(lerpf(a.y, b.y, f))))
+	pts.append(b)
+	var cells: Array = []
+	for i in pts.size() - 1:
+		for c in _carve(pts[i], pts[i + 1]):
+			if cells.is_empty() or cells[-1] != c:
+				cells.append(c)
+	var ground: String = TRAIL_GROUND.get(biome, "dirt")
+	for c in cells:
+		for q in [c, c + Vector2i(1, 0)]:
+			if not g.inb(q):
+				continue
+			var tl := g.t(q)
+			if tl["prop"].ends_with("_part") or tl["prop"] in ["house", "hut", "arch", "bell_tower"]:
+				continue
+			_clear(q)
+			if tl["water"] == 0 and tl["ground"] != "planks":
+				tl["ground"] = ground
+			reserved[q] = true
+	# waymarks every few steps, just off the trail
+	for i in range(6, cells.size() - 4, 8):
+		var c: Vector2i = cells[i]
+		for q in [c + Vector2i(-1, 0), c + Vector2i(2, 0), c + Vector2i(-1, 1)]:
+			if g.inb(q) and _free(q) and g.standable(q) and _not_choking(q):
+				_set_prop(q, "lantern_post" if biome in ["town", "hush_town", "jungle"] else "signpost")
+				reserved[q] = true
+				break
+	return cells
+
+
+## The free, dry, standable cell nearest `near` within `r` (not on the trail).
+func _find_spot(near: Vector2i, r: int) -> Vector2i:
+	near = Vector2i(clampi(near.x, 1, g.w - 2), clampi(near.y, 1, g.h - 2))
+	var best := Vector2i(-1, -1)
+	var bd := 1e9
+	for c in g.cells_in_radius(near, r):
+		if not g.standable(c) or g.t(c)["water"] > 0 or reserved.has(c) or g.t(c)["prop"] != "" or g.t(c)["extract"]:
+			continue
+		var d := float(Rules.distance(c, near)) + rng.randf() * 0.5
+		if d < bd:
+			bd = d
+			best = c
+	return best
+
+
+## A station and the free cells around it where a pod stands.
+func _pod_cells(station: Vector2i) -> Array:
+	var out: Array = [station]
+	reserved[station] = true
+	var around := g.cells_in_radius(station, 2)
+	around.shuffle()
+	for c in around:
+		if out.size() >= 6:
+			break
+		if c == station or not g.standable(c) or g.t(c)["water"] > 0 or reserved.has(c) or g.t(c)["prop"] != "":
+			continue
+		out.append(c)
+		reserved[c] = true
+	return out
+
+
+func _explore_objectives(objective: String, mission: Dictionary, out: Dictionary) -> void:
+	var oc: Vector2i = out["objective_area"]["center"]
+	var r := int(out["objective_area"]["r"])
+	match objective:
+		"retrieve":
+			var n := int(mission.get("caches", 3))
+			var cand: Array = []
+			for p in g.cells_in_radius(oc, r - 1):
+				if _in_circle(p, oc, r - 1) and g.standable(p) and g.t(p)["water"] == 0 and not p in trail and g.t(p)["prop"] == "" \
+						and not g.t(p)["extract"] and p.y >= 1:
+					cand.append(p)
+			cand.shuffle()
+			var placed: Array = []
+			for p in cand:
+				var ok := true
+				for q in placed:
+					if Rules.chebyshev(p, q) < 2:
+						ok = false
+				if ok:
+					placed.append(p)
+					_clear(p)
+					g.t(p)["obj"] = {"kind": "cache"}
+					reserved[p] = true
+				if placed.size() >= n:
+					break
+		"rescue":
+			var spot := _find_spot(oc, 2)
+			if spot == Vector2i(-1, -1):
+				spot = oc
+			_clear(spot)
+			g.t(spot)["obj"] = {"kind": "captive", "name": "Captive"}
+			reserved[spot] = true
+		"escort":
+			_clear(out["vip_spawn"])
+	if rng.randf() < 0.6:
+		var spots := _far_spots(1, 2)
+		if spots.size() > 0 and g.t(spots[0])["obj"].is_empty():
+			_clear(spots[0])
+			g.t(spots[0])["obj"] = {"kind": "chest"}
+			reserved[spots[0]] = true
+			out["has_chest"] = true
+
+
+## Tents, crates and a fire around the objective clearing.
+func _camp(c: Vector2i, r: int) -> void:
+	var pool: Array = CAMP.get(biome, CAMP["town"])
+	var ring: Array = []
+	for p in g.cells_in_radius(c, r):
+		var d := Rules.chebyshev(p, c)
+		if d >= 3 and d <= r and _in_circle(p, c, r):
+			ring.append(p)
+	ring.shuffle()
+	var placed := 0
+	for p in ring:
+		if placed >= 6:
+			break
+		if _free(p) and g.standable(p) and _not_choking(p) and not p in trail:
+			_set_prop(p, pool[placed % pool.size()] if placed < pool.size() else pool[rng.randi() % pool.size()])
+			placed += 1
+	if not biome in ["hush", "hush_town"]:
+		for p in [c + Vector2i(2, 2), c + Vector2i(-2, 2), c + Vector2i(2, -2)]:
+			if g.inb(p) and g.t(p)["prop"] == "" and g.t(p)["obj"].is_empty() and g.standable(p) and not p in trail:
+				_set_prop(p, "campfire")
+				break

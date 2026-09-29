@@ -182,6 +182,9 @@ func _member_row(m: Member, delay: float) -> Control:
 		for k in u.get("gains", {}):
 			gains.append("%s +%d" % [DB.STAT_NAMES.get(k, k), int(u["gains"][k])])
 		notes.append("[color=#%s]Level %d![/color] %s" % [UITheme.GOLD.to_html(false), int(u["level"]), ", ".join(gains)])
+	if not ups.is_empty():
+		notes.append("[color=#%s]%s new skill%s to choose in the Roster.[/color]" % [UITheme.GREEN.to_html(false),
+			"A" if ups.size() == 1 else str(ups.size()), "" if ups.size() == 1 else "s"])
 	var inj: Dictionary = rep["injuries"].get(m.id, rep["injuries"].get(str(m.id), {}))
 	if not inj.is_empty():
 		var s := "[color=#%s]%s injury: out for %d week%s.[/color]" % [UITheme.RED.to_html(false), inj.get("kind", "light").capitalize(), int(inj["weeks"]), "" if int(inj["weeks"]) == 1 else "s"]

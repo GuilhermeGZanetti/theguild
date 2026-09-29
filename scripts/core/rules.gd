@@ -70,11 +70,19 @@ static func apply_defense(raw: float, current_def: float, pierce: float = 0.0) -
 	return {"damage": dmg, "wear": wear}
 
 
+## Each member's share of a quest's XP: about one ordinary quest's worth
+## (DB.QUEST_XP), a little more for harder ones. The fallen's shares go to the
+## survivors.
 static func xp_share(skulls: int, squad: int, survivors: int, bonus_mult: float = 1.0) -> int:
 	if survivors <= 0:
 		return 0
-	var pool := (70.0 + 55.0 * skulls) * maxf(squad, 1) * bonus_mult
+	var pool := (100.0 + 8.0 * (skulls - 1)) * maxf(squad, 1) * bonus_mult
 	return roundi(pool / survivors)
+
+
+## Extra XP for a member's kills and rescues in one quest.
+static func deed_xp(kills: int, stabilizes: int, skulls: int) -> int:
+	return kills * (2 + skulls) + stabilizes * 12
 
 
 static func grade(objectives_done: bool, bonus_done: int, bonus_total: int, rounds: int, par_rounds: int, deaths: int, downed: int) -> String:

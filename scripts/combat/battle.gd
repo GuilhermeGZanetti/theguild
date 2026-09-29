@@ -26,6 +26,19 @@ var pages_found := 0
 var chests_opened := 0
 var ai: BattleAI = null
 var log_lines: Array = []
+# fog of war and exploration (see the section at the end)
+var fog := false               # the squad only knows what it sees
+var explore := false           # enemy pods patrol until they spot the squad
+var phase := "combat"          # "explore": squad turns and enemy phases; "combat": the timeline
+var vis := {}                  # cells the squad sees right now
+var seen := {}                 # cells the squad has ever seen
+var unit_vis := {}             # uid -> the cells that squad member sees
+var pods: Array = []           # {"units": [uid], "alerted", "route": [cells], "wp", "objective"}
+var pending_alerts: Array = [] # [pod index, scramble]
+var objective_area := {}       # {"center": Vector2i, "r": int}
+var route: Array = []          # the trail from the squad's start to the objective
+var par_rounds := 8
+var _alerting := false
 
 
 func _init() -> void:
@@ -86,7 +99,7 @@ func allies_of(u: BattleUnit, include_self := true, only_active := true) -> Arra
 
 
 func visible_to_player(u: BattleUnit) -> bool:
-	return not u.hidden
+	return is_seen(u)
 
 
 func is_ranged_skill(s: Dictionary) -> bool:
@@ -101,14 +114,24 @@ func start() -> void:
 		u.next_time = d * rng.randf_range(0.15, 0.95) * (0.75 if u.team == BattleUnit.TEAM_PLAYER else 1.0)
 		u.def_cur = u.max_def()
 	_update_hidden()
+	update_vision()
 	emit({"t": "start"})
+	if explore:
+		phase = "explore"
+		begin_explore_turn()
 
 
 func timeline_preview(count := 12) -> Array:
 	## Upcoming turns as [uid, time] without changing state.
 	var sim: Array = []
+	if phase == "explore":
+		for u in explore_units():
+			sim.append([u.uid, 0.0])
+		return sim
 	for u in units:
 		if not u.alive() or u.carried_by >= 0 or u.hidden or u.objective_role == "object":
+			continue
+		if u.team == BattleUnit.TEAM_ENEMY and (not u.alerted or not is_seen(u)):
 			continue
 		if u.state == "downed" and u.stabilized:
 			continue
@@ -127,13 +150,18 @@ func timeline_preview(count := 12) -> Array:
 
 
 func next_turn() -> BattleUnit:
-	if over:
+	if over or phase == "explore":
+		return null
+	_maybe_end_combat()
+	if over or phase == "explore":
 		return null
 	var best: BattleUnit = null
 	for u in units:
 		if not u.alive() or u.carried_by >= 0:
 			continue
 		if u.objective_role == "object":
+			continue
+		if u.team == BattleUnit.TEAM_ENEMY and not u.alerted:
 			continue
 		if best == null or u.next_time < best.next_time:
 			best = u
@@ -156,7 +184,8 @@ func next_turn() -> BattleUnit:
 func _begin_turn(u: BattleUnit) -> void:
 	u.moved = false
 	u.acted = false
-	emit({"t": "turn", "uid": u.uid})
+	u.rampage_used = false
+	emit({"t": "turn", "uid": u.uid, "quiet": phase == "explore"})
 	if u.state == "downed":
 		if not u.stabilized:
 			u.bleed -= 1
@@ -166,7 +195,7 @@ func _begin_turn(u: BattleUnit) -> void:
 		end_turn(u)
 		return
 	# start-of-turn statuses
-	for sid in ["defending", "overwatch", "dodge_up", "warded", "shielded", "last_stand"]:
+	for sid in ["defending", "overwatch", "dodge_up", "warded", "shielded", "last_stand", "fortified"]:
 		_tick_status(u, sid)
 	if u.def_regen > 0 and u.def_cur < u.max_def():
 		u.def_cur = minf(u.max_def(), u.def_cur + u.def_regen)
@@ -178,6 +207,12 @@ func _begin_turn(u: BattleUnit) -> void:
 		_damage_raw(u, 4, null, "drown")
 	if fx.get("kind", "") == "fire":
 		_apply_status(null, u, "burn", 100, 2, 3)
+	var regen := int(u.mod("self_regen", 0))
+	for a in allies_of(u, true):
+		if int(a.mod("aura_regen", 0)) > 0 and Rules.chebyshev(a.pos, u.pos) <= 2:
+			regen = maxi(regen, int(a.mod("aura_regen", 0)) + int(u.mod("self_regen", 0)))
+	if regen > 0 and u.hp < u.max_hp():
+		_heal(u, regen, null)
 	for s in u.statuses.duplicate():
 		match s["id"]:
 			"poison", "burn":
@@ -223,11 +258,15 @@ func _tick_status(u: BattleUnit, sid: String) -> void:
 func end_turn(u: BattleUnit, delay_mult := 1.0) -> void:
 	if u == null:
 		return
-	for k in u.cds.keys():
-		if int(u.cds[k]) > 0:
-			u.cds[k] = int(u.cds[k]) - 1
-	for sid in ["root", "pinned", "blind", "fear", "taunted", "stun", "paralysis", "marked", "rallied", "inspired"]:
-		_tick_status(u, sid)
+	if phase == "explore" and u.team == BattleUnit.TEAM_PLAYER:
+		# exploring: the member is done until the next squad turn
+		u.explore_done = true
+		if current == u:
+			current = null
+		emit({"t": "end_turn", "uid": u.uid})
+		_check_end()
+		return
+	_turn_ticks(u)
 	u.next_time += Rules.turn_delay(u.stat("speed")) * delay_mult
 	if current == u:
 		current = null
@@ -235,8 +274,16 @@ func end_turn(u: BattleUnit, delay_mult := 1.0) -> void:
 	_check_end()
 
 
+func _turn_ticks(u: BattleUnit) -> void:
+	for k in u.cds.keys():
+		if int(u.cds[k]) > 0:
+			u.cds[k] = int(u.cds[k]) - 1
+	for sid in ["root", "pinned", "blind", "fear", "taunted", "stun", "paralysis", "marked", "rallied", "inspired"]:
+		_tick_status(u, sid)
+
+
 func do_wait(u: BattleUnit) -> void:
-	if u.moved or u.acted:
+	if u.moved or u.acted or phase == "explore":
 		return
 	u.next_time += Rules.turn_delay(u.stat("speed")) * 0.5
 	emit({"t": "float", "uid": u.uid, "text": "Wait", "kind": "info"})
@@ -282,6 +329,9 @@ func _on_new_round() -> void:
 		if int(w["round"]) == round_num and not w.get("done", false):
 			w["done"] = true
 			_spawn_wave(w)
+	# pods nobody has spotted keep walking their beats while a fight goes on
+	if explore and phase == "combat":
+		_patrol_dormant()
 	_check_objective_rounds()
 
 
@@ -298,6 +348,8 @@ func zoc_holders(p: Vector2i, mover: BattleUnit) -> Array:
 	var out: Array = []
 	for o in units:
 		if o == mover or not mover.hostile_to(o) or not exerts_zoc(o) or o.carried_by >= 0:
+			continue
+		if not knows(mover, o):
 			continue
 		if Rules.chebyshev(o.pos, p) <= zoc_radius(o) and absi(grid.height(o.pos) - grid.height(p)) <= 2:
 			out.append(o)
@@ -360,7 +412,7 @@ func reachable(u: BattleUnit, budget := -1) -> Dictionary:
 			if nc > budget:
 				continue
 			var occ := unit_at(n)
-			if occ != null and u.hostile_to(occ):
+			if occ != null and u.hostile_to(occ) and knows(u, occ):
 				continue
 			if out.has(n) and int(out[n]["cost"]) <= nc:
 				continue
@@ -369,7 +421,8 @@ func reachable(u: BattleUnit, budget := -1) -> Dictionary:
 			frontier.append([nc, n])
 	# cannot stop on occupied tiles
 	for c in out.keys():
-		if c != u.pos and unit_at(c) != null:
+		var occ := unit_at(c)
+		if c != u.pos and occ != null and (not u.hostile_to(occ) or knows(u, occ)):
 			out[c]["pass_only"] = true
 	return out
 
@@ -444,28 +497,43 @@ func do_move(u: BattleUnit, dest: Vector2i) -> bool:
 	if not u.active():
 		return true
 	var walked: Array = []
+	var walked_vis: Array = []   # what the squad sees after each step (null: unchanged)
+	var known := _known_foes(u)
+	var halt := false
 	for step in path:
 		if not u.active():
+			break
+		var blocker := unit_at(step)
+		if blocker != null and blocker != u and u.hostile_to(blocker):
+			# walked into someone hiding in the fog
+			_face(u, step)
+			emit({"t": "float", "uid": u.uid, "text": "Ambush!" if u.team == BattleUnit.TEAM_PLAYER else "Blocked", "kind": "warn"})
+			if blocker.team == BattleUnit.TEAM_ENEMY:
+				_queue_alert(blocker.pod, true)
 			break
 		var prev := u.pos
 		u.pos = step
 		_face(u, step + (step - prev))
 		walked.append(step)
+		walked_vis.append(null)
 		var stop := false
 		var tile := grid.t(step)
 		var fx: Dictionary = tile["fx"]
 		if fx.get("kind", "") == "trap" and int(fx.get("team", -1)) != u.team:
-			emit({"t": "move", "uid": u.uid, "path": walked.duplicate()})
+			emit({"t": "move", "uid": u.uid, "path": walked.duplicate(), "vis": walked_vis.duplicate()})
 			walked.clear()
+			walked_vis.clear()
 			_trigger_trap(u, step, fx)
 			stop = true
 		elif fx.get("kind", "") == "thorns" and int(fx.get("team", -1)) != u.team:
-			emit({"t": "move", "uid": u.uid, "path": walked.duplicate()})
+			emit({"t": "move", "uid": u.uid, "path": walked.duplicate(), "vis": walked_vis.duplicate()})
 			walked.clear()
+			walked_vis.clear()
 			_apply_status(null, u, "bleed", 100, 2, 3)
 		elif fx.get("kind", "") == "fire":
-			emit({"t": "move", "uid": u.uid, "path": walked.duplicate()})
+			emit({"t": "move", "uid": u.uid, "path": walked.duplicate(), "vis": walked_vis.duplicate()})
 			walked.clear()
+			walked_vis.clear()
 			_apply_status(null, u, "burn", 70, 2, 3)
 		# overwatch
 		for o in hostiles_of(u):
@@ -475,8 +543,9 @@ func do_move(u: BattleUnit, dest: Vector2i) -> bool:
 				var s := DB.skill(o.basic)
 				if _in_skill_range(o, s, o.pos, u.pos) and _los_ok(o, s, o.pos, u.pos):
 					if not walked.is_empty():
-						emit({"t": "move", "uid": u.uid, "path": walked.duplicate()})
+						emit({"t": "move", "uid": u.uid, "path": walked.duplicate(), "vis": walked_vis.duplicate()})
 						walked.clear()
+						walked_vis.clear()
 					o.overwatch_left -= 1
 					if o.overwatch_left <= 0:
 						o.remove_status("overwatch")
@@ -484,14 +553,25 @@ func do_move(u: BattleUnit, dest: Vector2i) -> bool:
 					_face(o, u.pos)
 					_attack_basic(o, u, {"overwatch": true})
 		_update_hidden()
-		if stop or not u.active() or u.has_status("root"):
+		if fog or explore:
+			if u.team == BattleUnit.TEAM_PLAYER and update_vision(u, false):
+				if walked.is_empty():
+					emit({"t": "vision", "cells": vis.keys()})
+				else:
+					walked_vis[walked.size() - 1] = vis.keys()
+			if _new_foe_seen(u, known) or _detection_step(u):
+				halt = true
+		if (stop or halt or not u.active() or u.has_status("root")) and _alone_on(u, u.pos):
 			break
 	if not walked.is_empty():
-		emit({"t": "move", "uid": u.uid, "path": walked})
+		emit({"t": "move", "uid": u.uid, "path": walked, "vis": walked_vis})
 	if u.carrying >= 0:
 		var body := unit(u.carrying)
 		if body:
 			body.pos = u.pos
+	if halt and u.active() and u.team == BattleUnit.TEAM_PLAYER and pending_alerts.is_empty():
+		emit({"t": "float", "uid": u.uid, "text": "Enemy spotted!", "kind": "warn"})
+	_process_alerts()
 	_check_end()
 	return true
 
@@ -616,7 +696,7 @@ func valid_targets(u: BattleUnit, skill_id: String, from := Vector2i(-99, -99)) 
 			out.append(from)
 		"enemy":
 			for o in hostiles_of(u):
-				if o.hidden:
+				if o.hidden or not knows(u, o):
 					continue
 				if taunter >= 0 and unit(taunter) and unit(taunter).active() and o.uid != taunter:
 					continue
@@ -724,10 +804,14 @@ func affected(u: BattleUnit, skill_id: String, target: Vector2i, from := Vector2
 			return chain
 		"wall":
 			cells = wall_cells(from, target, int(aoe.get("len", 3)))
+	var reveals := false
+	for eff in s.get("effects", []):
+		if eff["t"] == "reveal":
+			reveals = true
 	var out: Array = []
 	for c in cells:
 		var o := unit_at(c)
-		if o == null or o.hidden:
+		if o == null or (o.hidden and not reveals):
 			continue
 		if who == "enemy" and not u.hostile_to(o):
 			continue
@@ -811,6 +895,8 @@ func attack_context(att: BattleUnit, target: BattleUnit, s: Dictionary, eff: Dic
 		cover = grid.cover_from(target.pos, from)
 		if target.has_status("shielded"):
 			cover = maxi(cover, 1)
+		if eff.get("ignore_cover", false):
+			cover = 0
 		flank = cover == 0
 	else:
 		var to_att := from - target.pos
@@ -837,10 +923,16 @@ func attack_context(att: BattleUnit, target: BattleUnit, s: Dictionary, eff: Dic
 	if target.state == "downed":
 		dodge = -100
 	var extra_hit := target.status_power("marked")
+	if not target.alerted:
+		# caught unaware: an ambush from the fog
+		flank = true
+		extra_hit += 15
 	if extra.get("aoo", false):
 		extra_hit += float(att.mod("aoo_hit", 0))
-	if extra.get("overwatch", false):
+	if extra.get("overwatch", false) and int(att.mod("overwatch_sharp", 0)) <= 0:
 		extra_hit -= Rules.OVERWATCH_PENALTY
+	if _is_prey(target):
+		extra_hit += float(att.mod("prey", 0))
 	for a in allies_of(target, false):
 		if int(a.mod("aura_dodge", 0)) > 0 and Rules.chebyshev(a.pos, target.pos) == 1:
 			dodge += float(a.mod("aura_dodge", 0))
@@ -850,6 +942,8 @@ func attack_context(att: BattleUnit, target: BattleUnit, s: Dictionary, eff: Dic
 	var crit_extra := float(eff.get("crit", 0))
 	if ranged:
 		crit_extra += float(att.mod("ranged_crit", 0))
+	if extra.get("overwatch", false):
+		crit_extra += float(att.mod("overwatch_sharp", 0))
 	if flank:
 		crit_extra += float(eff.get("flank_crit", 0))
 	var crit := Rules.crit_chance(att.stat("crit"), flank, crit_extra)
@@ -865,6 +959,14 @@ func damage_mult(att: BattleUnit, target: BattleUnit, eff: Dictionary) -> float:
 		m += float(att.mod("bloodlust", 0.0)) * floor(missing * 10.0)
 	if (target.elite or target.boss) and float(att.mod("elite_dmg", 0.0)) > 0:
 		m += float(att.mod("elite_dmg", 0.0))
+	if _is_prey(target):
+		m += float(att.mod("prey_dmg", 0.0))
+	if float(att.mod("water_dmg", 0.0)) > 0 and (int(grid.t(target.pos)["water"]) > 0 or grid.t(target.pos)["fx"].get("kind", "") == "flood"):
+		m += float(att.mod("water_dmg", 0.0))
+	if target.hush and float(eff.get("vs_hush", 0.0)) > 0:
+		m += float(eff.get("vs_hush", 0.0))
+	if not target.alerted:
+		m += float(att.mod("ambush_dmg", 0.0))
 	if int(eff.get("swarm", 0)) > 0:
 		for o in allies_of(att, false):
 			if o.enemy_id == att.enemy_id and Rules.chebyshev(o.pos, target.pos) == 1:
@@ -872,6 +974,23 @@ func damage_mult(att: BattleUnit, target: BattleUnit, eff: Dictionary) -> float:
 	if att.boss:
 		m *= 1.0 - 0.15 * pages_found
 	return m
+
+
+func _is_prey(o: BattleUnit) -> bool:
+	return o.has_status("marked") or o.has_status("root") or o.has_status("pinned")
+
+
+func pierce_of(att: BattleUnit, eff: Dictionary) -> float:
+	return clampf(float(eff.get("pierce", 0.0)) + float(att.mod("pierce", 0.0)), 0.0, 1.0)
+
+
+## Resolve including the best Resolve aura of a nearby ally.
+func resolve_of(o: BattleUnit) -> float:
+	var bonus := 0.0
+	for a in allies_of(o, true):
+		if float(a.mod("aura_resolve", 0)) > bonus and Rules.chebyshev(a.pos, o.pos) <= 2:
+			bonus = float(a.mod("aura_resolve", 0))
+	return o.stat("resolve") + bonus
 
 
 func preview(att: BattleUnit, skill_id: String, target_cell: Vector2i, from := Vector2i(-99, -99)) -> Dictionary:
@@ -894,8 +1013,8 @@ func preview(att: BattleUnit, skill_id: String, target_cell: Vector2i, from := V
 						for e2 in s.get("effects", []):
 							if e2["t"] == "armor_break":
 								d *= 1.0 - float(e2.get("pct", 0.5))
-						row["dmg_min"] = Rules.apply_defense(raw_lo, d, float(eff.get("pierce", 0)))["damage"]
-						row["dmg_max"] = Rules.apply_defense(raw_hi, d, float(eff.get("pierce", 0)))["damage"]
+						row["dmg_min"] = Rules.apply_defense(raw_lo, d, pierce_of(att, eff))["damage"]
+						row["dmg_max"] = Rules.apply_defense(raw_hi, d, pierce_of(att, eff))["damage"]
 						row["hits"] = 1
 					else:
 						row["hits"] = int(row.get("hits", 1)) + 1
@@ -920,13 +1039,17 @@ func _status_chance_for(att: BattleUnit, o: BattleUnit, eff: Dictionary) -> int:
 	var base := float(eff.get("chance", 50))
 	if sid == "burn":
 		base += float(att.mod("burn_chance", 0))
-	var c := Rules.status_chance(base, att.level, o.level, o.stat("resolve"))
+	if sid in ["poison", "bleed"]:
+		base += float(att.mod("dot_chance", 0))
+	var c := Rules.status_chance(base, att.level, o.level, resolve_of(o))
 	if o.boss and sid in ["paralysis", "stun", "fear", "root"]:
 		c = c / 2
 	return c
 
 
 func _immune(o: BattleUnit, sid: String) -> bool:
+	if sid == "poison" and int(o.mod("poison_immune", 0)) > 0:
+		return true
 	if sid == "fear":
 		if int(o.mod("fearless", 0)) > 0:
 			return true
@@ -963,6 +1086,7 @@ func use_skill(u: BattleUnit, skill_id: String, target: Vector2i) -> bool:
 		u.acted = true
 	if u.hidden:
 		_reveal(u)
+	_expose(u)
 	if target != u.pos:
 		_face(u, target)
 	emit({"t": "skill", "uid": u.uid, "skill": skill_id, "target": target, "anim": s.get("anim", "attack"), "fx": s.get("fx", "slash"), "name": s.get("name", "")})
@@ -988,10 +1112,26 @@ func use_skill(u: BattleUnit, skill_id: String, target: Vector2i) -> bool:
 					unit(u.carrying).pos = target
 				emit({"t": "teleport", "uid": u.uid, "from": from, "to": target, "fx": s.get("fx", "shadow")})
 				_update_hidden()
+				if u.team == BattleUnit.TEAM_PLAYER:
+					update_vision(u)
+				if _detection_step(u):
+					_process_alerts()
 			"splash":
 				for o in hostiles_of(u):
 					if Rules.chebyshev(o.pos, u.pos) <= int(eff.get("r", 1)) and not o.hidden:
-						_resolve_damage(u, o, s, {"t": "damage", "mult": eff.get("mult", 0.8)})
+						_resolve_damage(u, o, s, {"t": "damage", "mult": eff.get("mult", 0.8), "crit": eff.get("crit", 0)})
+			"area_status":
+				for o in units:
+					if not o.active() or o.carried_by >= 0 or o.hidden or Rules.chebyshev(o.pos, u.pos) > int(eff.get("r", 1)):
+						continue
+					if (eff.get("who", "enemy") == "enemy") != u.hostile_to(o):
+						continue
+					_apply_effect(u, o, s, {"t": "status", "id": eff["id"], "chance": eff.get("chance", 100), "dur": eff.get("dur", 1), "power": eff.get("power", 0)})
+			"overwatch":
+				_add_status(u, "overwatch", 1, 0, u)
+				u.overwatch_left = maxi(1, int(eff.get("shots", 1)))
+				u.moved = true
+				emit({"t": "float", "uid": u.uid, "text": "Kill Zone", "kind": "info"})
 			"terrain":
 				var cells: Array = aoe_cells(u, skill_id, target)
 				_place_terrain(u, cells, eff)
@@ -1010,6 +1150,11 @@ func use_skill(u: BattleUnit, skill_id: String, target: Vector2i) -> bool:
 					if et in ["status", "push", "pull", "erase_skill", "remove_buffs"] and hit_map.has(o.uid) and not hit_map[o.uid]:
 						continue
 					_apply_effect(u, o, s, eff)
+	# any hostile act wakes the pods it touched
+	for o in targets:
+		if o.team == BattleUnit.TEAM_ENEMY and not o.alerted and u.hostile_to(o):
+			_queue_alert(o.pod, false)
+	_process_alerts()
 	_check_end()
 	return true
 
@@ -1025,6 +1170,8 @@ func _apply_effect(u: BattleUnit, o: BattleUnit, s: Dictionary, eff: Dictionary)
 				var power := float(eff.get("power", 0))
 				if eff["id"] == "burn":
 					power *= 1.0 + float(u.mod("burn_power", 0.0))
+				if eff["id"] in ["poison", "bleed"]:
+					power *= 1.0 + float(u.mod("dot_power", 0.0))
 				if rng.randi_range(1, 100) <= ch:
 					_add_status(o, eff["id"], int(eff.get("dur", 1)), power, u)
 				else:
@@ -1079,9 +1226,16 @@ func _apply_effect(u: BattleUnit, o: BattleUnit, s: Dictionary, eff: Dictionary)
 		"hasten":
 			o.next_time -= float(eff.get("amount", 5))
 			emit({"t": "float", "uid": o.uid, "text": "Hastened", "kind": "good"})
+		"reset_cds":
+			o.cds.clear()
+			emit({"t": "float", "uid": o.uid, "text": "Refreshed", "kind": "good"})
 
 
 func erase_skill(o: BattleUnit) -> void:
+	for a in allies_of(o, true):
+		if int(a.mod("aura_memory", 0)) > 0 and Rules.chebyshev(a.pos, o.pos) <= int(a.mod("aura_memory", 0)):
+			emit({"t": "float", "uid": o.uid, "text": "Remembered", "kind": "good"})
+			return
 	var pool: Array = []
 	for sk in o.skills:
 		if sk != o.basic and not sk in o.erased:
@@ -1096,6 +1250,7 @@ func erase_skill(o: BattleUnit) -> void:
 
 func _attack_basic(att: BattleUnit, target: BattleUnit, extra := {}) -> void:
 	var s := DB.skill(att.basic)
+	_expose(att)
 	emit({"t": "skill", "uid": att.uid, "skill": att.basic, "target": target.pos, "anim": s.get("anim", "attack"), "fx": s.get("fx", "slash"), "name": ""})
 	var did_hit := false
 	for eff in s.get("effects", []):
@@ -1121,8 +1276,11 @@ func _resolve_damage(att: BattleUnit, o: BattleUnit, s: Dictionary, eff: Diction
 	var crit := rng.randi_range(1, 100) <= int(ctx["crit"])
 	var raw := Rules.raw_damage(att.stat("attack"), float(eff.get("mult", 1.0)), rng.randf_range(-1.0, 1.0))
 	raw *= damage_mult(att, o, eff)
+	if extra.get("aoo", false):
+		raw *= 1.0 + float(att.mod("aoo_dmg", 0.0))
 	if crit:
-		raw *= 2.0
+		raw *= 2.0 + float(att.mod("crit_mult", 0.0))
+	raw *= 1.0 - clampf(o.status_power("fortified") / 100.0, 0.0, 0.8)
 	var crit_def := false
 	var cd_chance := o.stat("crit") * 0.5 + (Rules.DEFEND_CRIT_DEF if o.has_status("defending") else 0)
 	if o.state == "active" and rng.randi_range(1, 100) <= int(cd_chance):
@@ -1132,7 +1290,7 @@ func _resolve_damage(att: BattleUnit, o: BattleUnit, s: Dictionary, eff: Diction
 		o.carapace_used = true
 		raw *= 0.5
 		emit({"t": "float", "uid": o.uid, "text": "Carapace", "kind": "info"})
-	var res := Rules.apply_defense(raw, o.defense_now(), float(eff.get("pierce", 0.0)))
+	var res := Rules.apply_defense(raw, o.defense_now(), pierce_of(att, eff))
 	var dmg: int = res["damage"]
 	o.def_cur = maxf(0.0, o.def_cur - float(res["wear"]))
 	emit({"t": "hit", "uid": o.uid, "src": att.uid, "dmg": dmg, "crit": crit, "crit_def": crit_def, "def": o.def_cur, "fx": s.get("fx", "slash"), "absorbed": roundi(raw) - dmg})
@@ -1140,7 +1298,15 @@ func _resolve_damage(att: BattleUnit, o: BattleUnit, s: Dictionary, eff: Diction
 		_add_status(o, "bleed", 3, float(att.mod("crit_bleed", 0)), att)
 	if crit and int(att.mod("shatter", 0)) > 0 and att.member:
 		_glass_crit(att)
+	if crit and int(att.mod("crit_heal", 0)) > 0 and att.active():
+		_heal(att, int(att.mod("crit_heal", 0)), att)
+	if int(att.mod("hit_poison", 0)) > 0 and o.active() and not _immune(o, "poison"):
+		if rng.randi_range(1, 100) <= Rules.status_chance(float(att.mod("hit_poison", 0)) + float(att.mod("dot_chance", 0)), att.level, o.level, resolve_of(o)):
+			_add_status(o, "poison", 3, 4.0 * (1.0 + float(att.mod("dot_power", 0.0))), att)
+	var melee_hit := not bool(ctx["ranged"])
 	_apply_damage(o, dmg, att)
+	if melee_hit and int(o.mod("barbs", 0)) > 0 and att.active() and o.alive() and att != o:
+		_damage_raw(att, int(o.mod("barbs", 0)), o, "thorns")
 	return true
 
 
@@ -1163,6 +1329,8 @@ func _damage_raw(o: BattleUnit, dmg: int, src: BattleUnit, kind: String) -> void
 
 
 func _apply_damage(o: BattleUnit, dmg: int, src: BattleUnit) -> void:
+	if o.team == BattleUnit.TEAM_ENEMY and not o.alerted:
+		_queue_alert(o.pod, false)
 	if o.state == "downed":
 		_kill(o, src, "executed")
 		return
@@ -1191,6 +1359,7 @@ func _apply_damage(o: BattleUnit, dmg: int, src: BattleUnit) -> void:
 		if o.carrying >= 0:
 			_drop_body(o)
 		emit({"t": "downed", "uid": o.uid, "src": src.uid if src else -1})
+		update_vision()
 		_morale_shock(o, src)
 	else:
 		_kill(o, src, "slain")
@@ -1204,9 +1373,15 @@ func _kill(o: BattleUnit, src: BattleUnit, cause: String) -> void:
 		_drop_body(o)
 	if src and src != o:
 		src.kills += 1
+		if int(src.mod("rampage", 0)) > 0 and src.active() and src.acted and not src.rampage_used and src.hostile_to(o):
+			src.rampage_used = true
+			src.acted = false
+			emit({"t": "float", "uid": src.uid, "text": "Rampage!", "kind": "warn"})
 	if o.team == BattleUnit.TEAM_PLAYER and not o.npc:
 		deaths += 1
 	emit({"t": "death", "uid": o.uid, "src": src.uid if src else -1, "cause": cause})
+	if o.team == BattleUnit.TEAM_PLAYER:
+		update_vision()
 	if o.team == BattleUnit.TEAM_PLAYER and not o.npc and o.member != null:
 		_morale_shock(o, src)
 	_check_end()
@@ -1221,7 +1396,7 @@ func _morale_shock(victim: BattleUnit, src: BattleUnit) -> void:
 		var base := 20.0
 		if int(a.mod("coward", 0)) > 0:
 			base = 60.0
-		var ch := Rules.status_chance(base, maxi(1, victim.level), a.level, a.stat("resolve"))
+		var ch := Rules.status_chance(base, maxi(1, victim.level), a.level, resolve_of(a))
 		if rng.randi_range(1, 100) <= ch:
 			_add_status(a, "fear", 1 if int(a.mod("coward", 0)) == 0 else 2, 0, src if src else victim)
 
@@ -1235,6 +1410,7 @@ func _heal(o: BattleUnit, amount: int, src: BattleUnit) -> void:
 		o.bleed = 0
 		o.stabilized = false
 		emit({"t": "revive", "uid": o.uid, "hp": o.hp})
+		update_vision(o)
 		return
 	var before := o.hp
 	o.hp = mini(o.max_hp(), o.hp + amount)
@@ -1284,6 +1460,8 @@ func _push(src: BattleUnit, o: BattleUnit, dist: int, stun_on_hit: bool, sign_di
 	if not path.is_empty():
 		o.pos = p
 		emit({"t": "move", "uid": o.uid, "path": path, "fast": true, "knock": true})
+		if o.team == BattleUnit.TEAM_PLAYER:
+			update_vision(o)
 		var fx: Dictionary = grid.t(p)["fx"]
 		if fx.get("kind", "") == "trap" and int(fx.get("team", -1)) != o.team:
 			_trigger_trap(o, p, fx)
@@ -1384,6 +1562,7 @@ func do_extract(u: BattleUnit) -> bool:
 	u.state = "extracted"
 	u.acted = true
 	emit({"t": "extract", "uid": u.uid})
+	update_vision()
 	if u.carrying >= 0:
 		var body := unit(u.carrying)
 		if body:
@@ -1449,6 +1628,7 @@ func do_interact(u: BattleUnit, c: Vector2i) -> bool:
 		"captive":
 			var cap := spawn_npc("villager", c, "captive", obj.get("name", "Captive"))
 			cap.team = BattleUnit.TEAM_PLAYER
+			update_vision(cap)
 			emit({"t": "interact", "cell": c, "kind": "captive", "uid": u.uid})
 			emit({"t": "objective", "text": "Captive freed! Bring them to the extraction zone."})
 	_check_end()
@@ -1522,6 +1702,10 @@ func _free_near(c: Vector2i, r: int) -> Vector2i:
 func _spawn_wave(w: Dictionary) -> void:
 	emit({"t": "objective", "text": "Enemy reinforcements!"})
 	var spots: Array = w.get("spots", [])
+	if fog:
+		# out of sight first: they come from the fog, not out of thin air
+		var hidden_spots: Array = spots.filter(func(c): return not vis.has(c))
+		spots = hidden_spots + spots.filter(func(c): return vis.has(c))
 	var i := 0
 	for eid in w["enemies"]:
 		var p := Vector2i(-1, -1)
@@ -1570,9 +1754,12 @@ func _check_end() -> void:
 		return
 	var typ: String = objective.get("type", "clear")
 	var hostile_left := 0
+	var alerted_left := 0
 	for u in units:
 		if u.team == BattleUnit.TEAM_ENEMY and u.alive() and not u.npc:
 			hostile_left += 1
+			if u.alerted:
+				alerted_left += 1
 	var pending_waves := false
 	for w in waves:
 		if not w.get("done", false):
@@ -1586,7 +1773,9 @@ func _check_end() -> void:
 			if tgt == null or tgt.state == "dead":
 				objective["done"] = true
 		"retrieve":
-			if hostile_left == 0 and not pending_waves and int(objective.get("found", 0)) >= int(objective.get("n", 3)):
+			# on a patrolled map it is enough to shake off every pod that saw you
+			var left := alerted_left if explore else hostile_left
+			if left == 0 and not pending_waves and int(objective.get("found", 0)) >= int(objective.get("n", 3)):
 				objective["done"] = true
 	# failure conditions
 	for u in units:
@@ -1618,7 +1807,7 @@ func _finish(res: String) -> void:
 	if res == "victory":
 		if downs == 0 and deaths == 0:
 			mark_bonus("no_downs")
-		if round_num <= int(mission.get("par_rounds", 8)):
+		if round_num <= par_rounds:
 			mark_bonus("fast")
 		for u in units:
 			if u.elite and u.team == BattleUnit.TEAM_ENEMY and u.state == "dead":
@@ -1642,3 +1831,361 @@ func pop_events() -> Array:
 	var e := events
 	events = []
 	return e
+
+
+# ====================================================================== fog of war & exploration
+## On patrolled maps the squad explores in squad turns (every member moves,
+## then every unaware pod walks its beat) until a pod spots someone. That pod
+## joins the timeline combat; the others keep patrolling and only join when
+## they see the squad too. With every alerted pod dead, exploration resumes.
+const SQUAD_SIGHT := 7
+const ENEMY_SIGHT := 6
+const PATROL_STEP := 3
+
+
+func sight_of(u: BattleUnit) -> int:
+	return clampi(SQUAD_SIGHT + int(u.mod("sight", 0)) - (1 if grid.time == "night" else 0), 3, 11)
+
+
+## How close an unaware enemy must be (with line of sight) to spot `p`.
+func detect_range(p: BattleUnit) -> int:
+	var r := ENEMY_SIGHT - int(p.mod("stealth", 0)) - (1 if grid.time == "night" else 0)
+	if grid.t(p.pos)["fx"].get("kind", "") == "smoke":
+		r -= 2
+	return clampi(r, 2, ENEMY_SIGHT)
+
+
+func _in_circle(a: Vector2i, b: Vector2i, r: int) -> bool:
+	var d := a - b
+	return d.x * d.x + d.y * d.y <= r * r + r
+
+
+func _cells_seen_from(u: BattleUnit) -> Dictionary:
+	var out := {}
+	var r := sight_of(u)
+	for c in grid.cells_in_radius(u.pos, r):
+		if _in_circle(c, u.pos, r) and (Rules.chebyshev(c, u.pos) <= 1 or grid.los(u.pos, c)):
+			out[c] = true
+	return out
+
+
+## Recomputes what the squad sees: `mover` (a member who just changed place)
+## gets its view recalculated, everyone else keeps theirs.
+func update_vision(mover: BattleUnit = null, announce := true) -> bool:
+	if not fog:
+		return false
+	if mover != null and mover.team == BattleUnit.TEAM_PLAYER:
+		unit_vis.erase(mover.uid)
+	var nv := {}
+	for u in units:
+		if u.team != BattleUnit.TEAM_PLAYER or not u.active() or u.carried_by >= 0:
+			continue
+		if not unit_vis.has(u.uid):
+			unit_vis[u.uid] = _cells_seen_from(u)
+		nv.merge(unit_vis[u.uid])
+	var changed := nv.size() != vis.size()
+	if not changed:
+		for c in nv:
+			if not vis.has(c):
+				changed = true
+				break
+	if not changed:
+		return false
+	vis = nv
+	for c in vis:
+		seen[c] = true
+	if announce:
+		emit({"t": "vision", "cells": vis.keys()})
+	return true
+
+
+func is_seen(o: BattleUnit) -> bool:
+	if o.team == BattleUnit.TEAM_PLAYER:
+		return true
+	if o.hidden:
+		return false
+	return not fog or vis.has(o.pos) or o.exposed_round >= round_num
+
+
+## Does `u` know `o` is there? The enemy always knows where the squad is once
+## alerted; the squad only knows what it sees.
+func knows(u: BattleUnit, o: BattleUnit) -> bool:
+	return u.team != BattleUnit.TEAM_PLAYER or is_seen(o)
+
+
+## Enemies that attack from the fog show themselves for the round.
+func _expose(u: BattleUnit) -> void:
+	if fog and u.team != BattleUnit.TEAM_PLAYER and not vis.has(u.pos) and u.exposed_round < round_num:
+		u.exposed_round = round_num
+		emit({"t": "expose", "uid": u.uid})
+
+
+func _known_foes(u: BattleUnit) -> Dictionary:
+	var out := {}
+	if u.team == BattleUnit.TEAM_PLAYER and fog:
+		for o in hostiles_of(u):
+			if is_seen(o):
+				out[o.uid] = true
+	return out
+
+
+func _new_foe_seen(u: BattleUnit, known: Dictionary) -> bool:
+	if u.team != BattleUnit.TEAM_PLAYER or not fog:
+		return false
+	for o in hostiles_of(u):
+		if is_seen(o) and not known.has(o.uid) and o.team == BattleUnit.TEAM_ENEMY:
+			known[o.uid] = true
+			return true
+	return false
+
+
+## After `u` changed place: did an unaware enemy spot a squad member?
+## Returns true when a pod was alerted (the mover then stops).
+func _detection_step(u: BattleUnit) -> bool:
+	if not explore:
+		return false
+	var hit := false
+	if u.team == BattleUnit.TEAM_PLAYER:
+		if not u.active() or u.carried_by >= 0:
+			return false
+		for e in units:
+			if e.team == BattleUnit.TEAM_ENEMY and e.active() and not e.alerted and _spots(e, u):
+				_queue_alert(e.pod, true)
+				hit = true
+	elif u.team == BattleUnit.TEAM_ENEMY and not u.alerted and u.active():
+		for p in units:
+			if p.team == BattleUnit.TEAM_PLAYER and _spots(u, p):
+				_queue_alert(u.pod, true)
+				hit = true
+				break
+	return hit
+
+
+func _spots(e: BattleUnit, p: BattleUnit) -> bool:
+	if not p.active() or p.carried_by >= 0 or e.has_status("blind"):
+		return false
+	var r := detect_range(p)
+	if not _in_circle(e.pos, p.pos, r):
+		return false
+	return Rules.chebyshev(e.pos, p.pos) <= 1 or grid.los(e.pos, p.pos)
+
+
+## Cells an unaware, visible enemy would spot `p` on (the red warning tiles).
+func watch_cells(p: BattleUnit) -> Array:
+	var out := {}
+	if not explore or p == null:
+		return []
+	var r := ENEMY_SIGHT - int(p.mod("stealth", 0)) - (1 if grid.time == "night" else 0)
+	for e in units:
+		if e.team != BattleUnit.TEAM_ENEMY or e.alerted or not e.active() or not is_seen(e):
+			continue
+		for c in grid.cells_in_radius(e.pos, r):
+			if not out.has(c) and _in_circle(c, e.pos, r) and (Rules.chebyshev(c, e.pos) <= 1 or grid.los(e.pos, c)):
+				out[c] = true
+	return out.keys()
+
+
+func _alone_on(u: BattleUnit, c: Vector2i) -> bool:
+	for o in units:
+		if o != u and o.pos == c and o.carried_by < 0 and (o.state == "active" or o.state == "downed"):
+			return false
+	return true
+
+
+func _queue_alert(pod_id: int, scramble: bool) -> void:
+	if pod_id < 0 or pod_id >= pods.size() or pods[pod_id]["alerted"]:
+		return
+	for a in pending_alerts:
+		if a[0] == pod_id:
+			return
+	pending_alerts.append([pod_id, scramble])
+
+
+func _alert_pending(pod_id: int) -> bool:
+	for a in pending_alerts:
+		if a[0] == pod_id:
+			return true
+	return false
+
+
+## Wakes the queued pods: they join the timeline and (unless ambushed)
+## scramble for cover first.
+func _process_alerts() -> void:
+	if _alerting or pending_alerts.is_empty() or over:
+		return
+	_alerting = true
+	while not pending_alerts.is_empty() and not over:
+		var a: Array = pending_alerts.pop_front()
+		var pod: Dictionary = pods[a[0]]
+		if pod["alerted"]:
+			continue
+		pod["alerted"] = true
+		var woke: Array = []
+		for uid in pod["units"]:
+			var e := unit(uid)
+			if e and e.alive() and not e.alerted:
+				e.alerted = true
+				if not vis.has(e.pos):
+					e.exposed_round = round_num
+				woke.append(e)
+		if woke.is_empty():
+			continue
+		var uids: Array = []
+		for e in woke:
+			uids.append(e.uid)
+		emit({"t": "alert", "uids": uids, "pod": a[0], "ambush": not a[1]})
+		if phase == "explore":
+			_start_combat()
+		for e in woke:
+			e.next_time = time + Rules.turn_delay(e.stat("speed")) * rng.randf_range(0.3, 0.9)
+		if a[1]:
+			for e in woke:
+				if e.active() and not over:
+					ai.scramble(e)
+	_alerting = false
+
+
+func _start_combat() -> void:
+	if phase == "combat":
+		return
+	phase = "combat"
+	time = (round_num - 1) * Rules.ROUND_TICKS
+	for u in units:
+		if not u.alive() or u.carried_by >= 0 or u.objective_role == "object":
+			continue
+		if u.team == BattleUnit.TEAM_ENEMY and not u.alerted:
+			continue
+		var d := Rules.turn_delay(u.stat("speed"))
+		u.next_time = time + d * rng.randf_range(0.15, 0.9) * (0.7 if u.team == BattleUnit.TEAM_PLAYER else 1.0)
+	if current != null:
+		# the member who was walking keeps the rest of their turn
+		current.next_time = time
+	emit({"t": "phase", "phase": "combat"})
+
+
+## Back to exploring once every pod that joined the fight is gone.
+func _maybe_end_combat() -> void:
+	if not explore or phase != "combat" or over or current != null:
+		return
+	for u in units:
+		if u.team == BattleUnit.TEAM_ENEMY and u.alerted and u.alive() and not u.npc:
+			return
+	for w in waves:
+		if not w.get("done", false):
+			return
+	phase = "explore"
+	emit({"t": "phase", "phase": "explore"})
+	round_num += 1
+	_on_new_round()
+	if not over and phase == "explore":
+		begin_explore_turn()
+
+
+## Squad members the player can still order around this squad turn.
+func explore_units() -> Array:
+	var out: Array = []
+	for u in units:
+		if u.team == BattleUnit.TEAM_PLAYER and u.active() and u.carried_by < 0 and not u.explore_done \
+				and not u.npc and u.objective_role == "":
+			out.append(u)
+	return out
+
+
+func begin_explore_turn() -> void:
+	current = null
+	emit({"t": "explore_turn", "n": round_num})
+	for u in units.duplicate():
+		if u.team != BattleUnit.TEAM_PLAYER or not u.alive() or u.carried_by >= 0:
+			continue
+		u.explore_done = u.npc or u.objective_role != ""
+		_begin_turn(u)
+		if phase != "explore" or over:
+			return
+	current = null
+
+
+func explore_select(u: BattleUnit) -> bool:
+	if phase != "explore" or not u in explore_units():
+		return false
+	current = u
+	return true
+
+
+## Ends the squad turn: cooldowns tick, the VIP keeps up, unaware pods walk
+## their beats, and a new squad turn starts unless someone was spotted.
+func end_explore_turn() -> void:
+	if phase != "explore" or over:
+		return
+	current = null
+	for u in units:
+		if u.team == BattleUnit.TEAM_PLAYER and u.alive():
+			_turn_ticks(u)
+			u.explore_done = true
+	emit({"t": "enemy_phase"})
+	for u in units.duplicate():
+		if u.team == BattleUnit.TEAM_PLAYER and u.active() and u.objective_role in ["vip", "captive"]:
+			ai.follow(u)
+			if phase != "explore" or over:
+				break
+	_process_alerts()
+	if phase == "explore" and not over:
+		_patrol_dormant()
+	if over or phase != "explore":
+		return
+	round_num += 1
+	_on_new_round()
+	if phase == "explore" and not over:
+		begin_explore_turn()
+
+
+## Every unaware pod walks a few steps along its beat; followers keep close
+## to the leader. A pod that spots someone stops and wakes up.
+func _patrol_dormant() -> void:
+	for pi in pods.size():
+		var pod: Dictionary = pods[pi]
+		if pod["alerted"] or over:
+			continue
+		var beat: Array = pod.get("route", [])
+		if beat.size() < 2:
+			continue
+		var lead: BattleUnit = null
+		for uid in pod["units"]:
+			var e := unit(uid)
+			if e and e.active():
+				lead = e
+				break
+		if lead == null:
+			continue
+		var goal: Vector2i = beat[int(pod["wp"]) % beat.size()]
+		if Rules.chebyshev(lead.pos, goal) <= 1:
+			pod["wp"] = (int(pod["wp"]) + 1) % beat.size()
+			goal = beat[int(pod["wp"])]
+		for uid in pod["units"]:
+			var e := unit(uid)
+			if e == null or not e.active() or e.alerted or _alert_pending(pi):
+				continue
+			e.moved = false
+			e.acted = false
+			ai.patrol_step(e, goal if e == lead else lead.pos, PATROL_STEP)
+			if over:
+				return
+		_process_alerts()
+
+
+## One step of a fully automatic battle (tests, autopilot, autoplay).
+func auto_step() -> void:
+	if over:
+		return
+	if phase == "explore":
+		ai.explore_turn()
+		if over:
+			return
+		if phase == "explore":
+			end_explore_turn()
+		elif current != null and current.team == BattleUnit.TEAM_PLAYER and current.active():
+			# combat broke out mid-turn: the interrupted member finishes it
+			ai.take_turn(current)
+		return
+	var u := next_turn()
+	if u != null and current == u:
+		ai.take_turn(u)

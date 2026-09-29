@@ -1,7 +1,8 @@
 class_name BattleHUD
 extends Control
-## Combat HUD: timeline, objective, unit panel, action bar, hit previews,
-## floating combat text, HP/Defense bars and barks.
+## Combat HUD: timeline (or the squad while exploring), objective, unit
+## panel, action bar, hit previews, floating combat text, HP/Defense bars,
+## barks and the objective marker.
 
 signal action_pressed(kind: String, arg: String)
 signal menu_pressed
@@ -25,6 +26,8 @@ var sub_banner: Label
 var log_box: VBoxContainer
 var bars := {}
 var _log_lines: Array = []
+var obj_marker: VBoxContainer
+var obj_marker_label: Label
 
 
 func _ready() -> void:
@@ -45,6 +48,7 @@ func _ready() -> void:
 	_build_log()
 	_build_preview()
 	_build_banner()
+	_build_objective_marker()
 	var mb := UIKit.button("Menu", func(): menu_pressed.emit())
 	mb.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
 	mb.position = Vector2(-44, 4)
@@ -79,6 +83,12 @@ func _build_timeline() -> void:
 
 func refresh_timeline(b: Battle) -> void:
 	UIKit.clear(timeline_box)
+	if b.phase == "explore":
+		_squad_bar(b)
+		await get_tree().process_frame
+		var sp: Control = timeline_box.get_parent().get_parent()
+		sp.position.x = (size.x - sp.size.x) / 2.0
+		return
 	var seen_current := false
 	for entry in b.timeline_preview(10):
 		var u: BattleUnit = b.unit(entry[0])
@@ -91,6 +101,28 @@ func refresh_timeline(b: Battle) -> void:
 	await get_tree().process_frame
 	var p: Control = timeline_box.get_parent().get_parent()
 	p.position.x = (size.x - p.size.x) / 2.0
+
+
+## Exploring: the squad's portraits instead of the timeline; click one to
+## give it orders, greyed out once it is done for the squad turn.
+func _squad_bar(b: Battle) -> void:
+	var tag := UIKit.label("Exploring", 9, UITheme.GREEN, UITheme.pixel_font)
+	tag.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	timeline_box.add_child(tag)
+	for u in b.units:
+		if u.team != BattleUnit.TEAM_PLAYER or not u.alive() or u.carried_by >= 0:
+			continue
+		var e := _timeline_entry(u, b.current == u)
+		var ready: bool = u in b.explore_units()
+		if not ready:
+			e.modulate = Color(0.5, 0.5, 0.55)
+		if ready and not u.npc and u.objective_role == "":
+			var uid: int = u.uid
+			e.tooltip_text += "\nClick (or Tab) to give orders"
+			e.gui_input.connect(func(ev: InputEvent):
+				if ev is InputEventMouseButton and ev.pressed and ev.button_index == MOUSE_BUTTON_LEFT:
+					action_pressed.emit("select", str(uid)))
+		timeline_box.add_child(e)
 
 
 func _timeline_entry(u: BattleUnit, current: bool) -> Control:
@@ -145,6 +177,15 @@ func refresh_objective(b: Battle) -> void:
 	var t := "[color=#f6cc60]>[/color] %s" % b.objective_text()
 	if b.objective.get("type", "") in ["survive", "defense"]:
 		t += "  [color=#aa9c8c](round %d)[/color]" % b.round_num
+	if b.explore:
+		if b.phase == "explore":
+			t += "\n[color=#8cd678]Unseen[/color] [color=#aa9c8c]Follow the trail north. Red tiles: an enemy would spot you there.[/color]"
+		else:
+			var n := 0
+			for u in b.units:
+				if u.team == BattleUnit.TEAM_ENEMY and u.alerted and u.alive() and not u.npc:
+					n += 1
+			t += "\n[color=#e86050]Combat[/color] [color=#aa9c8c]%d alerted enem%s. Other patrols have not seen you yet.[/color]" % [n, "y" if n == 1 else "ies"]
 	for bo in b.bonus:
 		var mark := "[color=#8cd678]v[/color]" if bo.get("done", false) else "[color=#aa9c8c]o[/color]"
 		t += "\n%s [color=#aa9c8c]%s[/color]" % [mark, bo["desc"]]
@@ -267,8 +308,9 @@ func refresh_actions(b: Battle, u: BattleUnit, mode: String, selected: String) -
 		func(): action_pressed.emit("defend", ""), not u.acted))
 	action_box.add_child(_action_button(UIKit.icon_tex("overwatch"), "Overwatch  [V]\nAttack the first enemy that moves within range (-10 hit). Ends the turn.",
 		func(): action_pressed.emit("overwatch", ""), not u.acted and not u.npc and not u.basic.is_empty()))
-	action_box.add_child(_action_button(UIKit.icon_tex("wait"), "Wait  [T]\nAct later in the timeline.",
-		func(): action_pressed.emit("wait", ""), not u.moved and not u.acted))
+	if b.phase != "explore":
+		action_box.add_child(_action_button(UIKit.icon_tex("wait"), "Wait  [T]\nAct later in the timeline.",
+			func(): action_pressed.emit("wait", ""), not u.moved and not u.acted))
 	# contextual
 	for o in b.allies_of(u, false, false):
 		if b.can_stabilize(u, o):
@@ -289,13 +331,16 @@ func refresh_actions(b: Battle, u: BattleUnit, mode: String, selected: String) -
 		action_box.add_child(_action_button(UIKit.icon_tex("extract"), "Extract  [X]\nLeave the battlefield. Members who extract survive even if the mission fails.",
 			func(): action_pressed.emit("extract", ""), true))
 	action_box.add_child(UIKit.spacer(4, 1))
-	var end := UIKit.button("End Turn", func(): action_pressed.emit("end", ""), "btn_green" if false else "", 0)
-	end.tooltip_text = "End this unit's turn  [Space]"
+	var exploring := b.phase == "explore"
+	var end := UIKit.button("End Squad Turn" if exploring else "End Turn", func(): action_pressed.emit("end", ""), "btn_green" if exploring else "", 0)
+	end.tooltip_text = "Every member stops; unaware patrols move  [Space]" if exploring else "End this unit's turn  [Space]"
 	action_box.add_child(end)
 	var moved := "Moved" if u.moved else "Move: %d" % b.move_budget(u)
 	var acted := "Acted" if u.acted else "Action ready"
 	if mode == "target" and selected != "":
 		action_hint.text = "%s: choose a target · Right-click to cancel" % DB.skill(selected).get("name", selected)
+	elif exploring:
+		action_hint.text = "Exploring · %s · %s · %s · Tab: next member" % [u.name, moved, acted]
 	else:
 		action_hint.text = "%s · %s · %s" % [u.name, moved, acted]
 
@@ -544,6 +589,39 @@ func update_bars(b: Battle, views: Dictionary) -> void:
 		if u.state == "downed":
 			h_px = 14
 		holder.position = sp - Vector2(float(holder.get_meta("w", 22)) / 2.0, h_px * px + 4)
+
+
+# ------------------------------------------------------------------ objective marker
+## A gold marker over the objective, pinned to the screen edge when it is
+## off-screen, with the distance from the nearest member.
+func _build_objective_marker() -> void:
+	obj_marker = UIKit.vbox(0)
+	obj_marker.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	obj_marker.visible = false
+	var icon := UIKit.tex_rect(UIKit.icon_tex("mark"))
+	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	icon.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	obj_marker.add_child(icon)
+	obj_marker_label = UIKit.label("", 8, UITheme.GOLD, UITheme.pixel_font)
+	obj_marker_label.add_theme_color_override("font_outline_color", Color8(24, 14, 22))
+	obj_marker_label.add_theme_constant_override("outline_size", 3)
+	obj_marker_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	obj_marker.add_child(obj_marker_label)
+	bars_layer.add_child(obj_marker)
+
+
+func place_objective_marker(screen: Vector2, dist: int, show: bool) -> void:
+	obj_marker.visible = show
+	if not show:
+		return
+	obj_marker_label.text = "Objective %d" % dist
+	obj_marker.reset_size()
+	var half := obj_marker.size / 2.0
+	var lo := Vector2(8, 44) + half
+	var hi := size - Vector2(8, 60) - half
+	obj_marker.position = screen.clamp(lo, hi) - half
+	var t := Time.get_ticks_msec() / 1000.0
+	obj_marker.modulate.a = 0.75 + 0.25 * sin(t * 4.0)
 
 
 # ------------------------------------------------------------------ banner

@@ -1,6 +1,6 @@
 extends GuildScreen
-## Roster: every member with stats, potential, traits, history, skills,
-## loadout, subclass and equipment.
+## Roster: every member with stats, potential, traits, history, the skill
+## tree, loadout and equipment.
 
 var selected: Member = null
 var tab := "overview"
@@ -40,7 +40,7 @@ func build() -> void:
 			c.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		r.position = Vector2(3, 2)
 		b.add_child(r)
-		if m.skill_points > 0 or m.can_pick_subclass():
+		if m.pending_picks() > 0:
 			var badge := UIKit.label("+", 10, UITheme.GOLD, UITheme.pixel_font)
 			badge.position = Vector2(154, 1)
 			b.add_child(badge)
@@ -62,7 +62,7 @@ func build() -> void:
 		detail.add_child(UIKit.label("No members. Hire recruits at the bar.", 10, UITheme.TEXT_DIM))
 		return
 	var tabs := UIKit.hbox(2)
-	for t in [["overview", "Overview"], ["skills", "Skills%s" % (" (%d)" % selected.skill_points if selected.skill_points > 0 else "")], ["gear", "Gear"]]:
+	for t in [["overview", "Overview"], ["skills", "Skills%s" % (" (%d)" % selected.pending_picks() if selected.pending_picks() > 0 else "")], ["gear", "Gear"]]:
 		var id: String = t[0]
 		var b := UIKit.button(t[1], func():
 			tab = id
@@ -159,38 +159,26 @@ func _overview(v: VBoxContainer) -> void:
 
 
 # ---------------------------------------------------------------- skills
+## XCOM-style tree: one row per level from 2 to 10, one skill from each branch
+## per row. A member takes one skill of a row, never both; the Library can
+## retrain a row for gold.
 func _skills(v: VBoxContainer) -> void:
 	var m := selected
 	var lib := int(campaign.facilities["library"])
-	var info := "Skill points: [color=#%s]%d[/color]" % [hex(UITheme.GOLD), m.skill_points]
+	var picks := m.pending_picks()
+	var info := ""
+	if picks > 0:
+		info = "[color=#%s]%d skill%s to choose.[/color] " % [hex(UITheme.GREEN), picks, "" if picks == 1 else "s"]
+	elif m.level < DB.LEVEL_CAP:
+		info = "Next skill at level %d. " % (m.level + 1)
 	if lib > 0:
-		info += " · Library %d: buy skills up to level %d%s" % [lib, int(DB.facilities["library"]["max_level"][lib]),
+		info += "Library: retrain skills up to level %d%s." % [int(DB.facilities["library"]["max_level"][lib]),
 			(" (%d%% off)" % roundi(float(DB.facilities["library"]["discount"][lib]) * 100)) if float(DB.facilities["library"]["discount"][lib]) > 0 else ""]
 	else:
-		info += " · [color=#%s]Build the Library to buy skills with gold.[/color]" % hex(UITheme.TEXT_DIM)
-	v.add_child(UIKit.rich(info, 400, 9))
-	# subclass
-	if m.can_pick_subclass():
-		var sp := GuildScreen.inset(UIKit.vbox(2), "panel_light")
-		var sv: VBoxContainer = sp.get_child(0)
-		sv.add_child(UIKit.header("Choose a subclass (level %d)" % DB.SUBCLASS_LEVEL, 10, UITheme.INK))
-		for sc in m.class_data()["subclasses"]:
-			var scd: Dictionary = DB.subclasses[sc]
-			var row := UIKit.hbox(4)
-			var sid: String = sc
-			row.add_child(UIKit.button(scd["name"], func():
-				Dialogs.confirm(hub, "Become a %s?" % scd["name"], "%s\n\nThis choice is permanent." % scd["desc"], func():
-					m.choose_subclass(sid)
-					hub.changed()
-					rebuild()), "btn_blue", 80))
-			var d := UIKit.rich("[color=#%s]%s[/color]" % [hex(UITheme.INK), scd["desc"]], 300, 9)
-			row.add_child(d)
-			sv.add_child(row)
-		v.add_child(sp)
-	elif m.subclass != "":
-		v.add_child(UIKit.rich("Subclass: [color=#%s]%s[/color] · %s" % [hex(UITheme.GOLD), DB.subclasses[m.subclass]["name"], DB.subclasses[m.subclass]["desc"]], 400, 9))
+		info += "[color=#%s]Build the Library to retrain skills.[/color]" % hex(UITheme.TEXT_DIM)
+	v.add_child(UIKit.rich(info, 440, 9))
 	# loadout
-	v.add_child(UIKit.header("Loadout (%d/4) · click to swap in or out" % m.loadout.size(), 10))
+	v.add_child(UIKit.header("Loadout (%d/%d) · click to swap in or out" % [m.loadout.size(), Member.LOADOUT], 10))
 	var lo := UIKit.hbox(3)
 	var basic: String = m.class_data().get("basic", "")
 	if basic != "":
@@ -204,10 +192,10 @@ func _skills(v: VBoxContainer) -> void:
 		var b := UIKit.icon_button(UIKit.skill_icon(s), func():
 			if sid in m.loadout:
 				m.loadout.erase(sid)
-			elif m.loadout.size() < 4:
+			elif m.loadout.size() < Member.LOADOUT:
 				m.loadout.append(sid)
 			else:
-				hub.toast("The loadout is full (4 skills).", UITheme.RED)
+				hub.toast("The loadout is full (%d skills)." % Member.LOADOUT, UITheme.RED)
 				return
 			hub.changed()
 			rebuild(), MemberCard.skill_tip(s) + ("\n[In loadout]" if inl else "\n[Not in loadout]"), 22)
@@ -215,56 +203,113 @@ func _skills(v: VBoxContainer) -> void:
 		if inl:
 			b.add_theme_stylebox_override("normal", UITheme.flat(Color(0, 0, 0, 0), UITheme.GOLD, 1, 0))
 		lo.add_child(b)
-	v.add_child(lo)
 	var pas := m.all_passives()
 	if not pas.is_empty():
-		var ph := UIKit.hbox(3)
-		ph.add_child(UIKit.label("Passives:", 9, UITheme.TEXT_DIM))
+		lo.add_child(UIKit.spacer(6, 1))
+		lo.add_child(UIKit.label("Passives:", 9, UITheme.TEXT_DIM))
 		for p in pas:
-			ph.add_child(MemberCard.skill_icon(p, 16))
-		v.add_child(ph)
-	# branches
+			lo.add_child(MemberCard.skill_icon(p, 16))
+	v.add_child(lo)
+	# tree
 	var cd := m.class_data()
-	var bh := UIKit.hbox(8)
-	v.add_child(bh)
-	for br in cd["branches"]:
-		var col := UIKit.vbox(2)
-		col.custom_minimum_size.x = 196
-		col.add_child(UIKit.header(cd["branches"][br]["name"], 10))
-		for s in cd["branches"][br]["skills"]:
-			col.add_child(_skill_row(m, s))
-		bh.add_child(col)
+	var brs: Array = cd["branches"].keys()
+	var head := UIKit.hbox(3)
+	head.add_child(UIKit.spacer(26, 1))
+	for br in brs:
+		var bd: Dictionary = cd["branches"][br]
+		var title: String = DB.subclasses.get(bd.get("title", ""), {}).get("name", "")
+		var hl := UIKit.rich("[color=#%s]%s[/color]  [color=#%s]→ %s[/color]" % [hex(UITheme.GOLD), bd["name"], hex(UITheme.TEXT_DIM), title], 206, 10)
+		hl.custom_minimum_size.x = 206
+		hl.tooltip_text = "Taking the level 10 %s skill makes %s a %s.\n%s" % [bd["name"], m.name.split(" ")[0], title,
+			DB.subclasses.get(bd.get("title", ""), {}).get("desc", "")]
+		head.add_child(hl)
+	v.add_child(head)
+	for row in range(2, DB.LEVEL_CAP + 1):
+		var pair := m.row_skills(row)
+		if pair.is_empty():
+			continue
+		var h := UIKit.hbox(3)
+		var ll := UIKit.label("Lv%d" % row, 9, UITheme.GOLD if row <= m.level else UITheme.TEXT_DIM, UITheme.pixel_font)
+		ll.custom_minimum_size = Vector2(26, 24)
+		ll.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		h.add_child(ll)
+		for br in brs:
+			var sid := ""
+			for s in pair:
+				if DB.branch_of(s) == br:
+					sid = s
+			h.add_child(_tree_cell(m, row, sid) if sid != "" else UIKit.spacer(206, 24))
+		v.add_child(h)
 
 
-func _skill_row(m: Member, s: String) -> Control:
+func _tree_cell(m: Member, row: int, s: String) -> Control:
 	var sd := DB.skill(s)
-	var h := UIKit.hbox(3)
-	var known: bool = s in m.skills
-	h.add_child(MemberCard.skill_icon(s, 18, not known and m.level < int(sd.get("level", 1))))
-	var v := UIKit.vbox(0)
-	var nl := UIKit.label(sd.get("name", s), 9, UITheme.TEXT if known else UITheme.TEXT_DIM)
-	nl.custom_minimum_size.x = 80
+	var taken := s in m.skills
+	var other := m.row_pick(row)
+	var open := row <= m.level and other == ""
+	var b := Button.new()
+	b.custom_minimum_size = Vector2(206, 24)
+	UIKit.list_row(b, taken)
+	var h := UIKit.hbox(4)
+	h.position = Vector2(3, 3)
+	h.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	b.add_child(h)
+	var icon := MemberCard.skill_icon(s, 18, not taken and not open)
+	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	h.add_child(icon)
+	var col := UIKit.vbox(0)
+	col.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var name_col := UITheme.GOLD if taken else (UITheme.TEXT if open else UITheme.TEXT_DIM)
+	var nl := UIKit.label(sd.get("name", s), 9, name_col)
+	nl.custom_minimum_size.x = 118
 	nl.clip_text = true
-	v.add_child(nl)
-	v.add_child(UIKit.label("Lv %d%s" % [int(sd.get("level", 1)), " · passive" if sd.get("passive", false) else ""], 8, UITheme.TEXT_DIM))
-	h.add_child(v)
-	h.tooltip_text = MemberCard.skill_tip(s)
-	h.mouse_filter = Control.MOUSE_FILTER_PASS
-	if known:
-		h.add_child(UIKit.label("Learned", 9, UITheme.GREEN))
-		return h
-	var sp_err := campaign.can_learn(m, s, false)
-	var b1 := UIKit.button("1 SP", func(): act(campaign.learn_skill(m, s, false), "%s learned %s." % [m.name.split(" ")[0], sd.get("name", s)]), "btn_green", 0)
-	b1.disabled = sp_err != ""
-	b1.tooltip_text = sp_err if sp_err != "" else "Spend a skill point."
-	h.add_child(b1)
-	if int(campaign.facilities["library"]) > 0:
-		var g_err := campaign.can_learn(m, s, true)
-		var b2 := UIKit.button("%dg" % campaign.skill_gold_cost(s), func(): act(campaign.learn_skill(m, s, true), "%s learned %s." % [m.name.split(" ")[0], sd.get("name", s)]), "", 0)
-		b2.disabled = g_err != ""
-		b2.tooltip_text = g_err if g_err != "" else "Buy with gold at the Library."
-		h.add_child(b2)
-	return h
+	col.add_child(nl)
+	col.add_child(UIKit.label("Passive" if sd.get("passive", false) else "Active", 8, UITheme.TEXT_DIM))
+	h.add_child(col)
+	for c in col.get_children():
+		c.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var tag := ""
+	var tag_col := UITheme.TEXT_DIM
+	var first := m.name.split(" ")[0]
+	var cb := Callable()
+	if taken:
+		tag = "Learned"
+		tag_col = UITheme.GREEN
+	elif open:
+		tag = "Learn"
+		tag_col = UITheme.GREEN
+		var others: Array = m.row_skills(row).filter(func(x): return x != s)
+		var lost: String = DB.skill(others[0]).get("name", others[0]) if not others.is_empty() else ""
+		cb = func():
+			Dialogs.confirm(hub, "Learn %s?" % sd.get("name", s), "%s\n\n%s will not be able to learn %s (level %d) unless retrained at the Library." % [
+				sd.get("desc", ""), first, lost, row], func():
+					act(campaign.learn_skill(m, s), "%s learned %s." % [first, sd.get("name", s)]), "Learn")
+	elif row > m.level:
+		tag = "Lv %d" % row
+	else:
+		var err := campaign.can_retrain(m, row)
+		tag = "Retrain %dg" % campaign.retrain_cost(row)
+		tag_col = UITheme.GOLD if err == "" else UITheme.TEXT_DIM
+		b.tooltip_text = "\n\n" + (err if err != "" else "Swap %s for this skill." % DB.skill(other).get("name", other))
+		if err == "":
+			cb = func():
+				Dialogs.confirm(hub, "Retrain %s?" % first, "Forget %s and learn %s for %d gold." % [DB.skill(other).get("name", other), sd.get("name", s), campaign.retrain_cost(row)], func():
+					act(campaign.retrain(m, row), "%s retrained: %s." % [first, sd.get("name", s)]), "Retrain")
+	var tl := UIKit.label(tag, 8, tag_col)
+	tl.custom_minimum_size.x = 52
+	tl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	tl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	h.add_child(tl)
+	b.tooltip_text = MemberCard.skill_tip(s) + b.tooltip_text
+	if cb.is_valid():
+		b.pressed.connect(func():
+			Audio.sfx("ui_click", 0.05, -4.0)
+			cb.call())
+	else:
+		b.mouse_default_cursor_shape = Control.CURSOR_ARROW
+	if not taken and not open:
+		b.modulate = Color(0.8, 0.8, 0.85)
+	return b
 
 
 # ---------------------------------------------------------------- gear

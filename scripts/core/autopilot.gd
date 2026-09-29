@@ -27,9 +27,9 @@ func play_week(max_missions := 3, allow_final := true) -> void:
 			break
 		if not c.mission_by_id(int(m["id"])).size():
 			continue
-		if m.get("story_id", "") == "final" and (not allow_final or c.roster.size() < 4 or _avg_level() < 7):
+		if m.get("story_id", "") == "final" and (not allow_final or c.roster.size() < 4 or _avg_level() < 4):
 			continue
-		if int(m["skulls"]) > _avg_level() / 2 + 2 and m["category"] not in ["story", "breach"]:
+		if int(m["skulls"]) > 1.1 * _avg_level() + 1.4 and m["category"] not in ["story", "breach"]:
 			continue
 		var squad := _pick_squad(m)
 		if squad.size() < mini(3, c.squad_cap()) or c.can_launch(m, squad) != "":
@@ -50,11 +50,7 @@ static func run_battle(b: Battle, max_turns := 900) -> void:
 	var guard := 0
 	while not b.over and guard < max_turns:
 		guard += 1
-		var u := b.next_turn()
-		if u == null:
-			break
-		if b.current == u:
-			b.ai.take_turn(u)
+		b.auto_step()
 		b.pop_events()
 	if not b.over:
 		b._finish("retreat")
@@ -120,21 +116,14 @@ func _manage() -> void:
 			if c.upgrade_facility(fid) == "":
 				log.append("week %d built %s" % [c.week, fid])
 				break
-	# skills and subclasses
+	# skill trees: each member leans on one branch
 	for m in c.active_members():
-		while m.skill_points > 0:
-			var learned := false
-			for s in m.learnable_skills():
-				if c.learn_skill(m, s, false) == "":
-					learned = true
-					break
-			if not learned:
-				break
-		if m.can_pick_subclass():
-			m.choose_subclass(m.class_data()["subclasses"][0])
-		if m.loadout.size() < 4:
+		if m.pending_picks() > 0:
+			var brs: Array = m.class_data()["branches"].keys()
+			m.auto_pick(c.rng, brs[m.id % brs.size()])
+		if m.loadout.size() < Member.LOADOUT:
 			for s in m.active_skills():
-				if not s in m.loadout and m.loadout.size() < 4:
+				if not s in m.loadout and m.loadout.size() < Member.LOADOUT:
 					m.loadout.append(s)
 	# gear
 	for item in c.inventory.duplicate():

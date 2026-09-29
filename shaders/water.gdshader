@@ -12,6 +12,7 @@ uniform float opacity = 0.86;
 varying vec3 wpos;
 
 #include "res://shaders/mist.gdshaderinc"
+#include "res://shaders/fog.gdshaderinc"
 
 void vertex() {
 	wpos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
@@ -35,6 +36,9 @@ void fragment() {
 	float gray = dot(col, vec3(0.3, 0.59, 0.11));
 	col = mix(col, vec3(gray * 0.96, gray * 0.96, gray * 1.02), desaturate);
 	float a = opacity;
+	if (fog_on > 0.0) {
+		col = fog_apply(col, mist_dither(fog_amount(wpos, TIME), wpos, INV_VIEW_MATRIX), wpos, TIME);
+	}
 	if (mist > 0.0) {
 		float f = mist_dither(mist_amount(wpos, TIME), wpos, INV_VIEW_MATRIX);
 		col = mix(col, mist_tint(wpos, TIME), f);

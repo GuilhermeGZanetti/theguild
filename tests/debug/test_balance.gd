@@ -10,10 +10,7 @@ func _squad(level: int, size := 4) -> Array:
 	for i in size:
 		var m := Member.create(rng, classes[i], "human", 1, level)
 		m.id = i + 1
-		for s in m.learnable_skills():
-			if m.skill_points > 0 and int(DB.skill(s).get("level", 1)) <= m.level:
-				m.learn(s)
-				m.skill_points -= 1
+		m.auto_pick(rng)
 		squad.append(m)
 	return squad
 

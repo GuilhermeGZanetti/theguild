@@ -1,6 +1,7 @@
 class_name BattleScene
 extends Control
-## Plays a Battle: turn loop, player input, AI turns and event animation.
+## Plays a Battle: exploration squad turns, the combat turn loop, player
+## input, AI turns, fog of war and event animation.
 
 signal turn_finished
 
@@ -65,6 +66,14 @@ var drag_last := Vector2.ZERO
 var ended := false
 var mouse_override := Vector2(-1, -1)   # developer captures
 var last_mouse := Vector2(-1, -1)       # canvas position of the latest mouse event
+# fog of war as the animation has shown it so far (the battle is ahead of us)
+var exploring := false
+var view_vis := {}       # cells in sight
+var view_seen := {}      # cells explored
+var view_cell := {}      # uid -> the cell its view stands on
+var view_gone := {}      # uid -> faded out for good
+var view_hidden := {}    # uid -> stealthy, not revealed yet
+var exposed := {}        # uid -> seen acting from the fog this round
 
 
 func _ready() -> void:
@@ -85,8 +94,15 @@ func _ready() -> void:
 	fx = FX.new()
 	fx.map_view = map_view
 	map_view.add_child(fx)
+	if battle.fog:
+		map_view.setup_fog(battle.route)
+		view_vis = battle.vis.duplicate()
+		view_seen = battle.seen.duplicate()
+		map_view.set_fog(view_seen, view_vis, true)
 	for u in battle.units:
 		_spawn_view(u)
+	if battle.explore:
+		overlay.show_cells("objective", _objective_cells(), Color(1.0, 0.85, 0.35, 0.1), Color(1.0, 0.85, 0.35, 0.8), 0.0, EDGE_BOLD)
 	var ext: Array = []
 	for c in battle.grid.all_cells():
 		if battle.grid.t(c)["extract"]:
@@ -110,7 +126,32 @@ func _ready() -> void:
 	await get_tree().process_frame
 	hud.show_banner(battle.mission.get("title", "Battle"), battle.objective_text(), UITheme.GOLD, 1.6)
 	Audio.sfx("battle_start", 0.0, -2.0)
+	if battle.explore:
+		await _objective_intro(focus / maxf(n, 1))
 	_loop()
+
+
+## Patrolled maps open with a look at the objective in the north.
+func _objective_intro(squad_at: Vector3) -> void:
+	await get_tree().create_timer(0.9).timeout
+	wv.follow_speed = 2.6
+	wv.focus(map_view.cell_top(battle.objective_area.get("center", Vector2i.ZERO)))
+	hud.log_line("Objective: end of the trail.", UITheme.GOLD)
+	await get_tree().create_timer(1.9).timeout
+	wv.focus(squad_at)
+	await get_tree().create_timer(1.0).timeout
+	wv.follow_speed = 6.0
+
+
+func _objective_cells() -> Array:
+	var out: Array = []
+	var c: Vector2i = battle.objective_area.get("center", Vector2i.ZERO)
+	var r := int(battle.objective_area.get("r", 4))
+	for p in battle.grid.cells_in_radius(c, r):
+		var d := p - c
+		if d.x * d.x + d.y * d.y <= r * r + r:
+			out.append(p)
+	return out
 
 
 func _build_test_battle() -> void:
@@ -118,12 +159,9 @@ func _build_test_battle() -> void:
 	rng.randomize()
 	var squad: Array = []
 	for c in ["warrior", "rogue", "ranger", "mystic"]:
-		var m := Member.create(rng, c, "human", 1, 4)
+		var m := Member.create(rng, c, "human", 1, 3)
 		m.id = squad.size() + 1
-		for s in m.learnable_skills():
-			if m.skill_points > 0 and int(DB.skill(s).get("level", 1)) <= m.level:
-				m.learn(s)
-				m.skill_points -= 1
+		m.auto_pick(rng)
 		squad.append(m)
 	var region: String = ["coast", "stilts", "ember", "dunes", "carrow"][rng.randi() % 5]
 	var mission := {"region": region, "objective": "clear", "skulls": 2, "seed": rng.randi(), "title": "Skirmish", "par_rounds": 8}
@@ -151,22 +189,71 @@ func _spawn_view(u: BattleUnit) -> UnitView:
 	if u.echo:
 		uv.set_ghost(0.4)
 		uv.set_grey(0.85)
+	view_cell[u.uid] = u.pos
 	if u.hidden:
-		uv.visible = false
+		view_hidden[u.uid] = true
+	uv.visible = _view_visible(u)
 	if u.state == "dead":
 		uv.play("death")
 		uv.visible = false
+		view_gone[u.uid] = true
 	views[u.uid] = uv
 	return uv
+
+
+# ====================================================================== fog of war
+func _view_visible(u: BattleUnit) -> bool:
+	if u.team == BattleUnit.TEAM_PLAYER:
+		return true
+	if view_gone.has(u.uid) or view_hidden.has(u.uid):
+		return false
+	if not battle.fog:
+		return true
+	return exposed.has(u.uid) or view_vis.has(view_cell.get(u.uid, u.pos))
+
+
+func _refresh_visibility() -> void:
+	for uid in views:
+		var u: BattleUnit = battle.unit(uid)
+		if u == null or u.team == BattleUnit.TEAM_PLAYER or u.carried_by >= 0:
+			continue
+		views[uid].visible = _view_visible(u)
+
+
+func _apply_vision(cells: Array) -> void:
+	view_vis = {}
+	for c in cells:
+		view_vis[c] = true
+		view_seen[c] = true
+	map_view.set_fog(view_seen, view_vis)
+	_refresh_visibility()
+
+
+func _path_seen(u: BattleUnit, path: Array) -> bool:
+	if not battle.fog or u.team == BattleUnit.TEAM_PLAYER or exposed.has(u.uid):
+		return true
+	if view_vis.has(view_cell.get(u.uid, u.pos)):
+		return true
+	for c in path:
+		if view_vis.has(c):
+			return true
+	return false
 
 
 # ====================================================================== turn loop
 func _loop() -> void:
 	await get_tree().create_timer(1.2).timeout
 	while not battle.over:
+		if battle.phase == "explore":
+			await _explore_round()
+			continue
 		var u := battle.next_turn()
 		await _play(battle.pop_events())
-		if battle.over or u == null:
+		if battle.over:
+			break
+		if u == null:
+			if battle.phase == "explore":
+				continue
 			break
 		if battle.current != u:
 			continue
@@ -175,15 +262,142 @@ func _loop() -> void:
 			_begin_player_turn(u)
 			await turn_finished
 		else:
-			_focus_unit(u)
-			hud.refresh_unit(u)
-			await get_tree().create_timer(0.3 / Settings.combat_speed).timeout
+			if views.has(u.uid) and views[u.uid].visible:
+				_focus_unit(u)
+				hud.refresh_unit(u)
+				await get_tree().create_timer(0.3 / Settings.combat_speed).timeout
 			_draw_ranges()
 			battle.ai.take_turn(u)
 			await _play(battle.pop_events())
 		turn_unit = null
 		_refresh_all()
 	_on_battle_end()
+
+
+# ====================================================================== exploration
+## One squad turn: the player moves any members in any order, then ends the
+## squad turn and the unaware patrols move. Returns early if combat breaks
+## out (once the interrupted member's turn is over).
+func _explore_round() -> void:
+	await _play(battle.pop_events())
+	if battle.over or battle.phase != "explore":
+		return
+	_refresh_all()
+	if Game.autoplay:
+		battle.ai.explore_turn()
+		await _play(battle.pop_events())
+		if battle.over:
+			return
+		if battle.phase == "explore":
+			battle.end_explore_turn()
+			await _play(battle.pop_events())
+		elif battle.current != null and battle.current.team == BattleUnit.TEAM_PLAYER and battle.current.active():
+			battle.ai.take_turn(battle.current)
+			await _play(battle.pop_events())
+		return
+	var first: BattleUnit = null
+	for u in battle.explore_units():
+		first = u
+		break
+	if first == null:
+		await _finish_squad_turn()
+		return
+	exploring = true
+	_select_explore(first)
+	_explore_tutorial()
+	await turn_finished
+
+
+func _select_explore(u: BattleUnit) -> void:
+	if not battle.explore_select(u):
+		return
+	active = u
+	turn_unit = u
+	state = "player"
+	mode = "move"
+	selected_skill = ""
+	_focus_unit(u)
+	_refresh_player()
+
+
+func _next_explore_unit(after: BattleUnit) -> BattleUnit:
+	var list := battle.explore_units()
+	if list.is_empty():
+		return null
+	var i := list.find(after)
+	return list[(i + 1) % list.size()] if i >= 0 else list[0]
+
+
+func _finish_squad_turn() -> void:
+	state = "busy"
+	for l in ["move", "run", "range", "target", "active", "aoe", "path", "zoc", "watch"]:
+		overlay.clear(l)
+	hud.hide_preview()
+	_clear_cover_icons()
+	active = null
+	turn_unit = null
+	exploring = false
+	battle.end_explore_turn()
+	await _play(battle.pop_events())
+	_refresh_all()
+
+
+func _end_squad_turn_input() -> void:
+	if not exploring or state != "player":
+		return
+	await _finish_squad_turn()
+	turn_finished.emit()
+
+
+func _after_explore_action() -> void:
+	if battle.over:
+		exploring = false
+		_end_player_turn()
+		return
+	if battle.phase == "combat":
+		# spotted: the fight begins and whoever was acting keeps the rest of their turn
+		exploring = false
+		if battle.current == active and active.active() and not (active.moved and active.acted):
+			mode = "move"
+			selected_skill = ""
+			state = "player"
+			_refresh_player()
+			return
+		if battle.current == active and active.active():
+			battle.end_turn(active)
+			await _play(battle.pop_events())
+		_end_player_turn()
+		return
+	if active.active() and not active.explore_done and active.moved and active.acted:
+		battle.end_turn(active)
+		await _play(battle.pop_events())
+	if not active.active() or active.explore_done:
+		var nxt := _next_explore_unit(active)
+		if nxt == null:
+			await _finish_squad_turn()
+			turn_finished.emit()
+			return
+		_select_explore(nxt)
+		return
+	mode = "move"
+	selected_skill = ""
+	state = "player"
+	_refresh_player()
+
+
+func _explore_tutorial() -> void:
+	if Game.campaign == null or Game.campaign.tutorial_seen.get("explore", false):
+		return
+	Game.campaign.tutorial_seen["explore"] = true
+	var g := UITheme.GOLD.to_html(false)
+	Dialogs.message(self, "Into the fog",
+		("You see the land, but not who waits in it. Until an enemy spots you, the squad [color=#%s]explores[/color]:\n\n" +
+		"• Move every member you like (click one, its portrait at the top, or press Tab), then [color=#%s]End Squad Turn[/color] (Space). Unaware patrols move after you.\n" +
+		"• [color=#%s]Red tiles[/color] around an unaware enemy show where they would spot you.\n" +
+		"• When a patrol spots someone, combat starts for that group only. The others keep walking their beat until they see you too.\n" +
+		"• Striking an unaware enemy is an ambush: it counts as a flank.\n" +
+		"• Follow the trail and the gold marker to the objective in the north.") % [g, g, UITheme.RED.to_html(false)],
+		Callable(), "Onward", 330)
 
 
 func _player_controls(u: BattleUnit) -> bool:
@@ -259,6 +473,9 @@ func _end_player_turn() -> void:
 func _after_action() -> void:
 	if active == null:
 		return
+	if exploring:
+		await _after_explore_action()
+		return
 	if battle.over or battle.current != active or not active.active():
 		_end_player_turn()
 		return
@@ -298,7 +515,14 @@ func _on_action(kind: String, arg: String) -> void:
 		"wait":
 			await _do(func(): battle.do_wait(u))
 		"end":
-			await _do(func(): battle.end_turn(u))
+			if exploring:
+				await _end_squad_turn_input()
+			else:
+				await _do(func(): battle.end_turn(u))
+		"select":
+			var su: BattleUnit = battle.unit(int(arg))
+			if exploring and su and su != u and su in battle.explore_units():
+				_select_explore(su)
 		"stabilize":
 			await _do(func(): battle.do_stabilize(u, battle.unit(int(arg))))
 		"carry":
@@ -402,6 +626,11 @@ func _key(e: InputEventKey) -> void:
 		KEY_HOME:
 			if active:
 				_focus_unit(active)
+		KEY_TAB:
+			if exploring and state == "player" and active:
+				var nxt := _next_explore_unit(active)
+				if nxt and nxt != active:
+					_select_explore(nxt)
 
 
 func _process(delta: float) -> void:
@@ -433,7 +662,7 @@ func _process(delta: float) -> void:
 	for u in battle.units:
 		if u.team == BattleUnit.TEAM_PLAYER and u.alive():
 			cells.append(u.pos)
-		elif u.alive() and not u.hidden and u.team == BattleUnit.TEAM_ENEMY and Rules.chebyshev(u.pos, hover_cell) <= 1:
+		elif u.alive() and views.has(u.uid) and views[u.uid].visible and u.team == BattleUnit.TEAM_ENEMY and Rules.chebyshev(u.pos, hover_cell) <= 1:
 			cells.append(u.pos)
 	if hover_cell != Vector2i(-1, -1):
 		cells.append(hover_cell)
@@ -442,6 +671,20 @@ func _process(delta: float) -> void:
 	if not cover_icons.is_empty():
 		_place_cover_icons()
 	_update_turn_marker()
+	_update_objective_marker()
+
+
+func _update_objective_marker() -> void:
+	if not battle.explore or battle.over:
+		hud.place_objective_marker(Vector2.ZERO, 0, false)
+		return
+	var c: Vector2i = battle.objective_area.get("center", Vector2i.ZERO)
+	var dist := 999
+	for u in battle.units:
+		if u.team == BattleUnit.TEAM_PLAYER and u.active() and not u.npc:
+			dist = mini(dist, Rules.distance(u.pos, c))
+	var arrived := dist <= int(battle.objective_area.get("r", 4))
+	hud.place_objective_marker(wv.world_to_screen(map_view.cell_top(c) + Vector3(0, 1.6, 0)), dist, not arrived and dist < 999)
 
 
 ## Bobbing arrow over the unit whose turn it is; keeps the gold tile under it.
@@ -597,6 +840,9 @@ func _click() -> void:
 			await _do(func(): battle.use_skill(u, s, cell))
 		return
 	var hu: BattleUnit = battle.unit(r[1]) if r[1] >= 0 else null
+	if exploring and hu and hu != u and hu in battle.explore_units():
+		_select_explore(hu)
+		return
 	if hu and hu.hostile_to(u) and battle.can_use(u, u.basic) and cell in battle.valid_targets(u, u.basic):
 		await _do(func(): battle.use_skill(u, u.basic, cell))
 		return
@@ -606,8 +852,11 @@ func _click() -> void:
 
 # ---------------------------------------------------------------- ranges & cover
 func _draw_ranges() -> void:
-	for l in ["move", "run", "range", "target", "active", "zoc"]:
+	for l in ["move", "run", "range", "target", "active", "zoc", "watch"]:
 		overlay.clear(l)
+	if exploring and active and state == "player":
+		# where an unaware enemy would spot the selected member
+		overlay.show_cells("watch", battle.watch_cells(active), Color(1.0, 0.22, 0.18, 0.2), Color(1.0, 0.35, 0.3, 0.6))
 	if turn_unit != null and turn_unit.alive() and turn_unit.carried_by < 0:
 		overlay.show_cells("active", [turn_unit.pos], C_ACTIVE, C_ACTIVE_B, 0.0, EDGE_BOLD, Color(0, 0, 0, 0), C_RIM)
 	if state != "player" or active == null:
@@ -718,14 +967,70 @@ func _play(evs: Array) -> void:
 func _play_one(e: Dictionary) -> void:
 	var u: BattleUnit = battle.unit(int(e.get("uid", -1))) if e.has("uid") else null
 	var uv: UnitView = views.get(int(e.get("uid", -1)), null)
+	# what happens in the fog stays in the fog
+	if u and uv and not uv.visible and u.team != BattleUnit.TEAM_PLAYER \
+			and e["t"] in ["hit", "miss", "status", "heal", "float", "def", "armor_break", "bark", "anim", "face"]:
+		if e["t"] == "face":
+			uv.face(e["dir"])
+		return
 	match e["t"]:
 		"turn":
-			if u and uv and uv.visible and u.state == "active":
+			if u and uv and uv.visible and u.state == "active" and not e.get("quiet", false):
 				_focus_unit(u)
 			hud.refresh_timeline(battle)
 		"move":
 			if uv:
-				await _walk(uv, u, e["path"], e.get("fast", false), e.get("knock", false))
+				if _path_seen(u, e["path"]):
+					await _walk(uv, u, e["path"], e.get("fast", false), e.get("knock", false), e.get("vis", []))
+				else:
+					# unseen in the fog: no walk to watch
+					view_cell[u.uid] = e["path"][-1]
+					uv.position = map_view.unit_pos(e["path"][-1])
+		"vision":
+			_apply_vision(e["cells"])
+		"expose":
+			if u:
+				exposed[u.uid] = true
+				_refresh_visibility()
+		"alert":
+			var n := 0
+			var first: BattleUnit = null
+			for id in e["uids"]:
+				var au: BattleUnit = battle.unit(int(id))
+				if au == null:
+					continue
+				exposed[au.uid] = true
+				n += 1
+				if first == null:
+					first = au
+			_refresh_visibility()
+			if first:
+				_focus_unit(first)
+			for id in e["uids"]:
+				var au: BattleUnit = battle.unit(int(id))
+				if au and views.has(au.uid) and views[au.uid].visible:
+					hud.float_text(_head(au) + Vector3(0, 0.3, 0), "!", UITheme.RED, true)
+			if e.get("ambush", false):
+				hud.show_banner("Ambush!", "%d enem%s caught off guard" % [n, "y" if n == 1 else "ies"], UITheme.GOLD, 1.0)
+			else:
+				hud.show_banner("Spotted!", "%d enem%s join the fight" % [n, "y" if n == 1 else "ies"], UITheme.RED, 1.0)
+			hud.log_line("A patrol joins the fight.", UITheme.RED)
+			Audio.sfx("shout", 0.05, -4.0)
+			await _wait(1.0)
+		"phase":
+			hud.refresh_objective(battle)
+			if e["phase"] == "explore":
+				exposed.clear()
+				_refresh_visibility()
+				hud.show_banner("All Clear", "The squad slips back into the fog.", UITheme.GREEN, 1.2)
+				hud.log_line("No enemy has eyes on the squad.", UITheme.GREEN)
+				Audio.sfx("objective")
+				await _wait(0.8)
+		"enemy_phase":
+			hud.log_line("The patrols move.", UITheme.TEXT_DIM)
+		"explore_turn":
+			hud.refresh_timeline(battle)
+			hud.refresh_objective(battle)
 		"face":
 			if uv:
 				uv.face(e["dir"])
@@ -809,6 +1114,7 @@ func _play_one(e: Dictionary) -> void:
 				Audio.sfx("teleport")
 				await _wait(0.15)
 				uv.position = map_view.unit_pos(e["to"])
+				view_cell[int(e["uid"])] = e["to"]
 				fx.burst(uv.global_position + Vector3(0, 0.5, 0), e.get("fx", "shadow"), 14)
 				uv.set_alpha(1.0)
 			await _wait(0.2)
@@ -822,19 +1128,22 @@ func _play_one(e: Dictionary) -> void:
 		"spawn":
 			if u:
 				var nv := _spawn_view(u)
-				nv.set_alpha(0.0)
-				var tw := nv.create_tween()
-				tw.tween_method(func(a): nv.set_alpha(a), 0.0, 1.0, 0.4)
-				fx.burst(nv.global_position + Vector3(0, 0.5, 0), "hush" if u.hush else "smoke", 16)
-				Audio.sfx("spawn", 0.05, -3.0)
-			await _wait(0.3)
+				if nv.visible:
+					nv.set_alpha(0.0)
+					var tw := nv.create_tween()
+					tw.tween_method(func(a): nv.set_alpha(a), 0.0, 1.0, 0.4)
+					fx.burst(nv.global_position + Vector3(0, 0.5, 0), "hush" if u.hush else "smoke", 16)
+					Audio.sfx("spawn", 0.05, -3.0)
+					await _wait(0.3)
 		"reveal":
-			if uv:
-				uv.visible = true
-				fx.burst(uv.global_position + Vector3(0, 0.5, 0), "smoke", 12)
-				hud.float_text(_head(u), "Revealed!", UITheme.GOLD)
-				Audio.sfx("reveal")
-			await _wait(0.3)
+			if uv and u:
+				view_hidden.erase(u.uid)
+				uv.visible = _view_visible(u)
+				if uv.visible:
+					fx.burst(uv.global_position + Vector3(0, 0.5, 0), "smoke", 12)
+					hud.float_text(_head(u), "Revealed!", UITheme.GOLD)
+					Audio.sfx("reveal")
+					await _wait(0.3)
 		"extract":
 			if uv:
 				Audio.sfx("extract")
@@ -858,6 +1167,7 @@ func _play_one(e: Dictionary) -> void:
 			if uv:
 				uv.visible = true
 				uv.position = map_view.unit_pos(e["pos"])
+				view_cell[int(e["uid"])] = e["pos"]
 		"interact":
 			map_view.remove_object(e["cell"])
 			var kind: String = e.get("kind", "")
@@ -871,6 +1181,8 @@ func _play_one(e: Dictionary) -> void:
 			Audio.sfx("objective")
 			await _wait(0.6)
 		"round":
+			exposed.clear()
+			_refresh_visibility()
 			hud.refresh_objective(battle)
 		"def":
 			if u and float(e.get("gain", 0)) > 0:
@@ -893,7 +1205,7 @@ func _play_one(e: Dictionary) -> void:
 			pass
 
 
-func _walk(uv: UnitView, u: BattleUnit, path: Array, fast: bool, knock: bool) -> void:
+func _walk(uv: UnitView, u: BattleUnit, path: Array, fast: bool, knock: bool, vis_steps: Array = []) -> void:
 	if knock:
 		uv.play("hit")
 	elif not uv.anim in ["downed", "death"]:
@@ -913,9 +1225,15 @@ func _walk(uv: UnitView, u: BattleUnit, path: Array, fast: bool, knock: bool) ->
 				p.y += sin(f * PI) * 0.25
 			uv.position = p, 0.0, 1.0, step_t * (1.3 if hop else 1.0))
 		await tw.finished
+		view_cell[u.uid] = c
+		var i := path.find(c)
+		if i >= 0 and i < vis_steps.size() and vis_steps[i] != null:
+			_apply_vision(vis_steps[i])
+		elif u.team != BattleUnit.TEAM_PLAYER:
+			uv.visible = _view_visible(u)
 		if not knock and randf() < 0.5:
 			Audio.sfx("step", 0.15, -14.0)
-		if u.team == BattleUnit.TEAM_PLAYER or not (u.hidden):
+		if u.team == BattleUnit.TEAM_PLAYER or uv.visible:
 			wv.focus(uv.global_position)
 	if not knock and uv.anim == "walk":
 		uv.play("idle")
@@ -1046,7 +1364,10 @@ func _play_death(e: Dictionary, u: BattleUnit, uv: UnitView) -> void:
 		await _wait(0.5)
 		var tw := uv.create_tween()
 		tw.tween_method(func(a): uv.set_alpha(a), 1.0, 0.0, 0.6)
-		tw.tween_callback(func(): uv.visible = false)
+		var gone_uid := u.uid
+		tw.tween_callback(func():
+			uv.visible = false
+			view_gone[gone_uid] = true)
 	if member_death:
 		uv.set_grey(0.7)
 

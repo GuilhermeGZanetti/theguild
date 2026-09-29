@@ -17,6 +17,7 @@
   "warded": {"name": "Warded", "desc": "Defense increased.", "bad": false, "color": [140, 180, 250]},
   "regen": {"name": "Regeneration", "desc": "Heals each turn.", "bad": false, "color": [120, 230, 130]},
   "last_stand": {"name": "Last Stand", "desc": "Cannot drop below 1 HP.", "bad": false, "color": [250, 120, 90]},
+  "fortified": {"name": "Fortified", "desc": "Takes less damage from attacks.", "bad": false, "color": [210, 190, 120]},
   "shielded": {"name": "Shield Wall", "desc": "Counts as being in half cover.", "bad": false, "color": [190, 190, 210]},
   "defending": {"name": "Defending", "desc": "+20 Dodge and +25% critical defense until next turn.", "bad": false, "color": [170, 200, 240]},
   "overwatch": {"name": "Overwatch", "desc": "Attacks the first enemy that moves in range.", "bad": false, "color": [240, 210, 110]}

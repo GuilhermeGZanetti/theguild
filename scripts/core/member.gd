@@ -28,6 +28,8 @@ const CONCEPT_GENDER := {
 const OLD_HUMAN := {"a": ["f", "a"], "b": ["m", "a"], "c": ["f", "b"]}
 const CONFLICTS := [["tough", "frail"], ["swift", "sluggish"], ["frugal", "greedy"], ["fast_learner", "dullard"], ["brave", "coward"], ["hardy", "slow_healer"], ["keen", "clumsy"]]
 const GROWTH_STATS := ["hp", "defense", "dodge", "speed", "crit", "attack", "accuracy", "resolve"]
+const LOADOUT := 5          # active skills carried into battle besides the basic attack
+const PROGRESSION := 2      # bump when leveling rules change: older saves are converted
 
 var id := 0
 var name := ""
@@ -43,7 +45,7 @@ var potential := {}
 var traits: Array = []
 var skills: Array = []
 var loadout: Array = []
-var skill_points := 0
+var prog := PROGRESSION
 var equipment := {"weapon": {}, "armor": {}, "trinket": {}}
 var injury := {}
 var days_used := 0
@@ -242,10 +244,6 @@ func all_passives() -> Array:
 	for s in skills:
 		if DB.skill(s).get("passive", false):
 			out.append(s)
-	if subclass != "":
-		var sc: Dictionary = DB.subclasses[subclass]
-		if not sc["passive"] in out:
-			out.append(sc["passive"])
 	return out
 
 
@@ -270,7 +268,7 @@ func stats() -> Dictionary:
 	var s := {}
 	for k in DB.STATS:
 		s[k] = float(base.get(k, 0)) + float(grown.get(k, 0))
-	if subclass != "":
+	if subclass != "" and DB.subclasses.has(subclass):
 		var sb: Dictionary = DB.subclasses[subclass].get("stat", {})
 		for k in sb:
 			s[k] += sb[k]
@@ -297,13 +295,13 @@ func stats() -> Dictionary:
 func wage() -> int:
 	var w: float = class_data().get("wage", 12)
 	w *= DB.TIER_WAGE[tier]
-	w *= 1.0 + 0.09 * (level - 1)
+	w *= 1.0 + 0.2 * (level - 1)
 	w *= 1.0 + float(mods().get("wage_pct", 0.0))
 	return maxi(3, roundi(w))
 
 
 func compute_hire_cost() -> int:
-	return roundi(wage() * 4.0 + level * 10)
+	return roundi(wage() * 4.0 + level * 20)
 
 
 func is_available() -> bool:
@@ -324,7 +322,7 @@ func tier_name() -> String:
 
 func class_name_full() -> String:
 	var n: String = class_data()["name"]
-	if subclass != "":
+	if subclass != "" and DB.subclasses.has(subclass):
 		n = DB.subclasses[subclass]["name"]
 	return n
 
@@ -349,9 +347,10 @@ func add_xp(amount: int, rng: RandomNumberGenerator) -> Array:
 	return ups
 
 
+## Levels are rare, so each one is a big step: the class growth per level is
+## tuned for ten levels, not twenty.
 func _level_up(rng: RandomNumberGenerator) -> Dictionary:
 	level += 1
-	skill_points += 1
 	var g: Dictionary = class_data()["growth"]
 	var gains := {}
 	for k in GROWTH_STATS:
@@ -365,26 +364,118 @@ func _level_up(rng: RandomNumberGenerator) -> Dictionary:
 	return {"level": level, "gains": gains}
 
 
-func can_pick_subclass() -> bool:
-	return subclass == "" and level >= DB.SUBCLASS_LEVEL and class_data().get("subclasses", []).size() > 0
+## Skill tree: each level from 2 to 10 opens a row with one skill from each of
+## the class's two branches. A member takes one skill per row, never both.
+func tree_rows() -> Array:
+	return DB.tree_rows(cls)
 
 
-func choose_subclass(sc: String) -> void:
-	subclass = sc
-	var skill_id: String = DB.subclasses[sc]["skill"]
-	if not skill_id in skills:
-		skills.append(skill_id)
-	if loadout.size() < 4:
-		loadout.append(skill_id)
+func row_skills(row: int) -> Array:
+	var rows := tree_rows()
+	var i := row - 2
+	return rows[i] if i >= 0 and i < rows.size() else []
 
 
+## The skill taken in a row, or "".
+func row_pick(row: int) -> String:
+	for s in row_skills(row):
+		if s in skills:
+			return s
+	return ""
+
+
+## Rows unlocked by the member's level with no skill taken yet.
+func open_rows() -> Array:
+	var out: Array = []
+	for row in range(2, mini(level, DB.LEVEL_CAP) + 1):
+		if not row_skills(row).is_empty() and row_pick(row) == "":
+			out.append(row)
+	return out
+
+
+func pending_picks() -> int:
+	return open_rows().size()
+
+
+func can_pick(skill_id: String) -> String:
+	var s := DB.skill(skill_id)
+	if s.get("class", "") != cls or not s.has("branch"):
+		return "Not a %s skill." % class_data()["name"]
+	if skill_id in skills:
+		return "Already learned."
+	var row := int(s.get("level", 1))
+	if row > level:
+		return "Requires level %d." % row
+	var other := row_pick(row)
+	if other != "":
+		return "%s was taken at level %d." % [DB.skill(other).get("name", other), row]
+	return ""
+
+
+func pick(skill_id: String) -> String:
+	var err := can_pick(skill_id)
+	if err != "":
+		return err
+	learn(skill_id)
+	_update_title()
+	return ""
+
+
+## Swaps the skill taken in a row for the other one (retraining).
+func swap_pick(row: int) -> String:
+	var cur := row_pick(row)
+	if cur == "":
+		return "Nothing learned at level %d." % row
+	var other := ""
+	for s in row_skills(row):
+		if s != cur:
+			other = s
+	if other == "":
+		return "Nothing to swap."
+	skills.erase(cur)
+	var slot := loadout.find(cur)
+	loadout.erase(cur)
+	learn(other)
+	# keep the loadout order when a skill replaces another
+	if slot >= 0 and other in loadout:
+		loadout.erase(other)
+		loadout.insert(mini(slot, loadout.size()), other)
+	_update_title()
+	return ""
+
+
+## The level-10 skill makes the member a Knight, an Oracle... of its branch.
+func _update_title() -> void:
+	subclass = ""
+	for s in row_skills(DB.LEVEL_CAP):
+		if s in skills:
+			var br: String = DB.branch_of(s)
+			var t: String = class_data()["branches"].get(br, {}).get("title", "")
+			if DB.subclasses.has(t):
+				subclass = t
+
+
+## Fills every open row, leaning on one branch (NPC champions, autopilot).
+func auto_pick(rng: RandomNumberGenerator, prefer := "") -> void:
+	var brs: Array = class_data()["branches"].keys()
+	if prefer == "" or not prefer in brs:
+		prefer = brs[rng.randi() % brs.size()]
+	for row in open_rows():
+		var pair := row_skills(row)
+		var choice: String = pair[0]
+		for s in pair:
+			if DB.branch_of(s) == prefer:
+				choice = s
+		if rng.randf() < 0.25:
+			choice = pair[rng.randi() % pair.size()]
+		pick(choice)
+
+
+## Skills that could be picked right now.
 func learnable_skills() -> Array:
 	var out: Array = []
-	var c: Dictionary = class_data()
-	for br in c["branches"]:
-		for s in c["branches"][br]["skills"]:
-			if not s in skills:
-				out.append(s)
+	for row in open_rows():
+		out.append_array(row_skills(row))
 	return out
 
 
@@ -392,7 +483,7 @@ func learn(skill_id: String) -> void:
 	if skill_id in skills:
 		return
 	skills.append(skill_id)
-	if not DB.skill(skill_id).get("passive", false) and loadout.size() < 4:
+	if not DB.skill(skill_id).get("passive", false) and loadout.size() < LOADOUT:
 		loadout.append(skill_id)
 
 
@@ -402,6 +493,45 @@ func active_skills() -> Array:
 		if not DB.skill(s).get("passive", false):
 			out.append(s)
 	return out
+
+
+## Saves from before the ten-level trees: the old XP converts to the new, slower
+## curve (about 200 old XP per quest), grown stats rescale to the bigger
+## level-ups and every skill that still fits a free row of the new tree stays.
+func _migrate_progression(old_level: int) -> void:
+	var total := xp
+	for l in range(1, old_level):
+		total += 60 + 30 * l
+	var quests := total / 200.0
+	level = clampi(1 + floori(sqrt(quests)), 1, DB.LEVEL_CAP)
+	xp = 0
+	if level < DB.LEVEL_CAP:
+		xp = clampi(roundi((quests - pow(level - 1, 2)) * DB.QUEST_XP), 0, xp_needed() - 1)
+	if old_level > 1:
+		var k := float(level - 1) * 3.0 / float(old_level - 1)
+		for s in grown:
+			grown[s] = float(roundi(float(grown[s]) * k))
+	var old_skills := skills.duplicate()
+	skills = []
+	var start: String = class_data().get("start_skill", "")
+	if start != "":
+		skills.append(start)
+	for p in class_data().get("passives", []):
+		skills.append(p)
+	for s in old_skills:
+		var sd := DB.skill(s)
+		if sd.get("class", "") == cls and sd.has("branch") and int(sd["level"]) <= level and row_pick(int(sd["level"])) == "":
+			skills.append(s)
+	var old_loadout := loadout.duplicate()
+	loadout = []
+	for s in old_loadout:
+		if s in skills and not DB.skill(s).get("passive", false) and loadout.size() < LOADOUT:
+			loadout.append(s)
+	for s in skills:
+		if not s in loadout and not DB.skill(s).get("passive", false) and loadout.size() < LOADOUT:
+			loadout.append(s)
+	_update_title()
+	prog = PROGRESSION
 
 
 # ------------------------------------------------------------------ injuries
@@ -438,7 +568,7 @@ func to_dict() -> Dictionary:
 	return {
 		"id": id, "name": name, "race": race, "cls": cls, "subclass": subclass, "level": level, "xp": xp,
 		"tier": tier, "base": base, "grown": grown, "potential": potential, "traits": traits,
-		"skills": skills, "loadout": loadout, "skill_points": skill_points, "equipment": equipment,
+		"skills": skills, "loadout": loadout, "prog": prog, "equipment": equipment,
 		"injury": injury, "days_used": days_used, "history": history, "gender": gender, "variant": variant, "palette": palette,
 		"status": status, "death": death, "memorial": memorial, "reveal": reveal, "bio": bio, "hire_cost": hire_cost,
 	}
@@ -453,7 +583,7 @@ static func from_dict(d: Dictionary) -> Member:
 	m.level = int(d.get("level", 1))
 	m.xp = int(d.get("xp", 0))
 	m.tier = int(d.get("tier", 1))
-	m.skill_points = int(d.get("skill_points", 0))
+	m.prog = int(d.get("prog", 1))
 	m.days_used = int(d.get("days_used", 0))
 	m.reveal = int(d.get("reveal", 2))
 	m.hire_cost = int(d.get("hire_cost", 0))
@@ -465,6 +595,10 @@ static func from_dict(d: Dictionary) -> Member:
 	if m.gender == "" and m.race in PLAYABLE:
 		var parts := m.variant.split("_")
 		m.gender = parts[2] if parts.size() > 2 and parts[2] in ["m", "f"] else "m"
+	if m.prog < PROGRESSION and DB.classes.has(m.cls):
+		m._migrate_progression(m.level)
+	if not DB.subclasses.has(m.subclass):
+		m.subclass = ""
 	if int(m.palette.get("v", 1)) < PALETTE_VERSION and DB.races.has(m.race) and DB.classes.has(m.cls):
 		var rng := RandomNumberGenerator.new()
 		rng.seed = m.id * 7919 + hash(m.name)

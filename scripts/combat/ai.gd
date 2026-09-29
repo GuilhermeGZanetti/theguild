@@ -107,6 +107,10 @@ func _objective_step(u: BattleUnit) -> bool:
 		if b.can_extract(u):
 			b.do_extract(u)
 			return true
+		if b.explore:
+			# on patrolled maps they stick with the squad instead of running ahead
+			follow(u)
+			return true
 		var goal := _nearest_cell(u.pos, _extract_cells())
 		_move_toward(u, goal)
 		if b.can_extract(u):
@@ -320,3 +324,157 @@ func _safest_tile(u: BattleUnit) -> Vector2i:
 			bs = s
 			best = tile
 	return best
+
+
+# ====================================================================== exploration
+## A pod that just spotted the squad dives for the best cover in reach.
+func scramble(e: BattleUnit) -> void:
+	e.moved = false
+	var reach := b.reachable(e)
+	var hostiles := b.hostiles_of(e)
+	var best := e.pos
+	var bs := position_score(e, e.pos, hostiles) + 0.5
+	for tile in reach:
+		if reach[tile].get("pass_only", false) or reach[tile]["zoc"]:
+			continue
+		var s := position_score(e, tile, hostiles) - Rules.distance(tile, e.pos) * 0.1
+		if s > bs:
+			bs = s
+			best = tile
+	if best != e.pos:
+		b.do_move(e, best)
+
+
+## Unaware patrols stroll a few steps toward `goal`.
+func patrol_step(e: BattleUnit, goal: Vector2i, budget: int) -> void:
+	var field := b.distance_field([goal], e.swims, e.floats)
+	var reach := b.reachable(e, mini(budget, b.move_budget(e)))
+	var bt := e.pos
+	var bd := float(field.get(e.pos, 9999))
+	for tile in reach:
+		if reach[tile].get("pass_only", false) or reach[tile]["zoc"]:
+			continue
+		var d := float(field.get(tile, 9999))
+		if d < bd - 0.01:
+			bd = d
+			bt = tile
+	if bt != e.pos:
+		b.do_move(e, bt)
+
+
+## The VIP or a freed captive: extract when they can, otherwise stay close
+## behind the squad.
+func follow(u: BattleUnit) -> void:
+	u.moved = false
+	u.acted = false
+	if b.can_extract(u):
+		b.do_extract(u)
+		return
+	var reach := b.reachable(u)
+	for c in _extract_cells():
+		if reach.has(c) and not reach[c].get("pass_only", false):
+			b.do_move(u, c)
+			if b.can_extract(u):
+				b.do_extract(u)
+			return
+	var mates: Array = []
+	for o in b.allies_of(u, false):
+		if not o.npc and o.objective_role == "":
+			mates.append(o)
+	if mates.is_empty():
+		return
+	# head for the way out, but never more than a few steps from an escort
+	var exit_field := b.distance_field(_extract_cells(), u.swims, u.floats)
+	var best := u.pos
+	var best_d := float(exit_field.get(u.pos, 9999))
+	for tile in reach:
+		if reach[tile].get("pass_only", false):
+			continue
+		var d := float(exit_field.get(tile, 9999))
+		if d >= best_d:
+			continue
+		for o in mates:
+			if Rules.chebyshev(o.pos, tile) <= 3:
+				best_d = d
+				best = tile
+				break
+	if best != u.pos:
+		b.do_move(u, best)
+		if b.can_extract(u):
+			b.do_extract(u)
+		return
+	var near: BattleUnit = mates[0]
+	for o in mates:
+		if Rules.distance(o.pos, u.pos) < Rules.distance(near.pos, u.pos):
+			near = o
+	if Rules.chebyshev(near.pos, u.pos) <= 2:
+		return
+	var field := b.distance_field([near.pos], u.swims, u.floats)
+	var bt := u.pos
+	var bd := float(field.get(u.pos, 9999))
+	for tile in reach:
+		if reach[tile].get("pass_only", false):
+			continue
+		var d := float(field.get(tile, 9999))
+		if d < bd and d >= 1.0:
+			bd = d
+			bt = tile
+	if bt != u.pos:
+		b.do_move(u, bt)
+
+
+## Where an automatic squad heads while exploring.
+func explore_goal() -> Vector2i:
+	var squad: Array = b.explore_units()
+	if squad.is_empty():
+		squad = b.team_units(BattleUnit.TEAM_PLAYER)
+	var from: Vector2i = squad[0].pos if not squad.is_empty() else Vector2i.ZERO
+	var typ: String = b.objective.get("type", "clear")
+	var objs := _objective_cells()
+	if not objs.is_empty():
+		return _nearest_cell(from, objs)
+	for o in b.units:
+		if o.objective_role in ["vip", "captive"] and o.active() and o.team == BattleUnit.TEAM_PLAYER:
+			return _nearest_cell(o.pos, _extract_cells())
+	if typ == "hunt":
+		var tgt := b.unit(int(b.objective.get("target_uid", -1)))
+		if tgt and tgt.alive():
+			return tgt.pos
+	var foes: Array = []
+	for o in b.units:
+		if o.team == BattleUnit.TEAM_ENEMY and o.active():
+			foes.append(o.pos)
+	if not foes.is_empty():
+		return _nearest_cell(from, foes)
+	return b.objective_area.get("center", from)
+
+
+## Autoplay while exploring: every member walks toward the goal, deals with
+## objectives on the way, and the squad turn ends.
+func explore_turn() -> void:
+	var goal := explore_goal()
+	for u in b.explore_units():
+		if b.phase != "explore" or b.over:
+			return
+		b.explore_select(u)
+		for o in b.allies_of(u, false, false):
+			if b.can_stabilize(u, o):
+				b.do_stabilize(u, o)
+				break
+		for c in b.interact_targets(u):
+			b.do_interact(u, c)
+			break
+		if b.phase != "explore" or b.over:
+			return
+		if not u.moved:
+			_move_toward(u, goal)
+		if b.phase != "explore" or b.over:
+			return
+		if not u.acted:
+			for c in b.interact_targets(u):
+				b.do_interact(u, c)
+				break
+		if b.phase != "explore" or b.over:
+			return
+		if b.current == u:
+			b.end_turn(u)

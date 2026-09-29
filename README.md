@@ -13,9 +13,9 @@ Download a build, or open the project in **Godot 4.7.2** and press Play (main sc
 | Where | Controls |
 |-|-|
 | Guild hub | Click a facility in the tavern or use the buttons on the left. Q/E rotate, wheel zooms, WASD pans. |
-| Battle | Click a blue tile to move and click an enemy to attack. Keys 1–6 pick skills; right-click or Esc cancels. F defends, V sets overwatch, T waits, G stabilizes, C carries, X extracts, R interacts and Space ends the turn. Q/E rotate, wheel zooms, WASD or middle-drag pans. |
+| Battle | Click a blue tile to move and click an enemy to attack. Keys 1–6 pick skills; right-click or Esc cancels. F defends, V sets overwatch, T waits, G stabilizes, C carries, X extracts, R interacts and Space ends the turn. While exploring, Tab (or a portrait) picks the next member and Space ends the squad turn. Q/E rotate, wheel zooms, WASD or middle-drag pans. |
 
-**The loop.** Each week every member has 7 days to spend on missions. Pick missions on the Quest Board and assemble a squad. Fight, then read the post-quest report for rewards, XP, injuries and deaths. **End Week** pays wages, heals the injured, refreshes recruits and the board, and lets the Hush advance.
+**The loop.** Each week every member has 7 days to spend on missions. Pick missions on the Quest Board, where each one is pinned as the client's letter, and assemble a squad. Fight, then read the post-quest report for rewards, XP, injuries and deaths. **End Week** pays wages, heals the injured, refreshes recruits and the board, and lets the Hush advance.
 
 **How you lose.** The game ends if:
 
@@ -26,12 +26,16 @@ Download a build, or open the project in **Godot 4.7.2** and press Play (main sc
 
 **How you win.** Finish the three acts and defeat the Unnamed in the Heart of the Hush. The ending depends on which allied faction is strongest.
 
+**Exploration.** Hunt, clear, escort, rescue and retrieve missions take place on large maps under fog. You see the ground but not who stands on it, and the fog lifts around your members. Until a patrol spots you, the squad explores: move every member, end the squad turn, and the patrols walk their beat. Red tiles show where an unaware enemy would see you. When one enemy spots a member, its whole group joins and combat begins for that group only, on the usual timeline; other patrols keep walking until they see you too. Striking an unaware enemy counts as a flank. Hunt targets and caches wait in a far final area at the end of a marked trail. Defense and survive missions stay single fights, but the enemy comes out of the fog.
+
+**Leveling.** Every quest gives 100 XP. Level 2 takes one quest, level 3 three more, level 4 five more, and so on up to level 10. Each class has two skill trees of nine rows (levels 2 to 10). Each row offers one skill from each tree: learn one of the two, never both, and mix trees freely from row to row. With a Library you can retrain a row for gold. The level-10 skills are the strongest, and the tree of your level-10 skill gives the member its subclass title.
+
 **Difficulty.** There are three levels: Forgiving, Standard and Merciless. **Ironman** keeps a single autosave, and leaving mid-battle abandons the mission.
 
 ## What's in the game
 
 - **Combat**
-  - Speed-based turn timeline.
+  - Speed-based turn timeline, plus an exploration phase under fog of war with patrolling enemy groups.
   - Hit and crit chances always shown before you commit: half and full cover, high ground, flanking and range falloff.
   - Zones of control and attacks of opportunity; overwatch; Defense that wears down.
   - Status effects resisted by Resolve.
@@ -40,13 +44,13 @@ Download a build, or open the project in **Godot 4.7.2** and press Play (main sc
   - Retreat through extraction zones.
   - Objectives: clear, hunt, retrieve, rescue, escort, defense, survive and the final battle with its boss phases.
 - **Guild**
-  - 4 base classes plus 4 faction classes; 8 subclasses at level 10; ~100 skills.
+  - 4 base classes plus 4 faction classes, each with two 9-row skill trees (pick one skill per row); the level-10 skill sets the subclass; ~180 skills.
   - Traits, quality tiers, hidden growth potential, 5 races.
   - Rare guild events bring named recruits with their own stories and fixed traits.
   - Equipment tiers and a forge.
   - 7 facilities with 3 levels each, and they change the tavern as they grow.
 - **Strategy**
-  - A weekly board of about 6 missions: resource, strategic, rival pairs (taking one cancels the other), faction chains and story missions.
+  - A weekly board of about 6 missions, each written as a first-person letter from its client: resource, strategic, rival pairs (taking one cancels the other), faction chains and story missions.
   - 4 factions with reputation and power; they can collapse.
   - Random and faction events.
   - The Hush meter, with 4 stages that change the game.
@@ -127,9 +131,9 @@ powershell -ExecutionPolicy Bypass -File tools/shot.ps1 flow -Timeout 420
 
 Drives the real scenes end to end: new guild, hub, board, squad, an auto-played battle, report, story page, hub and end of week. It saves a screenshot at each step to `tools/_cache/shots/`. Other captures:
 
-- `screen_hub`, `screen_roster`, `screen_board`, `screen_squad`, `screen_stash`, `screen_facilities`, `screen_realm`, `screen_ledger`, `screen_memorial`, `screen_recruit`
+- `screen_hub`, `screen_roster`, `screen_board`, `screen_board_letter`, `screen_board_map`, `screen_squad`, `screen_stash`, `screen_facilities`, `screen_realm`, `screen_ledger`, `screen_memorial`, `screen_recruit`
 - `scene_title`, `scene_battle`, `scene_report`, `scene_story`, `scene_ending`
-- `battle_<region>` and `battle_<region>_far` (zoomed out, to see the mist)
+- `battle_<region>` and `battle_<region>_far` (zoomed out, to see the mist); `battle_<region>_<objective>` and `battle_<region>_<objective>_map` for the fog and patrols of an exploration map
 - `lineup` (every race in every class) and `input` (real mouse events against battle and hub picking)
 
 ## Building

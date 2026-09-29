@@ -42,6 +42,12 @@ var wv_ref: WorldView
 var time := "day"
 var light_boost := 1.0
 var skirt_deco: Array = []
+var fog_img: Image
+var fog_tex: ImageTexture
+var fog_cur := PackedFloat32Array()    # per tile: explored, in sight
+var fog_goal := PackedFloat32Array()
+var fog_dirty := false
+var fog_trail := {}
 
 const SKIRT_PROPS := {
 	"town": {"tree": 5, "bush": 4, "rock_s": 2, "stump": 1, "house": 2},
@@ -482,3 +488,61 @@ func update_fades(cells: Array, fwd_h: Vector3) -> void:
 				f = 1.0
 		var cur: float = mi.material_override.get_shader_parameter("fade")
 		mi.material_override.set_shader_parameter("fade", move_toward(cur, f, 0.12))
+
+
+# ---------------------------------------------------------------- fog of war
+## One texel per tile (r = explored, g = in sight, b = trail) read by the post pass and
+## the water; values ease toward their targets so the fog lifts smoothly.
+func setup_fog(trail: Array = []) -> void:
+	fog_trail = {}
+	for c in trail:
+		fog_trail[c] = true
+		fog_trail[c + Vector2i(1, 0)] = true
+	fog_img = Image.create(grid.w, grid.h, false, Image.FORMAT_RGB8)
+	fog_tex = ImageTexture.create_from_image(fog_img)
+	fog_cur.resize(grid.w * grid.h * 2)
+	fog_goal.resize(grid.w * grid.h * 2)
+	var tint := mist_color.darkened(0.72).lerp(Color(0.1, 0.1, 0.16), 0.4).srgb_to_linear()
+	var mats: Array = [wv_ref.post_mat]
+	if water_mat:
+		mats.append(water_mat)
+	for m in mats:
+		m.set_shader_parameter("fog_tex", fog_tex)
+		m.set_shader_parameter("fog_on", 1.0)
+		m.set_shader_parameter("fog_rect", Vector4(0, 0, grid.w, grid.h))
+		m.set_shader_parameter("fog_tint", Vector3(tint.r, tint.g, tint.b))
+
+
+func set_fog(seen: Dictionary, vis: Dictionary, instant := false) -> void:
+	if fog_img == null:
+		return
+	for y in grid.h:
+		for x in grid.w:
+			var c := Vector2i(x, y)
+			var i := (y * grid.w + x) * 2
+			fog_goal[i] = 1.0 if seen.has(c) or vis.has(c) else 0.0
+			fog_goal[i + 1] = 1.0 if vis.has(c) else 0.0
+	if instant:
+		fog_cur = fog_goal.duplicate()
+		_write_fog()
+	fog_dirty = true
+
+
+func _process(delta: float) -> void:
+	if not fog_dirty or fog_img == null:
+		return
+	var moving := false
+	for i in fog_cur.size():
+		if fog_cur[i] != fog_goal[i]:
+			fog_cur[i] = move_toward(fog_cur[i], fog_goal[i], delta * 3.0)
+			moving = true
+	_write_fog()
+	fog_dirty = moving
+
+
+func _write_fog() -> void:
+	for y in grid.h:
+		for x in grid.w:
+			var i := (y * grid.w + x) * 2
+			fog_img.set_pixel(x, y, Color(fog_cur[i], fog_cur[i + 1], 1.0 if fog_trail.has(Vector2i(x, y)) else 0.0))
+	fog_tex.update(fog_img)

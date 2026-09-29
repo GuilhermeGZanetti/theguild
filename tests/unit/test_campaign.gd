@@ -174,3 +174,34 @@ func test_simulated_campaign_runs():
 		gut.p("autopilot seed %d: week %d, gold %d, renown %d, hush %d, roster %d, dead %d, over '%s', ending '%s', act %d, battles %d won %d" % [seed_value, c.week, c.gold, c.renown, c.hush, c.roster.size(), c.dead.size(), c.game_over, c.ending, c.act, bot.battles, bot.wins])
 		gut.p("  facilities %s factions %s" % [str(c.facilities), str(c.factions)])
 		assert_gt(weeks, 3)
+
+
+func test_every_board_mission_has_a_letter():
+	var c := _new(9)
+	var shown := 0
+	for week in 12:
+		c.generate_board()
+		for m in c.board:
+			var l := MissionLore.letter(m, c.guild_name)
+			assert_ne(String(l["body"]), "", "%s has a letter" % m["title"])
+			assert_ne(String(l["client"]), "", "%s is signed" % m["title"])
+			assert_false("{" in String(l["body"]), "no unfilled placeholder: %s" % l["body"])
+			assert_eq(MissionLore.letter(m, c.guild_name)["body"], l["body"], "the same letter every time")
+			if m["objective"] == "hunt" and m.has("elite"):
+				assert_true(DB.enemies.has(m["elite"]), "the hunt names a real enemy")
+			if shown < 6 and m["category"] != "story":
+				shown += 1
+				gut.p("  %s [%s/%s] %s %s | %s" % [m["title"], m["category"], m["objective"], l["greeting"], l["body"], l["client"]])
+	for sid in ["s1", "s2", "s3", "s4", "s5", "s6", "final"]:
+		assert_true(DB.story["missions"][sid].has("letter"), "%s has a hand-written letter" % sid)
+
+
+func test_hunt_target_matches_the_board():
+	var c := _new(5)
+	var rng := RandomNumberGenerator.new()
+	for i in 20:
+		var m: Dictionary = c._make_mission("contract", "ember")
+		m["objective"] = "hunt"
+		rng.seed = i
+		var picks := BattleFactory.pick_enemies(m, 4, rng, 0, {})
+		assert_eq(picks[0], m["elite"], "the hunted %s waits in the battle" % m["elite"])

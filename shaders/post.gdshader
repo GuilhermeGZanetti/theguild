@@ -1,7 +1,7 @@
 shader_type spatial;
 render_mode unshaded, cull_disabled, depth_test_disabled, depth_draw_never, blend_mix;
 // Full-screen pass on the low-res buffer: depth outlines, normal-edge
-// highlights, mist around the map, Hush desaturation with a dithered grey
+// highlights, fog of war, mist around the map, Hush desaturation with a dithered grey
 // vignette.
 
 uniform sampler2D screen_tex : hint_screen_texture, filter_nearest;
@@ -14,6 +14,7 @@ uniform float vignette = 0.0;
 uniform vec3 fog_color : source_color = vec3(0.62, 0.62, 0.66);
 
 #include "res://shaders/mist.gdshaderinc"
+#include "res://shaders/fog.gdshaderinc"
 
 void vertex() {
 	POSITION = vec4(VERTEX.xy * 2.0, 1.0, 1.0);
@@ -46,12 +47,17 @@ void fragment() {
 	} else if (ridge > 0.0) {
 		col = mix(col, col * 1.35 + vec3(0.04, 0.03, 0.0), highlight_strength);
 	}
-	if (mist > 0.0) {
+	if (mist > 0.0 || fog_on > 0.0) {
 		float dr = texture(depth_tex, uv).r;
 		vec4 vp = INV_PROJECTION_MATRIX * vec4(uv * 2.0 - 1.0, dr, 1.0);
 		vec3 wp = (INV_VIEW_MATRIX * vec4(vp.xyz / vp.w, 1.0)).xyz;
-		float f = d > 250.0 ? 1.0 : mist_dither(mist_amount(wp, TIME), wp, INV_VIEW_MATRIX);
-		col = mix(col, mist_tint(wp, TIME), f);
+		if (fog_on > 0.0 && d <= 250.0) {
+			col = fog_apply(col, mist_dither(fog_amount(wp, TIME), wp, INV_VIEW_MATRIX), wp, TIME);
+		}
+		if (mist > 0.0) {
+			float f = d > 250.0 ? 1.0 : mist_dither(mist_amount(wp, TIME), wp, INV_VIEW_MATRIX);
+			col = mix(col, mist_tint(wp, TIME), f);
+		}
 	}
 	// Hush: desaturate and dither into grey at the edges of the screen
 	float g = dot(col, vec3(0.3, 0.59, 0.11));

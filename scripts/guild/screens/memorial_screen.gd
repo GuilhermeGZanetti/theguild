@@ -32,7 +32,7 @@ func build() -> void:
 		info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		var death: Dictionary = d.get("death", {})
 		var cls: String = DB.classes.get(d.get("cls", "warrior"), {}).get("name", "?")
-		if d.get("subclass", "") != "":
+		if DB.subclasses.has(d.get("subclass", "")):
 			cls = DB.subclasses[d["subclass"]]["name"]
 		info.add_child(UIKit.label(d.get("name", "?"), 10, UITheme.TEXT if d.get("memorial", false) else UITheme.TEXT_DIM, UITheme.pixel_font))
 		info.add_child(UIKit.rich("[color=#%s]Lv %d %s · %s at %s, week %d · %d quests, %d kills[/color]" % [hex(UITheme.TEXT_DIM), int(d.get("level", 1)), cls,

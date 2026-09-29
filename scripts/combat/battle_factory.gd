@@ -19,7 +19,7 @@ static func member_unit(m: Member, resolve_bonus: int = 0) -> BattleUnit:
 	u.melee = c.get("melee", true)
 	u.skills = [u.basic]
 	for s in m.loadout:
-		if not s in u.skills and u.skills.size() < 5:
+		if not s in u.skills and u.skills.size() < Member.LOADOUT + 1:
 			u.skills.append(s)
 	u.sprite = m.variant
 	u.palette = m.palette
@@ -46,7 +46,9 @@ static func enemy_unit(eid: String, skulls: int, hush_level: int, rng: RandomNum
 	s["resolve"] = mini(100, int(s["resolve"]) + 4 * int(k))
 	u.st = s
 	u.hp = int(s["hp"])
-	u.level = 2 * skulls - 1 + (2 if d.get("elite", false) else 0) + (4 if d.get("boss", false) else 0)
+	# on the members' ten-level scale: roughly where a squad stands when it
+	# takes on quests of this many skulls
+	u.level = skulls + (1 if d.get("elite", false) else 0) + (2 if d.get("boss", false) else 0)
 	u.skills = d.get("skills", []).duplicate()
 	u.basic = u.skills[0] if not u.skills.is_empty() else "e_claw"
 	u.melee = d.get("melee", false)
@@ -78,12 +80,15 @@ static func echo_unit(md: Dictionary, skulls: int, rng: RandomNumberGenerator) -
 	u.name = "Echo of " + m.name.split(" ")[0]
 	var grey := {}
 	for k in m.palette:
+		if not m.palette[k] is Array:
+			grey[k] = m.palette[k]
+			continue
 		var c: Array = m.palette[k]
 		var l := (float(c[0]) * 0.3 + float(c[1]) * 0.59 + float(c[2]) * 0.11)
 		grey[k] = [l * 0.85 + 20, l * 0.85 + 22, l * 0.85 + 30]
 	u.palette = grey
 	u.xp_value = 30
-	u.level = m.level + 2
+	u.level = m.level + 1
 	u.st["hp"] = int(u.st["hp"]) + 10 * skulls
 	u.hp = int(u.st["hp"])
 	return u
@@ -107,6 +112,14 @@ static func build(mission: Dictionary, squad: Array, ctx: Dictionary) -> Battle:
 	if b.grid.biome in ["hush", "hush_town"]:
 		b.grid.time = "day"   # inside the Hush there is only grey
 	b.objective = {"type": objective, "turns": int(mission.get("turns", 6)), "n": int(mission.get("caches", 3)), "found": 0}
+	# fog of war everywhere but the last stand; patrolled maps for the rest
+	b.fog = objective != "final"
+	b.explore = map.get("explore", false)
+	b.par_rounds = int(mission.get("par_rounds", 8))
+	if b.explore:
+		b.objective_area = map["objective_area"]
+		b.route = map["route"]
+		b.par_rounds += b.route.size() / 6
 	# --- squad
 	var starts: Array = map["player_spawns"]
 	for i in squad.size():
@@ -119,6 +132,9 @@ static func build(mission: Dictionary, squad: Array, ctx: Dictionary) -> Battle:
 	var enemy_list: Array = pick_enemies(mission, squad.size(), b.rng, hush_level, ctx)
 	var espawns: Array = map["enemy_spawns"]
 	var ei := 0
+	if b.explore:
+		_place_pods(b, map["pods"], enemy_list, mission, hush_level)
+		enemy_list = []
 	for eid in enemy_list:
 		if ei >= espawns.size():
 			break
@@ -160,7 +176,8 @@ static func build(mission: Dictionary, squad: Array, ctx: Dictionary) -> Battle:
 		if objective != "final":
 			break
 		var ally_cls: String = DB.factions[fid]["unique_class"]
-		var rm := Member.create(b.rng, ally_cls, DB.factions[fid]["race"], 2, 10)
+		var rm := Member.create(b.rng, ally_cls, DB.factions[fid]["race"], 2, 8)
+		rm.auto_pick(b.rng)
 		rm.name = "%s Champion" % DB.factions[fid]["short"]
 		var au := member_unit(rm)
 		au.npc = false
@@ -209,7 +226,7 @@ static func build(mission: Dictionary, squad: Array, ctx: Dictionary) -> Battle:
 		w["spots"].shuffle()
 	# --- bonus objectives
 	b.bonus = [{"id": "no_downs", "desc": "No member Downed", "done": false}]
-	b.bonus.append({"id": "fast", "desc": "Finish within %d rounds" % int(mission.get("par_rounds", 8)), "done": false})
+	b.bonus.append({"id": "fast", "desc": "Finish within %d rounds" % b.par_rounds, "done": false})
 	if map.get("has_chest", false):
 		b.bonus.append({"id": "chest", "desc": "Open the hidden chest", "done": false})
 	for u in b.units:
@@ -218,6 +235,57 @@ static func build(mission: Dictionary, squad: Array, ctx: Dictionary) -> Battle:
 			break
 	b.start()
 	return b
+
+
+## Patrolled maps: the first enemy (the hunt target or an elite) and a couple
+## of guards hold the objective; the rest walk the trail in small pods.
+static func _place_pods(b: Battle, pod_defs: Array, enemy_list: Array, mission: Dictionary, hush_level: int) -> void:
+	if pod_defs.is_empty() or enemy_list.is_empty():
+		return
+	var obj_i := pod_defs.size() - 1
+	var groups: Array = []
+	for i in pod_defs.size():
+		groups.append([])
+	var rest := enemy_list.duplicate()
+	groups[obj_i].append(rest.pop_front())
+	for i in (2 if rest.size() >= 4 else 1):
+		if not rest.is_empty():
+			groups[obj_i].append(rest.pop_back())
+	# pods of two or three: use as many trail stations as that takes, spread out
+	var used: Array = []
+	var k := mini(obj_i, maxi(1, rest.size() / 2))
+	for j in k:
+		used.append(floori((j + 0.5) * obj_i / float(k)))
+	var gi := 0
+	while not rest.is_empty():
+		if used.is_empty():
+			groups[obj_i].append(rest.pop_front())
+			continue
+		groups[used[gi % used.size()]].append(rest.pop_front())
+		gi += 1
+	for i in pod_defs.size():
+		var cells: Array = pod_defs[i]["cells"]
+		var uids: Array = []
+		var ci := 0
+		for eid in groups[i]:
+			while ci < cells.size() and b.unit_at(cells[ci]) != null:
+				ci += 1
+			if ci >= cells.size():
+				break
+			var eu := enemy_unit(eid, b.skulls, hush_level, b.rng, b.difficulty)
+			eu.pos = cells[ci]
+			ci += 1
+			eu.facing = Vector2i(0, 1)
+			eu.alerted = false
+			eu.pod = b.pods.size()
+			b.add_unit(eu)
+			uids.append(eu.uid)
+			if mission.get("boss", "") == eid and not b.objective.has("target_uid"):
+				b.objective["target_uid"] = eu.uid
+				b.objective["target_name"] = eu.name
+				eu.elite = true
+		if not uids.is_empty():
+			b.pods.append({"units": uids, "alerted": false, "route": pod_defs[i]["route"], "wp": 0, "objective": pod_defs[i]["objective"]})
 
 
 static func _weighted(pool: Dictionary, rng: RandomNumberGenerator) -> String:
@@ -239,6 +307,8 @@ static func pick_enemies(mission: Dictionary, squad_size: int, rng: RandomNumber
 	var pool: Dictionary = mission.get("enemies", DB.regions[region]["enemies"])
 	var objective: String = mission.get("objective", "clear")
 	var count := squad_size - 1 + int(skulls / 2) + rng.randi_range(0, 1)
+	if MapGen.is_explore(mission):
+		count += 1   # spread over several pods that rarely fight all at once
 	if objective in ["survive", "defense"]:
 		count = maxi(2, count - 2)
 	if objective == "escort":
@@ -249,7 +319,11 @@ static func pick_enemies(mission: Dictionary, squad_size: int, rng: RandomNumber
 		out.append(mission["boss"])
 	elif objective == "hunt" or (skulls >= 3 and rng.randf() < 0.35) or int(mission.get("elite_count", 0)) > 0:
 		var elites: Array = DB.regions[region]["elite"]
-		out.append(elites[rng.randi() % elites.size()])
+		var pick: String = elites[rng.randi() % elites.size()]
+		# the hunt target named on the board is the one waiting at the end of the trail
+		if objective == "hunt" and DB.enemies.has(mission.get("elite", "")):
+			pick = mission["elite"]
+		out.append(pick)
 	# Hush creatures join ordinary fights when the Hush is Fading or local hush is high
 	var hush_extra := 0
 	if region != "unremembered" and (int(ctx.get("hush_stage", 0)) >= 1 or hush_level >= 2):

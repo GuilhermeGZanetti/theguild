@@ -190,7 +190,7 @@ func _badge_for(id: String) -> String:
 	match id:
 		"roster":
 			for m in campaign.roster:
-				if m.skill_points > 0 or m.can_pick_subclass():
+				if m.pending_picks() > 0:
 					return "+"
 		"recruit":
 			if not campaign.recruits.is_empty():
@@ -304,8 +304,8 @@ func _hover_bbcode(r: Array) -> String:
 				s += "\n[color=#%s]Injured: %d week%s[/color]" % [UITheme.RED.to_html(false), int(m.injury["weeks"]), "" if int(m.injury["weeks"]) == 1 else "s"]
 			else:
 				s += "\n[color=#%s]%d days free this week[/color]" % [dim, m.days_left()]
-			if m.skill_points > 0:
-				s += "\n[color=#%s]%d skill point%s to spend[/color]" % [UITheme.GREEN.to_html(false), m.skill_points, "" if m.skill_points == 1 else "s"]
+			if m.pending_picks() > 0:
+				s += "\n[color=#%s]%d new skill%s to choose[/color]" % [UITheme.GREEN.to_html(false), m.pending_picks(), "" if m.pending_picks() == 1 else "s"]
 			return s
 		"recruit":
 			var m: Member = campaign.recruits[r[1]]

@@ -1,9 +1,10 @@
 class_name TileOverlay
 extends Node3D
 ## Coloured tile highlights: movement range, target range, AoE, path,
-## zones of control, extraction zone and the hover cursor.
+## zones of control, extraction zone, objective area, enemy watch and the
+## hover cursor.
 
-const LAYERS := ["extract", "run", "move", "zoc", "range", "active", "target", "aoe", "path", "cursor", "fx"]
+const LAYERS := ["extract", "objective", "watch", "run", "move", "zoc", "range", "active", "target", "aoe", "path", "cursor", "fx"]
 const EDGE := 1.0 / 24.0
 ## Layers whose brightness breathes so they read at a glance.
 const PULSE := {"active": [0.55, 1.0], "target": [0.5, 1.0]}

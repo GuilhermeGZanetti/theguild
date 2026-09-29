@@ -1,12 +1,21 @@
 extends GuildScreen
-## The weekly quest board over the map of Ambral. Each mission shows its
-## region, faction, skulls, days, reward and the cost of ignoring it.
+## The weekly quest board. Each mission is pinned as the client's letter on
+## parchment (who asks and why, then the objective, reward and the cost of
+## ignoring it), with the map of Ambral one tab away.
 
 const CAT_COLORS := {"story": Color8(246, 204, 96), "breach": Color8(190, 150, 236), "crisis": Color8(232, 110, 90),
 	"rivalry": Color8(236, 150, 80), "chain": Color8(130, 176, 240), "contract": Color8(238, 228, 206),
 	"salvage": Color8(170, 200, 140), "training": Color8(140, 214, 120), "recruit": Color8(140, 214, 180)}
 
+# ink on parchment
+const INK_DIM := Color8(112, 86, 66)
+const INK_TITLE := Color8(110, 50, 36)
+const INK_GOLD := Color8(138, 88, 18)
+const INK_GREEN := Color8(46, 106, 38)
+const INK_RED := Color8(150, 40, 30)
+
 var selected := -1
+var view := "letter"   # right column: the client's letter or the map
 var map_rect: TextureRect
 
 
@@ -36,13 +45,23 @@ func build() -> void:
 	sc.custom_minimum_size.x = 250
 	sc.size_flags_horizontal = Control.SIZE_FILL
 	h.add_child(sc)
-	# map and detail
+	# letter or map
 	var right := UIKit.vbox(3)
 	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	h.add_child(right)
-	right.add_child(_map())
+	var tabs := UIKit.hbox(2)
+	for pair in [["letter", "Letter"], ["map", "Map"]]:
+		var id: String = pair[0]
+		tabs.add_child(UIKit.button(pair[1], func():
+			view = id
+			rebuild(), "btn_blue" if view == id else "", 60))
+	right.add_child(tabs)
 	var mission := campaign.mission_by_id(selected)
-	if not mission.is_empty():
+	if view == "map":
+		right.add_child(_map())
+		if not mission.is_empty():
+			right.add_child(_map_summary(mission))
+	elif not mission.is_empty():
 		right.add_child(_detail(mission))
 
 
@@ -174,22 +193,101 @@ static func objective_text(m: Dictionary) -> String:
 		"object": DB.missions["objects"].get(m["region"], "cart"), "turns": int(m.get("turns", 6))})
 
 
+## The quest as a parchment: title, the client's letter in their own words,
+## then what the guild is actually signing up for.
 func _detail(m: Dictionary) -> Control:
-	var v := UIKit.vbox(1)
+	var v := UIKit.vbox(3)
+	v.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	var page := UIKit.panel("parchment", Vector4(14, 9, 10, 9))
+	page.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	v.add_child(page)
+	var c := UIKit.vbox(4)
+	c.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var sc := scroll(c)
+	page.add_child(sc)
+	const W := 310.0
+	# title and the facts at a glance
+	var tl := UIKit.title(m["title"], 16, INK_TITLE)
+	tl.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0))
+	tl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	tl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	tl.custom_minimum_size.x = W
+	c.add_child(tl)
 	var cat: String = m["category"]
 	var cd: Dictionary = DB.missions["categories"][cat]
-	var g := hex(UITheme.GOLD)
-	var d := hex(UITheme.TEXT_DIM)
-	var lines: Array = []
-	var fac := ""
+	var facts: Array = [cd["name"], DB.regions[m["region"]]["name"]]
 	if m.get("faction", "") != "":
-		fac = " · %s (%s)" % [DB.factions[m["faction"]]["short"], Rules.rep_name(int(campaign.factions[m["faction"]]["rep"]))]
-	var when: String = {"dusk": " · at dusk", "night": " · by night"}.get(m.get("time", "day"), "")
-	lines.append("[color=#%s]%s[/color] · %s%s · %d days%s" % [hex(CAT_COLORS.get(cat, UITheme.TEXT)), cd["name"], DB.regions[m["region"]]["name"], fac, int(m["days"]), when])
+		facts.append("%s (%s)" % [DB.factions[m["faction"]]["short"], Rules.rep_name(int(campaign.factions[m["faction"]]["rep"]))])
+	facts.append("%d day%s" % [int(m["days"]), "" if int(m["days"]) == 1 else "s"])
+	var when: String = {"dusk": "at dusk", "night": "by night"}.get(m.get("time", "day"), "")
+	if when != "":
+		facts.append(when)
+	var sub := UIKit.label(" · ".join(facts), 9, INK_DIM)
+	sub.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0))
+	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	sub.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	sub.custom_minimum_size.x = W
+	c.add_child(sub)
+	var danger := CenterContainer.new()
+	danger.tooltip_text = "Danger: %d skull%s" % [int(m["skulls"]), "" if int(m["skulls"]) == 1 else "s"]
+	danger.add_child(UIKit.skulls(int(m["skulls"])))
+	c.add_child(danger)
+	c.add_child(_divider())
+	# the client's letter, in their hand
+	var l := MissionLore.letter(m, campaign.guild_name)
+	var ink := hex(UITheme.INK)
+	c.add_child(_ink("[color=#%s][i]%s[/i][/color]" % [ink, l["greeting"]], W, 10))
+	c.add_child(_ink("[color=#%s][i]%s[/i][/color]" % [ink, l["body"]], W, 10))
+	var sign := UIKit.hbox(4)
+	sign.add_child(UIKit.spacer())
+	sign.get_child(0).size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var sig_text := "[right][color=#%s]%s[i]%s[/i][/color][/right]" % [ink, "[i]%s[/i]\n" % l["signoff"] if l["signoff"] != "" else "", l["client"]]
+	sign.add_child(_ink(sig_text, 220, 10))
+	if m.get("faction", "") != "":
+		var seal := UIKit.tex_rect(load("res://assets/sprites/ui/emblem_%s_32.png" % m["faction"]))
+		seal.modulate = Color(1, 1, 1, 0.85)
+		seal.tooltip_text = DB.factions[m["faction"]]["name"]
+		sign.add_child(seal)
+	c.add_child(sign)
+	c.add_child(_divider())
+	# the terms
+	c.add_child(_ink(_terms(m), W, 9))
+	# warnings and the way in
+	var h := UIKit.hbox(4)
+	if m.get("faction", "") != "" and int(campaign.factions[m["faction"]]["rep"]) <= -2:
+		h.add_child(UIKit.label("Hostile: expect an ambush", 9, UITheme.RED))
+	h.add_child(UIKit.spacer())
+	h.get_child(h.get_child_count() - 1).size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	h.add_child(_assemble_button(m))
+	v.add_child(h)
+	return v
+
+
+## Objective, context, reward and the cost of ignoring it, in ink.
+func _terms(m: Dictionary) -> String:
+	var cat: String = m["category"]
+	var cd: Dictionary = DB.missions["categories"][cat]
+	var ink := hex(UITheme.INK)
+	var dim := hex(INK_DIM)
+	var lines: Array = []
 	var od: Dictionary = DB.missions["objectives"].get(m["objective"], {})
-	var obj_line := objective_text(m)
-	lines.append("[color=#%s]%s:[/color] %s" % [g, od.get("name", m["objective"].capitalize()), obj_line])
-	lines.append("[color=#%s]%s[/color]" % [d, m.get("desc", "")])
+	lines.append("[color=#%s][b]Objective (%s):[/b][/color] %s" % [hex(INK_GOLD), od.get("name", m["objective"].capitalize()), objective_text(m)])
+	if MapGen.is_explore(m):
+		lines.append("[color=#%s]Wide ground under fog. Patrols roam it; the objective waits at the end of the trail.[/color]" % dim)
+	elif m["objective"] in ["survive", "defense"]:
+		lines.append("[color=#%s]The enemy closes in from the fog.[/color]" % dim)
+	if m.get("category", "") != "story" and String(m.get("desc", "")) != "":
+		lines.append("[color=#%s]%s[/color]" % [dim, m["desc"]])
+	lines.append("[color=#%s][b]Reward:[/b][/color] %s" % [hex(INK_GREEN), reward_text(m)])
+	var ig := String(cd.get("ignored", "Nothing happens."))
+	ig = ig.format({"hush": m.get("ignore", {}).get("hush", 0), "faction": DB.factions[m["faction"]]["short"] if m.get("faction", "") != "" else "?"})
+	if m.has("conflict") and not campaign.mission_by_id(int(m["conflict"])).is_empty():
+		ig = "Taking this cancels \"%s\" (%s: reputation -1)." % [campaign.mission_by_id(int(m["conflict"]))["title"], DB.factions[m.get("rival", m["faction"])]["short"]]
+	lines.append("[color=#%s][b]If ignored:[/b][/color] %s" % [hex(INK_RED), ig])
+	return "[color=#%s]%s[/color]" % [ink, "\n".join(lines)]
+
+
+static func reward_text(m: Dictionary) -> String:
 	var rw: Dictionary = m.get("reward", {})
 	var parts: Array = []
 	if int(rw.get("gold", 0)) > 0:
@@ -213,27 +311,63 @@ func _detail(m: Dictionary) -> Control:
 		parts.append("power +%d" % int(rw["power"]))
 	if rw.has("xp_mult"):
 		parts.append("bonus XP")
-	lines.append("[color=#%s]Reward:[/color] %s" % [hex(UITheme.GREEN), ", ".join(parts)])
-	var ig := String(cd.get("ignored", "Nothing happens."))
-	ig = ig.format({"hush": m.get("ignore", {}).get("hush", 0), "faction": DB.factions[m["faction"]]["short"] if m.get("faction", "") != "" else "?"})
-	if m.has("conflict") and not campaign.mission_by_id(int(m["conflict"])).is_empty():
-		ig = "Taking this cancels \"%s\" (%s: reputation -1)." % [campaign.mission_by_id(int(m["conflict"]))["title"], DB.factions[m.get("rival", m["faction"])]["short"]]
-	lines.append("[color=#%s]If ignored:[/color] %s" % [hex(UITheme.RED), ig])
-	var r := UIKit.rich("[b]%s[/b]\n%s" % [m["title"], "\n".join(lines)], 322, 9)
-	var sc := scroll(r)
-	v.add_child(sc)
+	return ", ".join(parts) if not parts.is_empty() else "none"
+
+
+## On the map tab: the selected quest in one line, with its letter a click away.
+func _map_summary(m: Dictionary) -> Control:
+	var v := UIKit.vbox(2)
+	var top := UIKit.hbox(4)
+	var col: Color = CAT_COLORS.get(m["category"], UITheme.TEXT)
+	top.add_child(UIKit.label(DB.missions["categories"][m["category"]]["name"].to_upper(), 8, col, UITheme.pixel_font))
+	var tl := UIKit.label(m["title"], 10, UITheme.TEXT)
+	tl.clip_text = true
+	tl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	top.add_child(tl)
+	top.add_child(UIKit.skulls(int(m["skulls"])))
+	v.add_child(top)
+	v.add_child(UIKit.rich("[color=#%s]%s:[/color] %s" % [hex(UITheme.GOLD), DB.missions["objectives"].get(m["objective"], {}).get("name", m["objective"].capitalize()),
+		objective_text(m)], 320, 9))
 	var h := UIKit.hbox(4)
-	h.add_child(UIKit.skulls(int(m["skulls"])))
-	if m.get("faction", "") != "" and int(campaign.factions[m["faction"]]["rep"]) <= -2:
-		h.add_child(UIKit.label("Hostile: expect an ambush", 9, UITheme.RED))
+	h.add_child(UIKit.button("Read Letter", func():
+		view = "letter"
+		Audio.sfx("page", 0.1, -8.0)
+		rebuild(), "", 80))
 	h.add_child(UIKit.spacer())
+	h.get_child(1).size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	h.add_child(_assemble_button(m))
+	v.add_child(h)
+	return v
+
+
+func _assemble_button(m: Dictionary) -> Button:
 	var mid := int(m["id"])
-	var ready := campaign.available_members(int(m["days"])).size()
 	var b := UIKit.button("Assemble Squad", func(): hub.open_screen("squad", {"mission": mid}), "btn_green", 110)
-	if ready == 0:
+	if campaign.available_members(int(m["days"])).is_empty():
 		b.disabled = true
 		b.tooltip_text = "Nobody has %d free days this week." % int(m["days"])
-	h.add_child(b)
-	v.add_child(h)
-	v.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	return v
+	return b
+
+
+static func _ink(bbcode: String, width: float, size: int) -> RichTextLabel:
+	var r := UIKit.rich(bbcode, width, size)
+	r.add_theme_color_override("default_color", UITheme.INK)
+	r.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0))
+	r.add_theme_constant_override("line_separation", 0)
+	r.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	return r
+
+
+## A thin inked rule with a red diamond in the middle.
+static func _divider() -> Control:
+	var d := Control.new()
+	d.custom_minimum_size = Vector2(0, 9)
+	d.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	d.draw.connect(func():
+		var w := floorf(d.size.x)
+		var mid := floorf(w / 2.0) + 0.5
+		var col := Color(UITheme.INK, 0.4)
+		d.draw_line(Vector2(floorf(w * 0.1), 4.5), Vector2(mid - 6, 4.5), col, 1.0)
+		d.draw_line(Vector2(mid + 6, 4.5), Vector2(ceilf(w * 0.9), 4.5), col, 1.0)
+		d.draw_colored_polygon(PackedVector2Array([Vector2(mid, 1), Vector2(mid + 3.5, 4.5), Vector2(mid, 8), Vector2(mid - 3.5, 4.5)]), INK_TITLE))
+	return d

@@ -12,13 +12,15 @@ func _ready() -> void:
 	match parts[0]:
 		"battle":
 			var when := "night" if "night" in parts else ("dusk" if "dusk" in parts else "day")
-			await _battle(parts[1] if parts.size() > 1 else "coast", "far" in parts, when)
+			await _battle(parts[1] if parts.size() > 1 else "coast", "far" in parts, when, "map" in parts, parts[2] if parts.size() > 2 and parts[2] in MapGen.EXPLORE + ["survive", "defense"] else "clear")
 		"scene":
 			await _scene(parts[1] if parts.size() > 1 else "battle")
 		"screen":
-			await _screen(parts[1] if parts.size() > 1 else "roster")
+			await _screen("_".join(parts.slice(1)) if parts.size() > 1 else "roster")
 		"input":
 			await _input_test()
+		"autoplay":
+			await _autoplay(parts[1] if parts.size() > 1 else "clear")
 		"lineup":
 			await _lineup(parts[1] if parts.size() > 1 else "")
 		_:
@@ -27,7 +29,7 @@ func _ready() -> void:
 	get_tree().quit()
 
 
-func _battle(region: String, far := false, when := "day") -> void:
+func _battle(region: String, far := false, when := "day", whole := false, obj := "clear") -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 5
 	var squad: Array = []
@@ -35,13 +37,16 @@ func _battle(region: String, far := false, when := "day") -> void:
 		var m := Member.create(rng, c, ["human", "tidefolk", "mothkin", "khepri"][squad.size()], 1, 3)
 		m.id = squad.size() + 1
 		squad.append(m)
-	var mission := {"region": region, "objective": "clear", "skulls": 2, "seed": 77, "par_rounds": 8, "time": when}
+	var mission := {"region": region, "objective": obj, "skulls": 2, "seed": 77, "par_rounds": 8, "time": when}
 	var b := BattleFactory.build(mission, squad, {"difficulty": 1})
 	var wv := WorldView.new()
 	add_child(wv)
 	var mv := BattleMapView.new()
 	wv.world.add_child(mv)
 	mv.build(b.grid, wv)
+	if b.fog:
+		mv.setup_fog(b.route)
+		mv.set_fog(b.seen, b.vis, true)
 	var views := []
 	for u in b.units:
 		var uv := UnitView.new()
@@ -50,9 +55,14 @@ func _battle(region: String, far := false, when := "day") -> void:
 		uv.set_tint(mv.unit_tint())
 		uv.position = mv.unit_pos(u.pos)
 		uv.face(u.facing)
+		uv.visible = b.is_seen(u) or whole
 		views.append(uv)
 	wv.focus(Vector3(b.grid.w / 2.0, 0.5, b.grid.h / 2.0 + 1.5), true)
-	if far:
+	if whole:
+		wv.world_scale = 1
+		wv._update_viewport()
+		wv.focus(Vector3(b.grid.w / 2.0, 0.5, b.grid.h / 2.0), true)
+	elif far:
 		wv.world_scale = 2
 		wv.focus(Vector3(b.grid.w / 2.0, 0.5, b.grid.h / 2.0), true)
 	for i in 30:
@@ -145,7 +155,21 @@ func _screen(which: String) -> void:
 		if which == "nursery":
 			which = "facilities"
 			p = {"focus": "nursery"}
+		# board_letter: a generated letter (first non-story quest); board_map: the map tab
+		var board_view := ""
+		if which.begins_with("board_"):
+			board_view = which.trim_prefix("board_")
+			which = "board"
 		inst.open_screen(which, p)
+		if board_view != "":
+			var s = inst.screen
+			if board_view == "map":
+				s.view = "map"
+			for m in Game.campaign.board:
+				if m["category"] != "story":
+					s.selected = int(m["id"])
+					break
+			s.rebuild()
 	await get_tree().create_timer(1.0).timeout
 
 
@@ -194,6 +218,28 @@ func _scene(which: String) -> void:
 		await get_tree().create_timer(1.5).timeout
 	else:
 		await get_tree().create_timer(3.5).timeout
+
+
+## A patrolled battle playing itself, captured every few seconds.
+func _autoplay(obj: String) -> void:
+	Game.autoplay = true
+	Settings.combat_speed = 2.0
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 11
+	var squad: Array = []
+	for c in ["warrior", "rogue", "ranger", "mystic"]:
+		var m := Member.create(rng, c, "human", 1, 3)
+		m.id = squad.size() + 1
+		m.auto_pick(rng)
+		squad.append(m)
+	Game.battle = BattleFactory.build({"region": "carrow", "objective": obj, "skulls": 2, "seed": 99, "par_rounds": 8, "title": "Patrol"}, squad, {"difficulty": 1})
+	var inst: Node = load("res://scenes/battle.tscn").instantiate()
+	add_child(inst)
+	for i in 4:
+		await get_tree().create_timer(9.0).timeout
+		await _save_as("autoplay_%s_%d" % [obj, i])
+	Game.battle = null
+	Game.autoplay = false
 
 
 ## Real mouse events through the GUI: a battle click must move the active unit

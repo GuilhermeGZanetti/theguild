@@ -203,8 +203,9 @@ func roll_recruits() -> void:
 			recruits.append(m)
 
 
+## Levels are slow to earn, so hired hands arrive seasoned but never veteran.
 func _recruit_level() -> int:
-	return clampi(1 + rank() + rng.randi_range(-1, 1), 1, 8)
+	return clampi(1 + (rank() + rng.randi_range(-1, 1)) / 2, 1, 4)
 
 
 func _roll_tier(bonus := 0) -> int:
@@ -311,40 +312,35 @@ func upgrade_facility(fid: String) -> String:
 
 
 # ====================================================================== equipment & skills
-func skill_gold_cost(skill_id: String) -> int:
-	var base := int(DB.skill(skill_id).get("cost", 100))
+## Taking the skill of an unlocked row is free; changing it later costs a
+## retraining at the Library.
+func learn_skill(m: Member, skill_id: String) -> String:
+	return m.pick(skill_id)
+
+
+func retrain_cost(row: int) -> int:
 	var disc := float(DB.facilities["library"]["discount"][facilities["library"]])
-	return price(roundi(base * (1.0 - disc)))
+	return price(roundi((30 + 20 * row) * (1.0 - disc)))
 
 
-func can_learn(m: Member, skill_id: String, with_gold: bool) -> String:
-	var s := DB.skill(skill_id)
-	if skill_id in m.skills:
-		return "Already known."
-	if m.level < int(s.get("level", 1)):
-		return "Requires level %d." % int(s.get("level", 1))
-	if with_gold:
-		if int(facilities["library"]) == 0:
-			return "Build the Library first."
-		if int(s.get("level", 1)) > int(DB.facilities["library"]["max_level"][facilities["library"]]):
-			return "The Library needs an upgrade."
-		if gold < skill_gold_cost(skill_id):
-			return "Not enough gold."
-	elif m.skill_points <= 0:
-		return "No skill points."
+func can_retrain(m: Member, row: int) -> String:
+	if m.row_pick(row) == "":
+		return "Nothing learned at level %d." % row
+	if int(facilities["library"]) == 0:
+		return "Build the Library to retrain."
+	if row > int(DB.facilities["library"]["max_level"][facilities["library"]]):
+		return "The Library needs an upgrade to retrain level %d skills." % row
+	if gold < retrain_cost(row):
+		return "Not enough gold."
 	return ""
 
 
-func learn_skill(m: Member, skill_id: String, with_gold: bool) -> String:
-	var err := can_learn(m, skill_id, with_gold)
+func retrain(m: Member, row: int) -> String:
+	var err := can_retrain(m, row)
 	if err != "":
 		return err
-	if with_gold:
-		gold -= skill_gold_cost(skill_id)
-	else:
-		m.skill_points -= 1
-	m.learn(skill_id)
-	return ""
+	gold -= retrain_cost(row)
+	return m.swap_pick(row)
 
 
 func forge_cost(item: Dictionary) -> Array:
@@ -663,8 +659,12 @@ func _make_mission(cat: String, region: String, faction := "") -> Dictionary:
 	var od: Dictionary = DB.missions["objectives"][obj]
 	var titles: Array = od["titles"]
 	var elite_names: Array = DB.regions[region]["elite"]
-	var elite_name: String = DB.enemies[elite_names[rng.randi() % elite_names.size()]]["name"]
-	var title: String = titles[rng.randi() % titles.size()].format({"place": place_name, "elite": elite_name}).replace("the The", "the")
+	var elite_id: String = elite_names[rng.randi() % elite_names.size()]
+	var elite_name: String = DB.enemies[elite_id]["name"]
+	var tpl: String = titles[rng.randi() % titles.size()]
+	if " the " in elite_name:   # a proper name: "Hunt Mott the Bell-Thief"
+		tpl = tpl.replace("the {elite}", "{elite}").replace("The {elite}", "{elite}")
+	var title: String = tpl.format({"place": place_name, "elite": elite_name}).replace("the The", "the")
 	title = title[0].to_upper() + title.substr(1)
 	var gold_base: Array = {"contract": [70, 55], "recruit": [25, 15], "salvage": [25, 12], "training": [25, 15], "breach": [35, 25],
 		"crisis": [45, 32], "rivalry": [60, 45], "chain": [100, 60]}[cat]
@@ -675,7 +675,7 @@ func _make_mission(cat: String, region: String, faction := "") -> Dictionary:
 		g = roundi(g * 0.9)
 	var m := {
 		"id": next_mission_id, "title": title, "category": cat, "objective": obj, "region": region,
-		"faction": faction, "skulls": sk, "days": days, "seed": rng.randi(), "place": place_name,
+		"faction": faction, "skulls": sk, "days": days, "seed": rng.randi(), "place": place_name, "elite": elite_id,
 		"turns": 5 + sk, "caches": 3, "hush_map": int(regions[region]["hush"]), "par_rounds": 6 + sk,
 		"reward": {"gold": g, "renown": 3 + 3 * sk},
 		"desc": cd["desc"],
@@ -717,7 +717,7 @@ func _make_mission(cat: String, region: String, faction := "") -> Dictionary:
 			m["ignore"] = {"chain": true}
 			m["desc"] = "A special mission for the %s." % DB.factions[faction]["name"]
 	var od_desc: String = od["desc"]
-	m["objective_desc"] = od_desc.format({"target": "the %s" % elite_name, "vip": DB.missions["vips"].get(region, "the traveller"),
+	m["objective_desc"] = od_desc.format({"target": MissionLore.the_name(elite_name), "vip": DB.missions["vips"].get(region, "the traveller"),
 		"n": 3, "object": DB.missions["objects"].get(region, "cart"), "turns": m["turns"]})
 	return m
 
@@ -791,7 +791,7 @@ func finish_mission(mission: Dictionary, battle: Battle) -> Dictionary:
 	for b in battle.bonus:
 		if b.get("done", false):
 			bonus_done += 1
-	var g := Rules.grade(victory, bonus_done, battle.bonus.size(), battle.round_num, int(mission.get("par_rounds", 8)), rep["deaths"].size(), battle.downs)
+	var g := Rules.grade(victory, bonus_done, battle.bonus.size(), battle.round_num, battle.par_rounds, rep["deaths"].size(), battle.downs)
 	rep["grade"] = g
 	var gm := Rules.grade_mult(g)
 	var reward: Dictionary = mission.get("reward", {})
@@ -843,10 +843,7 @@ func finish_mission(mission: Dictionary, battle: Battle) -> Dictionary:
 		var m: Member = u.member
 		if m.status != "active":
 			continue
-		var kill_xp := 0
-		for o in battle.units:
-			pass
-		var xp: int = share + u.kills * (6 + 3 * int(mission["skulls"])) + u.stabilizes * 20
+		var xp: int = share + Rules.deed_xp(u.kills, u.stabilizes, int(mission["skulls"]))
 		rep["xp"][m.id] = xp
 		var ups := m.add_xp(xp, rng)
 		if not ups.is_empty():

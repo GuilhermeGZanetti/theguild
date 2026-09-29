@@ -1,10 +1,18 @@
 {
-  "knight": {"name": "Knight", "class": "warrior", "desc": "An oathbound shield. Tougher armor, punishing zones of control.", "passive": "knight_oath", "skill": "shield_wall", "stat": {"defense": 3, "hp": 8}},
-  "berserker": {"name": "Berserker", "class": "warrior", "desc": "Grows deadlier the closer to death.", "passive": "bloodlust", "skill": "whirlwind", "stat": {"attack": 3, "speed": 4}},
-  "assassin": {"name": "Assassin", "class": "rogue", "desc": "Every critical hit opens a wound.", "passive": "assassin_creed", "skill": "vanish", "stat": {"crit": 4, "attack": 2}},
-  "duelist": {"name": "Duelist", "class": "rogue", "desc": "Punishes every missed blow.", "passive": "riposte", "skill": "flurry", "stat": {"dodge": 5, "accuracy": 3}},
-  "sharpshooter": {"name": "Sharpshooter", "class": "ranger", "desc": "Longer reach and deadlier shots.", "passive": "sharpshooter_eye", "skill": "deadeye", "stat": {"accuracy": 5}},
-  "warden": {"name": "Warden", "class": "ranger", "desc": "Master of overwatch and area denial.", "passive": "warden_watch", "skill": "rain_of_arrows", "stat": {"speed": 4, "resolve": 5}},
-  "pyromancer": {"name": "Pyromancer", "class": "mystic", "desc": "Fire that clings and spreads.", "passive": "pyro_passion", "skill": "inferno", "stat": {"attack": 3}},
-  "oracle": {"name": "Oracle", "class": "mystic", "desc": "Sees a moment ahead. Stronger heals and steady allies.", "passive": "oracle_sight", "skill": "foresight", "stat": {"resolve": 8, "hp": 6}}
+  "knight": {"name": "Knight", "class": "warrior", "branch": "guardian", "desc": "An oathbound shield. Tougher armor, punishing zones of control.", "stat": {"defense": 3, "hp": 8}},
+  "berserker": {"name": "Berserker", "class": "warrior", "branch": "warlord", "desc": "Grows deadlier with every foe that falls.", "stat": {"attack": 3, "speed": 4}},
+  "assassin": {"name": "Assassin", "class": "rogue", "branch": "shadow", "desc": "Strikes from nowhere and is gone again.", "stat": {"crit": 4, "attack": 2}},
+  "venomancer": {"name": "Venomancer", "class": "rogue", "branch": "poisoner", "desc": "Every wound festers.", "stat": {"accuracy": 3, "dodge": 3}},
+  "sharpshooter": {"name": "Sharpshooter", "class": "ranger", "branch": "marksman", "desc": "Longer reach and deadlier shots.", "stat": {"accuracy": 5}},
+  "warden": {"name": "Warden", "class": "ranger", "branch": "hunter", "desc": "Master of overwatch and area denial.", "stat": {"speed": 4, "resolve": 5}},
+  "pyromancer": {"name": "Pyromancer", "class": "mystic", "branch": "elemental", "desc": "Fire that clings and spreads.", "stat": {"attack": 3}},
+  "oracle": {"name": "Oracle", "class": "mystic", "branch": "restoration", "desc": "Sees a moment ahead. Stronger heals and steady allies.", "stat": {"resolve": 8, "hp": 6}},
+  "stormcaller": {"name": "Stormcaller", "class": "tidecaller", "branch": "tides", "desc": "Commands the sea itself.", "stat": {"attack": 2, "accuracy": 3}},
+  "leviathan": {"name": "Leviathan", "class": "tidecaller", "branch": "deep", "desc": "As hard to move as the deep.", "stat": {"hp": 10, "defense": 2}},
+  "beaconkeeper": {"name": "Beaconkeeper", "class": "lanternbearer", "branch": "light", "desc": "A living lighthouse against the Hush.", "stat": {"attack": 2, "accuracy": 3}},
+  "archivist": {"name": "Archivist", "class": "lanternbearer", "branch": "archive", "desc": "Keeps every name, and every friend, from fading.", "stat": {"resolve": 8, "hp": 6}},
+  "oakheart": {"name": "Oakheart", "class": "graftwarden", "branch": "grove", "desc": "An ancient guardian that shelters its grove.", "stat": {"hp": 10, "defense": 2}},
+  "briarlord": {"name": "Briarlord", "class": "graftwarden", "branch": "thorn", "desc": "Every step toward it draws blood.", "stat": {"attack": 3}},
+  "dunestrider": {"name": "Dunestrider", "class": "sandreaver", "branch": "dunes", "desc": "Here, then gone beneath the sand.", "stat": {"speed": 4, "dodge": 3}},
+  "glasswright": {"name": "Glasswright", "class": "sandreaver", "branch": "glass", "desc": "Blades as sharp as they are fragile.", "stat": {"crit": 4, "attack": 2}}
 }
