@@ -237,6 +237,9 @@ func eval_skill(u: BattleUnit, skill_id: String, tgt: Vector2i, from: Vector2i) 
 			prio = 1.3
 		if o.state == "downed":
 			prio = [0.0, 0.35, 0.9][clampi(b.difficulty, 0, 2)]
+		if not hostile and row.has("hit"):
+			# friendly fire: hurting a friend costs more than hurting a foe gains
+			prio = 1.6
 		if row.has("hit"):
 			var hit: float = row["hit"] / 100.0
 			var crit: float = row["crit"] / 100.0

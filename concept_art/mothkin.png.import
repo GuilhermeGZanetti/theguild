@@ -3,15 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://e4ek2hrugweu"
-path="res://.godot/imported/mothkin.png-101db1e3750939f3c92b8a9621e3a1da.ctex"
-metadata={
-"vram_texture": false
-}
+valid=false
 
 [deps]
 
 source_file="res://concept_art/mothkin.png"
-dest_files=["res://.godot/imported/mothkin.png-101db1e3750939f3c92b8a9621e3a1da.ctex"]
 
 [params]
 

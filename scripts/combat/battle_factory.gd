@@ -176,7 +176,7 @@ static func build(mission: Dictionary, squad: Array, ctx: Dictionary) -> Battle:
 		if objective != "final":
 			break
 		var ally_cls: String = DB.factions[fid]["unique_class"]
-		var rm := Member.create(b.rng, ally_cls, DB.factions[fid]["race"], 2, 8)
+		var rm := Member.create(b.rng, ally_cls, DB.factions[fid]["race"], 2, DB.LEVEL_CAP)
 		rm.auto_pick(b.rng)
 		rm.name = "%s Champion" % DB.factions[fid]["short"]
 		var au := member_unit(rm)

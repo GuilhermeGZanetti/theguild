@@ -17,7 +17,10 @@ const C_TARGET_B := Color(1.0, 0.3, 0.2, 1.0)
 const C_ACTIVE := Color(1.0, 0.85, 0.3, 0.4)
 const C_ACTIVE_B := Color(1.0, 0.92, 0.5, 1.0)
 const EDGE_BOLD := 3.0 / 24.0
-const C_ZOC := Color(1.0, 0.55, 0.2, 0.22)
+const C_WATCH := Color(1.0, 0.12, 0.08, 0.32)
+const C_WATCH_B := Color(1.0, 0.3, 0.25, 1.0)
+const C_WATCH_G := Color(1.0, 0.25, 0.2, 0.5)
+const C_ZOC :=Color(1.0, 0.55, 0.2, 0.22)
 const C_ENEMY := Color(1.0, 0.3, 0.25, 0.16)
 const C_ENEMY_B := Color(1.0, 0.45, 0.35, 0.85)
 const C_ALLY := Color(0.4, 1.0, 0.5, 0.18)
@@ -59,6 +62,8 @@ var hover_uid := -1
 var active: BattleUnit = null
 var cover_icons: Array = []
 var turn_arrow: Polygon2D = null
+var cache_arrows := {}               # cell -> arrow over a cache still to recover
+var cache_arrows_built := false
 var turn_unit: BattleUnit = null     # whoever's turn it is, player or AI
 var menu: Control = null
 var dragging := false
@@ -672,6 +677,7 @@ func _process(delta: float) -> void:
 		_place_cover_icons()
 	_update_turn_marker()
 	_update_objective_marker()
+	_update_cache_markers()
 
 
 func _update_objective_marker() -> void:
@@ -687,17 +693,46 @@ func _update_objective_marker() -> void:
 	hud.place_objective_marker(wv.world_to_screen(map_view.cell_top(c) + Vector3(0, 1.6, 0)), dist, not arrived and dist < 999)
 
 
+func _make_arrow(w := 13.0, h := 18.0) -> Polygon2D:
+	var a := Polygon2D.new()
+	a.polygon = PackedVector2Array([Vector2(-w, -h), Vector2(w, -h), Vector2(0, 0)])
+	var rim := Line2D.new()
+	rim.points = PackedVector2Array([Vector2(-w, -h), Vector2(w, -h), Vector2(0, 0), Vector2(-w, -h)])
+	rim.width = 3.0
+	rim.default_color = Color(0.2, 0.12, 0.02)
+	a.add_child(rim)
+	hud.float_layer.add_child(a)
+	return a
+
+
+## Bobbing arrows over the caches still to recover, once their tile is explored.
+func _update_cache_markers() -> void:
+	if battle.objective.get("type", "") != "retrieve":
+		return
+	if not cache_arrows_built:
+		cache_arrows_built = true
+		for c in map_view.objects:
+			if battle.grid.t(c)["obj"].get("kind", "") == "cache":
+				var a := _make_arrow(11.0, 16.0)
+				a.color = Color(1.0, 0.85, 0.35)
+				cache_arrows[c] = a
+	var t := Time.get_ticks_msec() / 1000.0
+	for c in cache_arrows.keys():
+		var a: Polygon2D = cache_arrows[c]
+		if not map_view.objects.has(c):
+			# recovered
+			a.queue_free()
+			cache_arrows.erase(c)
+			continue
+		a.visible = not battle.fog or view_seen.has(c) or view_vis.has(c)
+		if a.visible:
+			a.position = wv.world_to_screen(map_view.cell_top(c) + Vector3(0, 1.1, 0)) + Vector2(0, sin(t * 4.0 + c.x) * 4.0)
+
+
 ## Bobbing arrow over the unit whose turn it is; keeps the gold tile under it.
 func _update_turn_marker() -> void:
 	if turn_arrow == null:
-		turn_arrow = Polygon2D.new()
-		turn_arrow.polygon = PackedVector2Array([Vector2(-13, -18), Vector2(13, -18), Vector2(0, 0)])
-		var rim := Line2D.new()
-		rim.points = PackedVector2Array([Vector2(-13, -18), Vector2(13, -18), Vector2(0, 0), Vector2(-13, -18)])
-		rim.width = 3.0
-		rim.default_color = Color(0.2, 0.12, 0.02)
-		turn_arrow.add_child(rim)
-		hud.float_layer.add_child(turn_arrow)
+		turn_arrow = _make_arrow()
 	var u := turn_unit
 	var show: bool = u != null and u.alive() and u.carried_by < 0 and views.has(u.uid) and views[u.uid].visible
 	turn_arrow.visible = show
@@ -796,7 +831,11 @@ func _update_hover() -> void:
 		var targets := battle.valid_targets(active, selected_skill)
 		if hover_cell in targets:
 			var cells := battle.aoe_cells(active, selected_skill, hover_cell)
-			overlay.show_cells("aoe", cells, C_AOE, Color(1, 0.85, 0.4, 0.9))
+			if battle.friendly_fire(DB.skill(selected_skill)):
+				# hits allies too: a hotter colour than the usual area
+				overlay.show_cells("aoe", cells, Color(1.0, 0.4, 0.15, 0.4), Color(1.0, 0.5, 0.2, 0.95), 0.0, EDGE_BOLD)
+			else:
+				overlay.show_cells("aoe", cells, C_AOE, Color(1, 0.85, 0.4, 0.9))
 			hud.show_preview(battle.preview(active, selected_skill, hover_cell), mp)
 		elif hu:
 			hud.show_info(hu, mp, battle)
@@ -814,6 +853,14 @@ func _update_hover() -> void:
 		var danger: Array = []
 		if not aoo.is_empty():
 			danger.append(active.pos)
+		if exploring:
+			# steps where an unaware enemy would spot the member
+			var watched := {}
+			for c in battle.watch_cells(active):
+				watched[c] = true
+			for c in path:
+				if watched.has(c):
+					danger.append(c)
 		var running := battle.is_run(active, reach, hover_cell)
 		var pc := Color(1, 1, 1, 0.9) if not running else Color(1, 0.9, 0.35, 0.95)
 		overlay.show_path(path, pc if aoo.is_empty() else Color(1, 0.6, 0.4, 0.95), danger)
@@ -856,7 +903,8 @@ func _draw_ranges() -> void:
 		overlay.clear(l)
 	if exploring and active and state == "player":
 		# where an unaware enemy would spot the selected member
-		overlay.show_cells("watch", battle.watch_cells(active), Color(1.0, 0.22, 0.18, 0.2), Color(1.0, 0.35, 0.3, 0.6))
+		# drawn above the move/run tiles and outlined per tile so it reads through them
+		overlay.show_cells("watch", battle.watch_cells(active), C_WATCH, C_WATCH_B, 0.0, EDGE_BOLD, C_WATCH_G, C_RIM)
 	if turn_unit != null and turn_unit.alive() and turn_unit.carried_by < 0:
 		overlay.show_cells("active", [turn_unit.pos], C_ACTIVE, C_ACTIVE_B, 0.0, EDGE_BOLD, Color(0, 0, 0, 0), C_RIM)
 	if state != "player" or active == null:

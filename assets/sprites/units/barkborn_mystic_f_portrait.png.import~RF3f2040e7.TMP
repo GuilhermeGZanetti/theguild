@@ -2,12 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dx0yxxn5q7doc"
-valid=false
+uid="uid://bgjxe1ndms7oy"
+path="res://.godot/imported/barkborn_mystic_f_portrait.png-55e745eab806e4635bc9015baf1b6885.ctex"
+metadata={
+"vram_texture": false
+}
 
 [deps]
 
-source_file="res://addons/gut/images/eyey.png"
+source_file="res://assets/sprites/units/barkborn_mystic_f_portrait.png"
+dest_files=["res://.godot/imported/barkborn_mystic_f_portrait.png-55e745eab806e4635bc9015baf1b6885.ctex"]
 
 [params]
 

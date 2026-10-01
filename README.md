@@ -28,7 +28,7 @@ Download a build, or open the project in **Godot 4.7.2** and press Play (main sc
 
 **Exploration.** Hunt, clear, escort, rescue and retrieve missions take place on large maps under fog. You see the ground but not who stands on it, and the fog lifts around your members. Until a patrol spots you, the squad explores: move every member, end the squad turn, and the patrols walk their beat. Red tiles show where an unaware enemy would see you. When one enemy spots a member, its whole group joins and combat begins for that group only, on the usual timeline; other patrols keep walking until they see you too. Striking an unaware enemy counts as a flank. Hunt targets and caches wait in a far final area at the end of a marked trail. Defense and survive missions stay single fights, but the enemy comes out of the fog.
 
-**Leveling.** Every quest gives 100 XP. Level 2 takes one quest, level 3 three more, level 4 five more, and so on up to level 10. Each class has two skill trees of nine rows (levels 2 to 10). Each row offers one skill from each tree: learn one of the two, never both, and mix trees freely from row to row. With a Library you can retrain a row for gold. The level-10 skills are the strongest, and the tree of your level-10 skill gives the member its subclass title.
+**Leveling.** Every quest gives 100 XP. Level 2 takes one quest, level 3 three more, level 4 five more, and so on up to level 7: 36 quests in all, or about 30 with kill and bonus XP, so a member who goes on two quests a week reaches it near the end of a campaign. Each class has two skill trees of six rows (levels 2 to 7). Each row offers one skill from each tree: learn one of the two, never both, and mix trees freely from row to row. With a Library you can retrain a row for gold. The level-7 skills are the strongest, and the tree of your level-7 skill gives the member its subclass title.
 
 **Difficulty.** There are three levels: Forgiving, Standard and Merciless. **Ironman** keeps a single autosave, and leaving mid-battle abandons the mission.
 
@@ -37,6 +37,7 @@ Download a build, or open the project in **Godot 4.7.2** and press Play (main sc
 - **Combat**
   - Speed-based turn timeline, plus an exploration phase under fog of war with patrolling enemy groups.
   - Hit and crit chances always shown before you commit: half and full cover, high ground, flanking and range falloff.
+  - Area spells (the Mystic's Evocation tree) always land but swing widely in damage, and they hit allies in the area too.
   - Zones of control and attacks of opportunity; overwatch; Defense that wears down.
   - Status effects resisted by Resolve.
   - Downed members bleed out and can be stabilized or carried.
@@ -44,7 +45,7 @@ Download a build, or open the project in **Godot 4.7.2** and press Play (main sc
   - Retreat through extraction zones.
   - Objectives: clear, hunt, retrieve, rescue, escort, defense, survive and the final battle with its boss phases.
 - **Guild**
-  - 4 base classes plus 4 faction classes, each with two 9-row skill trees (pick one skill per row); the level-10 skill sets the subclass; ~180 skills.
+  - 4 base classes plus 4 faction classes, each with two 6-row skill trees (pick one skill per row); the level-7 skill sets the subclass; ~120 skills.
   - Traits, quality tiers, hidden growth potential, 5 races.
   - Rare guild events bring named recruits with their own stories and fixed traits.
   - Equipment tiers and a forge.

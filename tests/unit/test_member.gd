@@ -43,10 +43,10 @@ func test_xp_curve_is_one_three_five_seven_quests():
 	assert_eq(Rules.xp_share(1, 4, 4), DB.QUEST_XP)
 
 
-func test_every_class_has_two_nine_skill_trees():
+func test_every_class_has_two_six_skill_trees():
 	for cid in DB.classes:
 		var rows := DB.tree_rows(cid)
-		assert_eq(rows.size(), 9, "%s has 9 rows" % cid)
+		assert_eq(rows.size(), DB.LEVEL_CAP - 1, "%s has a row per level from 2 to the cap" % cid)
 		for i in rows.size():
 			assert_eq(rows[i].size(), 2, "%s row %d has one skill per branch" % [cid, i + 2])
 			for s in rows[i]:
@@ -86,6 +86,39 @@ func test_old_saves_migrate_to_the_new_curve():
 	assert_between(old.level, 2, 4, "old level 9 is a handful of quests")
 	assert_eq(old.prog, Member.PROGRESSION)
 	assert_false("poisoned_blade" in old.skills and "shadowstep" in old.skills, "never two skills of one row")
+
+
+func test_ten_level_saves_move_to_the_short_trees():
+	var m := Member.create(rng, "rogue", "human", 1, 1)
+	var d := m.to_dict()
+	d["prog"] = 2
+	d["level"] = 10
+	d["xp"] = 300
+	# shadowstep and evasion keep their rows; riposte left the tree; smoke_bomb
+	# moved from row 5 to row 4, where crippling_strike now sits beside it
+	d["skills"] = [m.class_data()["start_skill"], "shadowstep", "evasion", "riposte", "crippling_strike", "smoke_bomb"]
+	d["loadout"] = ["riposte", "shadowstep", "smoke_bomb"]
+	var old := Member.from_dict(d)
+	assert_eq(old.prog, Member.PROGRESSION)
+	assert_eq(old.level, DB.LEVEL_CAP)
+	assert_eq(old.xp, 0)
+	assert_false("riposte" in old.skills or "riposte" in old.loadout, "skills that left the trees are gone")
+	assert_true("shadowstep" in old.skills and "evasion" in old.skills)
+	assert_false("crippling_strike" in old.skills and "smoke_bomb" in old.skills, "never two skills of one row")
+	assert_eq(old.pending_picks(), DB.LEVEL_CAP - 1 - 3, "the freed rows wait for a pick")
+
+
+func test_two_quests_a_week_reach_the_cap_late_in_a_campaign():
+	## The cap should come from steady service, not from the first half.
+	var m := Member.create(rng, "warrior", "human", 1)
+	m.traits = []
+	var weeks := 0
+	while m.level < DB.LEVEL_CAP and weeks < 60:
+		weeks += 1
+		m.add_xp(Rules.xp_share(2, 4, 4) + Rules.deed_xp(2, 0, 2), rng)
+		m.add_xp(Rules.xp_share(2, 4, 4) + Rules.deed_xp(2, 0, 2), rng)
+	gut.p("  two quests a week: level %d in %d weeks" % [DB.LEVEL_CAP, weeks])
+	assert_between(weeks, 13, 20)
 
 
 func test_level_cap():

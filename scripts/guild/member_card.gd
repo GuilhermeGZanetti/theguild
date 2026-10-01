@@ -162,6 +162,12 @@ static func skill_tip(skill_id: String) -> String:
 			"charge": meta.append("Charge")
 	if int(s.get("level", 0)) > 1:
 		meta.append("Level %d" % int(s["level"]))
+	for eff in s.get("effects", []):
+		if eff.get("sure", false):
+			meta.append("Always hits")
+			break
+	if s.get("aoe", {}).get("who", "") == "all":
+		meta.append("Hits allies too")
 	if not meta.is_empty():
 		parts.append(" · ".join(meta))
 	parts.append(s.get("desc", ""))

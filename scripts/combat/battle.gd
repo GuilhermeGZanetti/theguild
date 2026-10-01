@@ -819,8 +819,34 @@ func affected(u: BattleUnit, skill_id: String, target: Vector2i, from := Vector2
 			continue
 		if o.objective_role == "object" and who != "enemy":
 			continue
+		# friendly fire spares the caster and allies already lying Downed
+		if who == "all" and (o == u or (o.state == "downed" and not u.hostile_to(o))):
+			continue
 		out.append(o)
 	return out
+
+
+## Area spells that hit everyone in the area, allies included.
+func friendly_fire(s: Dictionary) -> bool:
+	return s.get("aoe", {}).get("who", "") == "all"
+
+
+## A damage roll in [-1, 1]; "sure" hits can have the bottom of the swing cut
+## off by the attacker (Arcane Focus).
+func _damage_roll(att: BattleUnit, eff: Dictionary) -> float:
+	var lo := -1.0
+	if eff.get("sure", false):
+		lo = clampf(-1.0 + float(att.mod("spread_floor", 0.0)), -1.0, 1.0)
+	return rng.randf_range(lo, 1.0)
+
+
+## Raw damage of a damage effect for a roll in [-1, 1]. Effects with a
+## "spread" swing that much around the average instead of the usual 10%.
+func _raw_for(att: BattleUnit, eff: Dictionary, roll: float) -> float:
+	var mult := float(eff.get("mult", 1.0))
+	if eff.has("spread"):
+		return maxf(0.0, att.stat("attack") * mult * (1.0 + float(eff["spread"]) * roll))
+	return Rules.raw_damage(att.stat("attack"), mult, roll)
 
 
 func cone_cells(from: Vector2i, target: Vector2i, length: int) -> Array:
@@ -1001,14 +1027,22 @@ func preview(att: BattleUnit, skill_id: String, target_cell: Vector2i, from := V
 	var out := {"targets": [], "skill": skill_id}
 	for o in affected(att, skill_id, target_cell, from):
 		var row := {"uid": o.uid, "name": o.name}
+		if friendly_fire(s) and not att.hostile_to(o):
+			row["ally"] = true
 		for eff in s.get("effects", []):
 			match eff["t"]:
 				"damage":
 					if not row.has("hit"):
 						var ctx := attack_context(att, o, s, eff, from)
 						row.merge(ctx)
-						var raw_lo := Rules.raw_damage(att.stat("attack"), float(eff.get("mult", 1.0)), -1.0) * damage_mult(att, o, eff)
-						var raw_hi := Rules.raw_damage(att.stat("attack"), float(eff.get("mult", 1.0)), 1.0) * damage_mult(att, o, eff)
+						var lo_roll := -1.0
+						if eff.get("sure", false):
+							row["hit"] = 100
+							row["crit"] = 0
+							row["sure"] = true
+							lo_roll = clampf(-1.0 + float(att.mod("spread_floor", 0.0)), -1.0, 1.0)
+						var raw_lo := _raw_for(att, eff, lo_roll) * damage_mult(att, o, eff)
+						var raw_hi := _raw_for(att, eff, 1.0) * damage_mult(att, o, eff)
 						var d: float = o.defense_now()
 						for e2 in s.get("effects", []):
 							if e2["t"] == "armor_break":
@@ -1032,8 +1066,9 @@ func preview(att: BattleUnit, skill_id: String, target_cell: Vector2i, from := V
 func _status_chance_for(att: BattleUnit, o: BattleUnit, eff: Dictionary) -> int:
 	var sid: String = eff["id"]
 	var bad: bool = DB.statuses.get(sid, {}).get("bad", true)
-	if not bad or not att.hostile_to(o):
+	if not bad:
 		return 100
+	# a harmful status on an ally only comes from friendly fire: resisted as usual
 	if _immune(o, sid):
 		return 0
 	var base := float(eff.get("chance", 50))
@@ -1262,6 +1297,12 @@ func _attack_basic(att: BattleUnit, target: BattleUnit, extra := {}) -> void:
 
 func _resolve_damage(att: BattleUnit, o: BattleUnit, s: Dictionary, eff: Dictionary, extra := {}) -> bool:
 	var ctx := attack_context(att, o, s, eff, att.pos, extra)
+	# "sure" damage (area spells) always lands but never crits: the luck is in
+	# its wide damage swing instead
+	var sure: bool = eff.get("sure", false)
+	if sure:
+		ctx["hit"] = 100
+		ctx["crit"] = 0
 	var roll := rng.randi_range(1, 100)
 	if roll > int(ctx["hit"]):
 		emit({"t": "miss", "uid": o.uid, "src": att.uid, "fx": s.get("fx", "slash")})
@@ -1273,8 +1314,8 @@ func _resolve_damage(att: BattleUnit, o: BattleUnit, s: Dictionary, eff: Diction
 				if e2["t"] == "damage":
 					_resolve_damage(o, att, bs, e2, {"riposte": true})
 		return false
-	var crit := rng.randi_range(1, 100) <= int(ctx["crit"])
-	var raw := Rules.raw_damage(att.stat("attack"), float(eff.get("mult", 1.0)), rng.randf_range(-1.0, 1.0))
+	var crit := not sure and rng.randi_range(1, 100) <= int(ctx["crit"])
+	var raw := _raw_for(att, eff, _damage_roll(att, eff))
 	raw *= damage_mult(att, o, eff)
 	if extra.get("aoo", false):
 		raw *= 1.0 + float(att.mod("aoo_dmg", 0.0))
@@ -1283,7 +1324,7 @@ func _resolve_damage(att: BattleUnit, o: BattleUnit, s: Dictionary, eff: Diction
 	raw *= 1.0 - clampf(o.status_power("fortified") / 100.0, 0.0, 0.8)
 	var crit_def := false
 	var cd_chance := o.stat("crit") * 0.5 + (Rules.DEFEND_CRIT_DEF if o.has_status("defending") else 0)
-	if o.state == "active" and rng.randi_range(1, 100) <= int(cd_chance):
+	if not sure and o.state == "active" and rng.randi_range(1, 100) <= int(cd_chance):
 		crit_def = true
 		raw *= 0.5
 	if int(o.mod("carapace", 0)) > 0 and not o.carapace_used:
@@ -1371,7 +1412,7 @@ func _kill(o: BattleUnit, src: BattleUnit, cause: String) -> void:
 	o.statuses.clear()
 	if o.carrying >= 0:
 		_drop_body(o)
-	if src and src != o:
+	if src and src != o and src.hostile_to(o):
 		src.kills += 1
 		if int(src.mod("rampage", 0)) > 0 and src.active() and src.acted and not src.rampage_used and src.hostile_to(o):
 			src.rampage_used = true
@@ -1838,13 +1879,13 @@ func pop_events() -> Array:
 ## then every unaware pod walks its beat) until a pod spots someone. That pod
 ## joins the timeline combat; the others keep patrolling and only join when
 ## they see the squad too. With every alerted pod dead, exploration resumes.
-const SQUAD_SIGHT := 7
+const SQUAD_SIGHT := 8
 const ENEMY_SIGHT := 6
 const PATROL_STEP := 3
 
 
 func sight_of(u: BattleUnit) -> int:
-	return clampi(SQUAD_SIGHT + int(u.mod("sight", 0)) - (1 if grid.time == "night" else 0), 3, 11)
+	return clampi(SQUAD_SIGHT + int(u.mod("sight", 0)) - (1 if grid.time == "night" else 0), 3, 12)
 
 
 ## How close an unaware enemy must be (with line of sight) to spot `p`.
@@ -1975,7 +2016,7 @@ func watch_cells(p: BattleUnit) -> Array:
 	var out := {}
 	if not explore or p == null:
 		return []
-	var r := ENEMY_SIGHT - int(p.mod("stealth", 0)) - (1 if grid.time == "night" else 0)
+	var r := clampi(ENEMY_SIGHT - int(p.mod("stealth", 0)) - (1 if grid.time == "night" else 0), 2, ENEMY_SIGHT)
 	for e in units:
 		if e.team != BattleUnit.TEAM_ENEMY or e.alerted or not e.active() or not is_seen(e):
 			continue

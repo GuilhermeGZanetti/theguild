@@ -2,12 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dx0yxxn5q7doc"
-valid=false
+uid="uid://btqlp6uwjkihm"
+path="res://.godot/imported/barkborn_graftwarden_m_portrait_b.png-da479b063e2fc6ea0f2ae268bcc5ba1b.ctex"
+metadata={
+"vram_texture": false
+}
 
 [deps]
 
-source_file="res://addons/gut/images/eyey.png"
+source_file="res://assets/sprites/units/barkborn_graftwarden_m_portrait_b.png"
+dest_files=["res://.godot/imported/barkborn_graftwarden_m_portrait_b.png-da479b063e2fc6ea0f2ae268bcc5ba1b.ctex"]
 
 [params]
 

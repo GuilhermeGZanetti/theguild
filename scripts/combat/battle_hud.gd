@@ -415,7 +415,12 @@ func show_preview(pv: Dictionary, at: Vector2) -> void:
 	for row in pv["targets"]:
 		var b := UIKit.vbox(0)
 		var line := "[b]%s[/b]" % row["name"]
-		if row.has("hit"):
+		if row.get("ally", false):
+			line = "[color=#e86050][b]%s  (ALLY!)[/b][/color]" % row["name"]
+		if row.get("sure", false):
+			line += "   [color=#8cd678][b]Always hits[/b][/color]"
+			line += "\n[color=#e8e0cc]Damage %d-%d[/color]" % [row["dmg_min"], row["dmg_max"]]
+		elif row.has("hit"):
 			var hc: int = row["hit"]
 			var col := "#8cd678" if hc >= 70 else ("#f6cc60" if hc >= 40 else "#e86050")
 			line += "   [color=%s][b]%d%%[/b][/color] hit   [color=#f6cc60]%d%%[/color] crit" % [col, hc, row["crit"]]

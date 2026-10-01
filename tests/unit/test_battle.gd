@@ -108,6 +108,84 @@ func test_downed_members_bleed_out():
 	assert_eq(p.state, "dead")
 
 
+func _mystic(pos: Vector2i) -> BattleUnit:
+	rng.seed = 41
+	var m := Member.create(rng, "mystic", "human", 1, 3)
+	m.traits = []
+	var u := BattleFactory.member_unit(m)
+	u.team = BattleUnit.TEAM_PLAYER
+	u.pos = pos
+	return u
+
+
+func test_area_spells_always_land_and_burn_allies_too():
+	var b := _flat_battle(12, 12)
+	var caster := b.add_unit(_mystic(Vector2i(3, 5)))
+	var ally := b.add_unit(_warrior(0, Vector2i(6, 5)))
+	var downed := b.add_unit(_warrior(0, Vector2i(8, 4)))
+	var foe_a := b.add_unit(_warrior(1, Vector2i(7, 5)))
+	var foe_b := b.add_unit(_warrior(1, Vector2i(7, 6)))
+	b.start()
+	downed.state = "downed"
+	var hit := b.affected(caster, "firebolt", Vector2i(7, 5))
+	assert_true(ally in hit and foe_a in hit and foe_b in hit, "the blast hits whoever stands in it")
+	assert_false(downed in hit, "a Downed ally is spared")
+	assert_false(caster in hit)
+	var pv := b.preview(caster, "firebolt", Vector2i(7, 5))
+	for row in pv["targets"]:
+		assert_eq(int(row["hit"]), 100, "always hits")
+		assert_eq(int(row["crit"]), 0, "never crits")
+		assert_eq(row.get("ally", false), int(row["uid"]) == ally.uid, "the ally is flagged in the preview")
+		assert_gt(int(row["dmg_max"]), 2 * int(row["dmg_min"]), "a wide swing")
+	# no misses over many casts, and every roll inside the previewed range
+	var lo := 9999
+	var hi := 0
+	var pv_foe: Dictionary = {}
+	for row in pv["targets"]:
+		if int(row["uid"]) == foe_a.uid:
+			pv_foe = row
+	for i in 40:
+		foe_a.hp = foe_a.max_hp()
+		foe_a.def_cur = foe_a.max_def()
+		var before := foe_a.hp
+		assert_true(b._resolve_damage(caster, foe_a, DB.skill("firebolt"), DB.skill("firebolt")["effects"][0]))
+		var dmg := before - foe_a.hp
+		lo = mini(lo, dmg)
+		hi = maxi(hi, dmg)
+	assert_between(lo, int(pv_foe["dmg_min"]), int(pv_foe["dmg_max"]))
+	assert_between(hi, int(pv_foe["dmg_min"]), int(pv_foe["dmg_max"]))
+	assert_gt(hi, lo, "damage varies")
+	b._begin_turn(caster)
+	assert_true(b.use_skill(caster, "firebolt", Vector2i(7, 5)))
+	assert_lt(ally.hp, ally.max_hp(), "the ally got burned too")
+	assert_eq(caster.kills, 0)
+
+
+func test_arcane_focus_cuts_the_low_rolls():
+	var b := _flat_battle(12, 12)
+	var caster := b.add_unit(_mystic(Vector2i(3, 5)))
+	b.add_unit(_warrior(1, Vector2i(7, 5)))
+	b.start()
+	var plain: Dictionary = b.preview(caster, "firebolt", Vector2i(7, 5))["targets"][0]
+	caster.mods["spread_floor"] = 1.0
+	var focused: Dictionary = b.preview(caster, "firebolt", Vector2i(7, 5))["targets"][0]
+	assert_gt(int(focused["dmg_min"]), int(plain["dmg_min"]))
+	assert_eq(int(focused["dmg_max"]), int(plain["dmg_max"]))
+
+
+func test_ai_avoids_burning_its_friends():
+	var b := _flat_battle(12, 12)
+	var caster := b.add_unit(_mystic(Vector2i(3, 5)))
+	var ally := b.add_unit(_warrior(0, Vector2i(7, 4)))
+	var foe := b.add_unit(_warrior(1, Vector2i(7, 5)))
+	b.start()
+	var with_ally := b.ai.eval_skill(caster, "firebolt", Vector2i(7, 5), caster.pos)
+	ally.pos = Vector2i(1, 1)
+	var clear := b.ai.eval_skill(caster, "firebolt", Vector2i(7, 5), caster.pos)
+	assert_lt(with_ally, clear * 0.5, "an ally in the blast makes the spell a poor choice")
+	assert_true(foe.alive())
+
+
 func test_overkill_kills_outright():
 	var b := _flat_battle()
 	var p := b.add_unit(_warrior(0, Vector2i(2, 2)))

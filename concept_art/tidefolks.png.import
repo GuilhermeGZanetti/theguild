@@ -3,15 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://dwxiyhusrwrig"
-path="res://.godot/imported/tidefolks.png-398154807ea8ac9df15aa65973ceccea.ctex"
-metadata={
-"vram_texture": false
-}
+valid=false
 
 [deps]
 
 source_file="res://concept_art/tidefolks.png"
-dest_files=["res://.godot/imported/tidefolks.png-398154807ea8ac9df15aa65973ceccea.ctex"]
 
 [params]
 

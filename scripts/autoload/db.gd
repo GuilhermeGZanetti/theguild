@@ -11,7 +11,9 @@ const TIER_MULT: Array[float] = [0.88, 1.0, 1.1, 1.2]
 const TIER_GROWTH: Array[float] = [0.75, 1.0, 1.3, 1.6]
 const TIER_WAGE: Array[float] = [0.75, 1.0, 1.4, 1.9]
 const POTENTIAL_MULT: Array[float] = [0.0, 0.65, 1.0, 1.45]
-const LEVEL_CAP := 10
+## A member who goes on about two quests a week reaches the cap (and the
+## capstone skill) around the end of a 15-20 week campaign.
+const LEVEL_CAP := 7
 ## XP of an ordinary quest: level L -> L+1 takes about 2L - 1 quests.
 const QUEST_XP := 100
 

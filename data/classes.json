@@ -5,8 +5,8 @@
     "growth": {"hp": 12.6, "defense": 2.4, "dodge": 1.05, "speed": 1.35, "crit": 0.9, "attack": 3.0, "accuracy": 3.0, "resolve": 3.6},
     "potential_bias": ["hp", "defense"],
     "branches": {
-      "guardian": {"name": "Guardian", "title": "knight", "skills": ["brace", "iron_hide", "taunt", "bulwark", "shield_wall", "knight_oath", "last_stand", "sentinel", "bastion"]},
-      "warlord": {"name": "Warlord", "title": "berserker", "skills": ["cleave", "battle_hunger", "sunder", "rally", "whirlwind", "bloodlust", "executioner", "headlong_charge", "rampage"]}
+      "guardian": {"name": "Guardian", "title": "knight", "skills": ["brace", "iron_hide", "taunt", "shield_wall", "sentinel", "bastion"]},
+      "warlord": {"name": "Warlord", "title": "berserker", "skills": ["cleave", "battle_hunger", "sunder", "whirlwind", "headlong_charge", "rampage"]}
     }
   },
   "rogue": {
@@ -15,8 +15,8 @@
     "growth": {"hp": 8.4, "defense": 1.05, "dodge": 2.7, "speed": 2.4, "crit": 2.1, "attack": 3.3, "accuracy": 3.3, "resolve": 2.7},
     "potential_bias": ["dodge", "crit"],
     "branches": {
-      "shadow": {"name": "Shadow", "title": "assassin", "skills": ["shadowstep", "evasion", "riposte", "smoke_bomb", "unseen", "vanish", "assassinate", "assassin_creed", "death_blossom"]},
-      "poisoner": {"name": "Poisoner", "title": "venomancer", "skills": ["poisoned_blade", "throwing_knives", "crippling_strike", "flurry", "venom_mastery", "venom_cloud", "envenom", "paralytic", "plague"]}
+      "shadow": {"name": "Shadow", "title": "assassin", "skills": ["shadowstep", "evasion", "smoke_bomb", "unseen", "assassinate", "death_blossom"]},
+      "poisoner": {"name": "Poisoner", "title": "venomancer", "skills": ["poisoned_blade", "throwing_knives", "crippling_strike", "venom_mastery", "venom_cloud", "plague"]}
     }
   },
   "ranger": {
@@ -25,18 +25,18 @@
     "growth": {"hp": 8.1, "defense": 1.05, "dodge": 1.65, "speed": 1.8, "crit": 1.65, "attack": 3.0, "accuracy": 3.9, "resolve": 3.0},
     "potential_bias": ["accuracy", "attack"],
     "branches": {
-      "marksman": {"name": "Marksman", "title": "sharpshooter", "skills": ["steady_hands", "keen_sight", "piercing_shot", "suppress", "sharpshooter_eye", "headshot", "deadeye", "ricochet", "deaths_eye"]},
-      "hunter": {"name": "Hunter", "title": "warden", "skills": ["pinning_arrow", "hunters_mark", "volley", "snare_trap", "warden_watch", "rain_of_arrows", "covering_fire", "predator", "kill_zone"]}
+      "marksman": {"name": "Marksman", "title": "sharpshooter", "skills": ["steady_hands", "piercing_shot", "keen_sight", "sharpshooter_eye", "headshot", "deaths_eye"]},
+      "hunter": {"name": "Hunter", "title": "warden", "skills": ["pinning_arrow", "hunters_mark", "volley", "snare_trap", "predator", "kill_zone"]}
     }
   },
   "mystic": {
-    "name": "Mystic", "role": "Magic damage or healing, by specialization.", "melee": false, "basic": "arcane_bolt", "start_skill": "mend", "look": "mystic", "weapon_family": "staff", "armor_family": "robe", "wage": 13,
+    "name": "Mystic", "role": "Area spells that always land and burn friend and foe alike, or healing and support, by specialization.", "melee": false, "basic": "arcane_bolt", "start_skill": "mend", "look": "mystic", "weapon_family": "staff", "armor_family": "robe", "wage": 13,
     "base": {"hp": 34, "defense": 3, "dodge": 10, "speed": 38, "move": 4, "crit": 8, "attack": 18, "accuracy": 75, "range": 4, "resolve": 50},
     "growth": {"hp": 7.5, "defense": 0.9, "dodge": 1.35, "speed": 1.65, "crit": 1.35, "attack": 3.75, "accuracy": 3.0, "resolve": 4.2},
     "potential_bias": ["attack", "resolve"],
     "branches": {
-      "elemental": {"name": "Elemental", "title": "pyromancer", "skills": ["firebolt", "frost_lance", "pyro_passion", "flame_wave", "arcane_focus", "chain_lightning", "frost_nova", "inferno", "meteor"]},
-      "restoration": {"name": "Restoration", "title": "oracle", "skills": ["purify", "ward", "oracle_sight", "sanctuary", "serenity", "foresight", "resurgence", "guardian_spirit", "rebirth"]}
+      "elemental": {"name": "Evocation", "title": "pyromancer", "skills": ["firebolt", "frost_lance", "pyro_passion", "flame_wave", "arcane_focus", "meteor"]},
+      "restoration": {"name": "Support", "title": "oracle", "skills": ["purify", "ward", "oracle_sight", "foresight", "guardian_spirit", "rebirth"]}
     }
   },
   "tidecaller": {
@@ -45,8 +45,8 @@
     "growth": {"hp": 10.5, "defense": 1.8, "dodge": 1.5, "speed": 1.5, "crit": 1.2, "attack": 3.15, "accuracy": 3.15, "resolve": 3.3},
     "potential_bias": ["hp", "attack"],
     "branches": {
-      "tides": {"name": "Tides", "title": "stormcaller", "skills": ["riptide", "drown", "tidal_grace", "tidal_wave", "flowing_tides", "maelstrom", "drowning_depths", "surge", "tsunami"]},
-      "deep": {"name": "Deep", "title": "leviathan", "skills": ["saltblood", "barbed_harpoon", "anchor_stance", "second_wind", "kraken_grip", "salt_scar", "tidal_surge", "leviathan_hide", "call_of_the_deep"]}
+      "tides": {"name": "Tides", "title": "stormcaller", "skills": ["riptide", "drown", "tidal_wave", "drowning_depths", "maelstrom", "tsunami"]},
+      "deep": {"name": "Deep", "title": "leviathan", "skills": ["saltblood", "barbed_harpoon", "anchor_stance", "kraken_grip", "leviathan_hide", "call_of_the_deep"]}
     }
   },
   "lanternbearer": {
@@ -55,8 +55,8 @@
     "growth": {"hp": 8.4, "defense": 1.05, "dodge": 1.8, "speed": 1.95, "crit": 1.2, "attack": 2.85, "accuracy": 3.45, "resolve": 4.8},
     "potential_bias": ["resolve", "accuracy"],
     "branches": {
-      "light": {"name": "Light", "title": "beaconkeeper", "skills": ["reveal", "cleansing_light", "far_light", "searing_light", "beacon", "sunburst", "wicklight", "judgement", "dawn"]},
-      "archive": {"name": "Archive", "title": "archivist", "skills": ["kindle", "lantern_ward", "memory_ward", "remembrance", "lamplighter", "mass_recall", "shepherd", "keeper_of_names", "unforgetting"]}
+      "light": {"name": "Light", "title": "beaconkeeper", "skills": ["reveal", "cleansing_light", "searing_light", "far_light", "judgement", "dawn"]},
+      "archive": {"name": "Archive", "title": "archivist", "skills": ["kindle", "lantern_ward", "shepherd", "remembrance", "keeper_of_names", "unforgetting"]}
     }
   },
   "graftwarden": {
@@ -66,8 +66,8 @@
     "potential_bias": ["hp", "defense"],
     "passives": ["deep_roots"],
     "branches": {
-      "grove": {"name": "Grove", "title": "oakheart", "skills": ["sap_mend", "bark_hide", "barkskin_surge", "ancient_bark", "verdant_pulse", "heartwood", "grove_sanctuary", "evergreen", "world_tree"]},
-      "thorn": {"name": "Thorn", "title": "briarlord", "skills": ["thornwall", "thorn_lash", "thornmail", "vine_snare", "bramble_burst", "grasping_grove", "rootquake", "impaling_thorns", "thornstorm"]}
+      "grove": {"name": "Grove", "title": "oakheart", "skills": ["sap_mend", "bark_hide", "barkskin_surge", "verdant_pulse", "heartwood", "world_tree"]},
+      "thorn": {"name": "Thorn", "title": "briarlord", "skills": ["thorn_lash", "thornwall", "thornmail", "vine_snare", "impaling_thorns", "thornstorm"]}
     }
   },
   "sandreaver": {
@@ -76,8 +76,8 @@
     "growth": {"hp": 9.0, "defense": 1.5, "dodge": 2.25, "speed": 2.25, "crit": 2.25, "attack": 3.45, "accuracy": 3.15, "resolve": 2.4},
     "potential_bias": ["crit", "attack"],
     "branches": {
-      "dunes": {"name": "Dunes", "title": "dunestrider", "skills": ["burrow", "sandblast", "dune_dancer", "sandstep", "mirage_step", "sand_tomb", "dust_devil", "dune_ambush", "sunken_strike"]},
-      "glass": {"name": "Glass", "title": "glasswright", "skills": ["shard_toss", "razor_edge", "glass_flurry", "fracture", "glass_heart", "bleeding_edge", "shatterstorm", "kiln_fired", "thousand_shards"]}
+      "dunes": {"name": "Dunes", "title": "dunestrider", "skills": ["burrow", "sandblast", "dune_dancer", "mirage_step", "sand_tomb", "sunken_strike"]},
+      "glass": {"name": "Glass", "title": "glasswright", "skills": ["shard_toss", "razor_edge", "glass_flurry", "fracture", "glass_heart", "thousand_shards"]}
     }
   }
 }

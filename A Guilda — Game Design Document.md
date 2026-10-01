@@ -45,7 +45,7 @@ Base classes (proposal):
 |Warrior|Frontline, holds ZOC, protects allies|HP, Defense|
 |Rogue|Flanker, burst damage, debuffs|Dodge, Crit, Movement|
 |Ranger|Ranged damage, overwatch|Accuracy, Range|
-|Mystic|Magic damage or healing, by specialization|Attack, Range|
+|Mystic|Area spells that always land and hit allies too, or healing and support, by specialization|Attack, Range|
 
 ### Stats
 
@@ -85,7 +85,7 @@ Members can gain new traits from events: surviving a near-death hit, killing a b
 
 ### Character Skills
 
-* Each class has a skill tree with 2 branches (e.g. Mystic: Elemental or Restoration).
+* Each class has a skill tree with 2 branches of 6 skills, one per level from 2 to 7 (e.g. Mystic: Evocation or Support).
 * Members start with 1 active skill and gain a skill point per level.
 * Skills can also be learned in the guild with gold, with level requirements (see Guild Resources).
 * Active skills have cooldowns in turns. Passive skills are always on.
@@ -203,7 +203,7 @@ Tier and potential are partially hidden at recruitment. The Recruiter facility r
 
 * XP comes from quests. Level cap: 20 (proposal).
 * On level up: stats grow by tier and potential, plus 1 skill point.
-* At level 10, members pick a subclass (e.g. Warrior → Knight or Berserker).
+* At level 7 (the cap), members pick a subclass (e.g. Warrior → Knight or Berserker).
 * Veterans demand higher wages as they level.
 
 ### Member Recruitment

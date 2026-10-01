@@ -220,7 +220,7 @@ func _skills(v: VBoxContainer) -> void:
 		var title: String = DB.subclasses.get(bd.get("title", ""), {}).get("name", "")
 		var hl := UIKit.rich("[color=#%s]%s[/color]  [color=#%s]→ %s[/color]" % [hex(UITheme.GOLD), bd["name"], hex(UITheme.TEXT_DIM), title], 206, 10)
 		hl.custom_minimum_size.x = 206
-		hl.tooltip_text = "Taking the level 10 %s skill makes %s a %s.\n%s" % [bd["name"], m.name.split(" ")[0], title,
+		hl.tooltip_text = "Taking the level %d %s skill makes %s a %s.\n%s" % [DB.LEVEL_CAP, bd["name"], m.name.split(" ")[0], title,
 			DB.subclasses.get(bd.get("title", ""), {}).get("desc", "")]
 		head.add_child(hl)
 	v.add_child(head)

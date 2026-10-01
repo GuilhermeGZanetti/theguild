@@ -29,7 +29,7 @@ const OLD_HUMAN := {"a": ["f", "a"], "b": ["m", "a"], "c": ["f", "b"]}
 const CONFLICTS := [["tough", "frail"], ["swift", "sluggish"], ["frugal", "greedy"], ["fast_learner", "dullard"], ["brave", "coward"], ["hardy", "slow_healer"], ["keen", "clumsy"]]
 const GROWTH_STATS := ["hp", "defense", "dodge", "speed", "crit", "attack", "accuracy", "resolve"]
 const LOADOUT := 5          # active skills carried into battle besides the basic attack
-const PROGRESSION := 2      # bump when leveling rules change: older saves are converted
+const PROGRESSION := 3      # bump when leveling rules change: older saves are converted
 
 var id := 0
 var name := ""
@@ -348,7 +348,7 @@ func add_xp(amount: int, rng: RandomNumberGenerator) -> Array:
 
 
 ## Levels are rare, so each one is a big step: the class growth per level is
-## tuned for ten levels, not twenty.
+## tuned for a handful of levels, not twenty.
 func _level_up(rng: RandomNumberGenerator) -> Dictionary:
 	level += 1
 	var g: Dictionary = class_data()["growth"]
@@ -364,7 +364,7 @@ func _level_up(rng: RandomNumberGenerator) -> Dictionary:
 	return {"level": level, "gains": gains}
 
 
-## Skill tree: each level from 2 to 10 opens a row with one skill from each of
+## Skill tree: each level from 2 to the cap opens a row with one skill from each of
 ## the class's two branches. A member takes one skill per row, never both.
 func tree_rows() -> Array:
 	return DB.tree_rows(cls)
@@ -444,7 +444,7 @@ func swap_pick(row: int) -> String:
 	return ""
 
 
-## The level-10 skill makes the member a Knight, an Oracle... of its branch.
+## The top-row skill (the capstone) makes the member a Knight, an Oracle... of its branch.
 func _update_title() -> void:
 	subclass = ""
 	for s in row_skills(DB.LEVEL_CAP):
@@ -495,7 +495,7 @@ func active_skills() -> Array:
 	return out
 
 
-## Saves from before the ten-level trees: the old XP converts to the new, slower
+## Saves from before the XP curve: the old XP converts to the new, slower
 ## curve (about 200 old XP per quest), grown stats rescale to the bigger
 ## level-ups and every skill that still fits a free row of the new tree stays.
 func _migrate_progression(old_level: int) -> void:
@@ -511,6 +511,25 @@ func _migrate_progression(old_level: int) -> void:
 		var k := float(level - 1) * 3.0 / float(old_level - 1)
 		for s in grown:
 			grown[s] = float(roundi(float(grown[s]) * k))
+	_refit_skills()
+	prog = PROGRESSION
+
+
+## Saves from the ten-level trees (nine skills a branch) to the seven-level ones
+## (six a branch): levels above the cap come down to it, grown stats are kept,
+## and skills that left the trees or now share a row free that row for a new pick.
+func _migrate_short_trees() -> void:
+	if level >= DB.LEVEL_CAP:
+		level = DB.LEVEL_CAP
+		xp = 0
+	_refit_skills()
+	prog = PROGRESSION
+
+
+## Rebuilds the learned skills on the current trees: the start skill and class
+## passives, then every old tree skill that still exists, fits the level and
+## has its row free. The loadout keeps its order where it can.
+func _refit_skills() -> void:
 	var old_skills := skills.duplicate()
 	skills = []
 	var start: String = class_data().get("start_skill", "")
@@ -531,7 +550,6 @@ func _migrate_progression(old_level: int) -> void:
 		if not s in loadout and not DB.skill(s).get("passive", false) and loadout.size() < LOADOUT:
 			loadout.append(s)
 	_update_title()
-	prog = PROGRESSION
 
 
 # ------------------------------------------------------------------ injuries
@@ -595,8 +613,10 @@ static func from_dict(d: Dictionary) -> Member:
 	if m.gender == "" and m.race in PLAYABLE:
 		var parts := m.variant.split("_")
 		m.gender = parts[2] if parts.size() > 2 and parts[2] in ["m", "f"] else "m"
-	if m.prog < PROGRESSION and DB.classes.has(m.cls):
+	if m.prog < 2 and DB.classes.has(m.cls):
 		m._migrate_progression(m.level)
+	elif m.prog < PROGRESSION and DB.classes.has(m.cls):
+		m._migrate_short_trees()
 	if not DB.subclasses.has(m.subclass):
 		m.subclass = ""
 	if int(m.palette.get("v", 1)) < PALETTE_VERSION and DB.races.has(m.race) and DB.classes.has(m.cls):

@@ -5,7 +5,7 @@
   "venomancer": {"name": "Venomancer", "class": "rogue", "branch": "poisoner", "desc": "Every wound festers.", "stat": {"accuracy": 3, "dodge": 3}},
   "sharpshooter": {"name": "Sharpshooter", "class": "ranger", "branch": "marksman", "desc": "Longer reach and deadlier shots.", "stat": {"accuracy": 5}},
   "warden": {"name": "Warden", "class": "ranger", "branch": "hunter", "desc": "Master of overwatch and area denial.", "stat": {"speed": 4, "resolve": 5}},
-  "pyromancer": {"name": "Pyromancer", "class": "mystic", "branch": "elemental", "desc": "Fire that clings and spreads.", "stat": {"attack": 3}},
+  "pyromancer": {"name": "Pyromancer", "class": "mystic", "branch": "elemental", "desc": "Fire that falls where it will and spreads.", "stat": {"attack": 3}},
   "oracle": {"name": "Oracle", "class": "mystic", "branch": "restoration", "desc": "Sees a moment ahead. Stronger heals and steady allies.", "stat": {"resolve": 8, "hp": 6}},
   "stormcaller": {"name": "Stormcaller", "class": "tidecaller", "branch": "tides", "desc": "Commands the sea itself.", "stat": {"attack": 2, "accuracy": 3}},
   "leviathan": {"name": "Leviathan", "class": "tidecaller", "branch": "deep", "desc": "As hard to move as the deep.", "stat": {"hp": 10, "defense": 2}},
