@@ -56,3 +56,20 @@ func test_hush_stages():
 	assert_eq(Rules.hush_stage(50), 2)
 	assert_eq(Rules.hush_stage(75), 3)
 	assert_eq(Rules.hush_stage(100), 4)
+
+
+func test_skulls_follow_the_calendar():
+	assert_almost_eq(Rules.expected_level(1), 1.0, 0.001)
+	assert_between(Rules.expected_level(5), 4.0, 4.5, "two quests a week: level 4 by week 5")
+	assert_almost_eq(Rules.expected_level(30), float(Rules.MAX_SKULLS), 0.001, "never past the level cap")
+	for week in range(1, 31):
+		var lo := Rules.quest_skulls(week, 0.0)
+		var mid := Rules.quest_skulls(week, 0.5)
+		var hi := Rules.quest_skulls(week, 0.99)
+		assert_true(lo <= mid and mid <= hi, "easier rolls give fewer skulls")
+		assert_between(lo, 1, Rules.MAX_SKULLS)
+		assert_between(hi, 1, Rules.MAX_SKULLS)
+		assert_lte(hi - mid, 1, "at most one skull past the week's level")
+	assert_eq(Rules.quest_skulls(1, 0.5), 1, "week one: one-skull quests for level-1 members")
+	assert_eq(Rules.quest_skulls(16, 0.5), Rules.MAX_SKULLS, "the end of a campaign: level-7 danger")
+	assert_lte(Rules.quest_skulls(16, 0.0), 5, "late weeks still post easier quests")

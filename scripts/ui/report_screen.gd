@@ -188,6 +188,9 @@ func _member_row(m: Member, delay: float) -> Control:
 	var inj: Dictionary = rep["injuries"].get(m.id, rep["injuries"].get(str(m.id), {}))
 	if not inj.is_empty():
 		var s := "[color=#%s]%s injury: out for %d week%s.[/color]" % [UITheme.RED.to_html(false), inj.get("kind", "light").capitalize(), int(inj["weeks"]), "" if int(inj["weeks"]) == 1 else "s"]
+		if inj.get("cause", "") == "wounds":
+			s = "[color=#%s]Took a beating (%d HP lost in all). Light injury: out for %d week%s.[/color]" % [UITheme.RED.to_html(false),
+				int(inj.get("lost", 0)), int(inj["weeks"]), "" if int(inj["weeks"]) == 1 else "s"]
 		if inj.get("permanent", "") != "":
 			s += " [color=#%s]Permanent: %s.[/color]" % [UITheme.RED.to_html(false), DB.traits[inj["permanent"]]["name"]]
 		notes.append(s)

@@ -24,7 +24,8 @@ func screen_title() -> String:
 
 
 func subtitle() -> String:
-	return "Week %d · %d members ready · max squad %d" % [campaign.week, campaign.available_members(1).size(), campaign.squad_cap()]
+	return "Week %d · %d of %d days left · %d members ready · max squad %d" % [campaign.week, campaign.days_left(), Campaign.WEEK_DAYS,
+		campaign.available_members().size(), campaign.squad_cap()]
 
 
 func build() -> void:
@@ -343,9 +344,12 @@ func _map_summary(m: Dictionary) -> Control:
 func _assemble_button(m: Dictionary) -> Button:
 	var mid := int(m["id"])
 	var b := UIKit.button("Assemble Squad", func(): hub.open_screen("squad", {"mission": mid}), "btn_green", 110)
-	if campaign.available_members(int(m["days"])).is_empty():
+	if not campaign.fits_week(m):
 		b.disabled = true
-		b.tooltip_text = "Nobody has %d free days this week." % int(m["days"])
+		b.tooltip_text = "It takes %d days; the guild has %d left this week." % [int(m["days"]), campaign.days_left()]
+	elif campaign.available_members().is_empty():
+		b.disabled = true
+		b.tooltip_text = "Nobody is fit to march."
 	return b
 
 

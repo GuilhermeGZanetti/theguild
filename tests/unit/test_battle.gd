@@ -319,6 +319,50 @@ func test_being_spotted_starts_combat_for_that_pod_only():
 	assert_eq(b.phase, "explore", "back to exploring once the pod is dead")
 
 
+func test_exploring_members_walk_on_after_seeing_an_enemy():
+	var b := _explore_battle()
+	var p: BattleUnit = b.explore_units()[0]
+	b.explore_select(p)
+	# blind patrols: nobody gets spotted, so only seeing them could stop the walk
+	for o in b.units:
+		if o.team == BattleUnit.TEAM_ENEMY:
+			b._add_status(o, "blind", 9, 0, null)
+	var reach := b.reachable_with_run(p)
+	var dest := p.pos
+	for c in reach:
+		if not reach[c].get("pass_only", false) and int(reach[c]["cost"]) <= b.move_budget(p) \
+				and int(reach[c]["cost"]) > int(reach[dest]["cost"]):
+			dest = c
+	var path := b.path_to(p, dest, reach)
+	assert_gt(path.size(), 1, "the member has somewhere to walk")
+	# an enemy hidden in the fog that comes into view before the walk ends
+	var e: BattleUnit = b.unit(b.pods[0]["units"][0])
+	var start := p.pos
+	var hide := Vector2i(-1, -1)
+	for k in path.size() - 1:
+		p.pos = path[k]
+		for c in b._cells_seen_from(p):
+			if not b.vis.has(c) and not c in path and b.grid.standable(c) and b.unit_at(c) == null:
+				hide = c
+				break
+		if hide != Vector2i(-1, -1):
+			break
+	p.pos = start
+	assert_ne(hide, Vector2i(-1, -1), "found a fogged cell the walk reveals")
+	e.pos = hide
+	assert_false(b.is_seen(e), "the enemy starts unseen")
+	b.pop_events()
+	assert_true(b.do_move(p, dest))
+	assert_true(b.is_seen(e), "the walk revealed the enemy")
+	assert_eq(p.pos, dest, "the member keeps walking to the chosen tile")
+	assert_eq(b.phase, "explore", "seeing an unaware pod does not start combat")
+	var floats: Array = []
+	for ev in b.pop_events():
+		if ev["t"] == "float":
+			floats.append(ev["text"])
+	assert_true("Enemy spotted!" in floats, "the sighting is still announced")
+
+
 func test_unaware_targets_are_flanked():
 	var b := _explore_battle()
 	var e: BattleUnit = b.unit(b.pods[0]["units"][0])
@@ -344,3 +388,50 @@ func test_final_battle_has_no_fog():
 	var b := _explore_battle("final", "unremembered")
 	assert_false(b.fog)
 	assert_false(b.explore)
+
+
+## A Normal member with average potential, no traits, every skill row taken
+## from one branch and the gear of its level (Worn, then Steel at 3,
+## Masterwork at 5 and Relic at 7).
+func _reference(cls: String, level: int, branch := "") -> BattleUnit:
+	rng.seed = 4242 + level
+	var m := Member.create(rng, cls, "human", 1)
+	m.traits = []
+	for k in Member.GROWTH_STATS:
+		m.potential[k] = 2
+	for i in level - 1:
+		m._level_up(rng)
+	if branch == "":
+		branch = m.class_data()["branches"].keys()[0]
+	for row in m.open_rows():
+		for s in m.row_skills(row):
+			if DB.branch_of(s) == branch:
+				m.pick(s)
+	var t := clampi(1 + (level - 1) / 2, 1, 4)
+	m.equipment["weapon"] = Items.weapon(m.class_data()["weapon_family"], t)
+	m.equipment["armor"] = Items.armor(m.class_data()["armor_family"], t)
+	return BattleFactory.member_unit(m)
+
+
+## Basic attacks of average damage, no crits, until `o` drops.
+func _hits_to_drop(att: BattleUnit, o: BattleUnit) -> int:
+	var eff: Dictionary = DB.skill(att.basic)["effects"][0]
+	var hp := float(o.max_hp())
+	var d := o.max_def()
+	var n := 0
+	while hp > 0.0 and n < 40:
+		var r := Rules.apply_defense(att.stat("attack") * float(eff.get("mult", 1.0)), d, float(eff.get("pierce", 0.0)))
+		hp -= float(r["damage"])
+		d -= float(r["wear"])
+		n += 1
+	return n
+
+
+func test_a_quest_of_n_skulls_hits_like_level_n():
+	## The blows of a skull-N brigand against level-N members, and back.
+	for level in [1, 3, 5, 7]:
+		var e := BattleFactory.enemy_unit("brigand", level, 0, rng, 1)
+		for cls in ["ranger", "mystic"]:
+			assert_between(_hits_to_drop(e, _reference(cls, level)), 1, 3, "a level-%d %s falls in 1-3 hits" % [level, cls])
+		assert_between(_hits_to_drop(e, _reference("warrior", level, "guardian")), 3, 7, "a level-%d Guardian takes 3-7 hits" % level)
+		assert_between(_hits_to_drop(_reference("warrior", level, "warlord"), e), 3, 5, "the brigand takes 3-5 hits at skull %d" % level)

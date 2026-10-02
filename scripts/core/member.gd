@@ -48,7 +48,7 @@ var loadout: Array = []
 var prog := PROGRESSION
 var equipment := {"weapon": {}, "armor": {}, "trinket": {}}
 var injury := {}
-var days_used := 0
+var days_used := 0          # days out on missions this week (0: stayed home and trained)
 var history := {"quests": 0, "kills": 0, "near_deaths": 0, "joined": 1, "downed": 0}
 var gender := ""   # "m" or "f": which of the class's two models this member uses
 var variant := ""
@@ -301,15 +301,12 @@ func wage() -> int:
 
 
 func compute_hire_cost() -> int:
-	return roundi(wage() * 4.0 + level * 20)
+	# about two months of wages: hiring is an investment, not a reflex
+	return roundi(wage() * 8.0 + level * 30)
 
 
 func is_available() -> bool:
 	return status == "active" and injury.is_empty()
-
-
-func days_left() -> int:
-	return 7 - days_used
 
 
 func xp_needed() -> int:
@@ -556,7 +553,7 @@ func _refit_skills() -> void:
 func injure(kind: String, rng: RandomNumberGenerator, nursery_speed: float, extra_weeks: int = 0) -> Dictionary:
 	var weeks := 1
 	if kind == "serious":
-		weeks = rng.randi_range(2, 4)
+		weeks = rng.randi_range(2, 5)
 	var m := mods()
 	var f := (1.0 + float(m.get("heal_pct", 0.0))) * (1.0 - nursery_speed)
 	weeks = maxi(1, roundi(weeks * f) + extra_weeks)

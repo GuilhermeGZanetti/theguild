@@ -3,10 +3,15 @@ extends RefCounted
 ## The whole guild-management state and weekly simulation. Headless.
 
 const FACTIONS := ["saltborn", "lantern", "rootwardens", "glass"]
+## Days the guild can spend on missions each week, however many members it
+## has: two to four missions, three on average. The rest of the roster covers
+## for the injured.
+const WEEK_DAYS := 7
 const START_GOLD := [420, 320, 240]
 
 var guild_name := "The Guild"
 var week := 1
+var days_used := 0          # the guild's mission days spent this week
 var gold := 320
 var renown := 0
 var materials := 4
@@ -112,12 +117,23 @@ func active_members() -> Array:
 	return out
 
 
-func available_members(days := 1) -> Array:
+## Members fit to march: active and not injured. Days belong to the guild,
+## not to each member.
+func available_members() -> Array:
 	var out: Array = []
 	for m in roster:
-		if m.is_available() and m.days_left() >= days:
+		if m.is_available():
 			out.append(m)
 	return out
+
+
+func days_left() -> int:
+	return maxi(0, WEEK_DAYS - days_used)
+
+
+## Can the guild still fit this mission into the week?
+func fits_week(mission: Dictionary) -> bool:
+	return int(mission["days"]) <= days_left()
 
 
 func price_mult() -> float:
@@ -530,7 +546,8 @@ func generate_board() -> void:
 			var cm := _make_mission("chain", DB.factions[f]["region"], f)
 			cm["chain_step"] = step
 			cm["title"] = DB.factions[f]["chain"][step]
-			cm["skulls"] = clampi(3 + step, 1, 5)
+			# a trusted faction asks for the week's level of danger, then a step past it
+			cm["skulls"] = mini(Rules.quest_skulls(week, 0.5) + step, Rules.MAX_SKULLS)
 			board.append(cm)
 	# story
 	var sid := next_story()
@@ -645,14 +662,13 @@ func _make_mission(cat: String, region: String, faction := "") -> Dictionary:
 	var obj: String = objs[rng.randi() % objs.size()]
 	if faction == "":
 		faction = DB.regions[region]["faction"]
-	var max_sk := Rules.max_skulls(rank())
-	var sk := clampi(1 + rank() + rng.randi_range(-1, 1), 1, max_sk)
-	if cat in ["breach", "crisis", "rivalry"]:
-		sk = clampi(sk + (1 if rng.randf() < 0.4 else 0), 1, max_sk)
+	var sk := Rules.quest_skulls(week, rng.randf())
+	if cat in ["breach", "crisis", "rivalry"] and rng.randf() < 0.4:
+		sk = mini(sk + 1, Rules.quest_skulls(week, 0.99))   # never past the week's hardest
 	if cat == "training":
 		sk = maxi(1, sk - 1)
 	if faction != "" and int(factions.get(faction, {}).get("rep", 0)) <= -2:
-		sk = mini(5, sk + 1)
+		sk = mini(Rules.MAX_SKULLS, sk + 1)
 	var days := rng.randi_range(int(cd["days"][0]), int(cd["days"][1]))
 	var place: Array = DB.regions[region]["places"]
 	var place_name: String = place[rng.randi() % place.size()]
@@ -676,7 +692,7 @@ func _make_mission(cat: String, region: String, faction := "") -> Dictionary:
 	var m := {
 		"id": next_mission_id, "title": title, "category": cat, "objective": obj, "region": region,
 		"faction": faction, "skulls": sk, "days": days, "seed": rng.randi(), "place": place_name, "elite": elite_id,
-		"turns": 5 + sk, "caches": 3, "hush_map": int(regions[region]["hush"]), "par_rounds": 6 + sk,
+		"turns": 5 + (sk + 1) / 2, "caches": 3, "hush_map": int(regions[region]["hush"]), "par_rounds": 6 + sk,
 		"reward": {"gold": g, "renown": 3 + 3 * sk},
 		"desc": cd["desc"],
 	}
@@ -730,6 +746,8 @@ func mission_by_id(mid: int) -> Dictionary:
 
 
 func can_launch(mission: Dictionary, squad: Array) -> String:
+	if not fits_week(mission):
+		return "The guild has only %d day%s left this week." % [days_left(), "" if days_left() == 1 else "s"]
 	if squad.is_empty():
 		return "Choose at least one member."
 	if squad.size() > squad_cap():
@@ -737,8 +755,6 @@ func can_launch(mission: Dictionary, squad: Array) -> String:
 	for m in squad:
 		if not m.is_available():
 			return "%s cannot go." % m.name
-		if m.days_left() < int(mission["days"]):
-			return "%s does not have %d days left this week." % [m.name, int(mission["days"])]
 	return ""
 
 
@@ -762,6 +778,7 @@ func finish_mission(mission: Dictionary, battle: Battle) -> Dictionary:
 		"injuries": {}, "deaths": [], "items": [], "materials": 0, "hush": 0, "faction": [], "story": "", "recruit": "",
 		"lost_items": [], "traits": {}, "bonus": battle.bonus}
 	stats["missions"] += 1
+	days_used += int(mission["days"])
 	var victory := battle.result == "victory"
 	var squad_units: Array = []
 	for u in battle.units:
@@ -851,13 +868,20 @@ func finish_mission(mission: Dictionary, battle: Battle) -> Dictionary:
 		if u.was_downed:
 			m.history["near_deaths"] += 1
 			m.history["downed"] += 1
-			var serious_ch: float = [0.25, 0.4, 0.55][difficulty]
+			var serious_ch: float = Rules.DOWNED_SERIOUS[difficulty]
 			var kind := "serious" if rng.randf() < serious_ch else "light"
 			var extra := -1 if flags.get("healing_sap", false) and kind == "serious" else 0
 			var inj := m.injure(kind, rng, nursery_speed(), extra)
+			inj["cause"] = "downed"
 			rep["injuries"][m.id] = inj
 			if rng.randf() < 0.25 and m.add_trait("survivor"):
 				rep["traits"][m.id] = "survivor"
+		elif rng.randf() < Rules.wound_chance(u.hp_lost, u.max_hp()):
+			# took a beating, even if a healer patched it up during the fight
+			var inj := m.injure("light", rng, nursery_speed())
+			inj["cause"] = "wounds"
+			inj["lost"] = u.hp_lost
+			rep["injuries"][m.id] = inj
 		if u.kills > 0:
 			for o in battle.units:
 				pass
@@ -1091,6 +1115,7 @@ func end_week() -> Dictionary:
 	rep["hush_after"] = hush
 	rep["stage_after"] = hush_stage()
 	week += 1
+	days_used = 0
 	for m in roster:
 		m.days_used = 0
 	roll_recruits()
@@ -1256,7 +1281,7 @@ func to_dict() -> Dictionary:
 		"hush": hush, "difficulty": difficulty, "ironman": ironman, "act": act, "story_done": story_done,
 		"final_unlocked": final_unlocked, "roster": ros, "dead": dead, "recruits": rec, "next_member_id": next_member_id,
 		"facilities": facilities, "factions": factions, "regions": regions, "board": board, "inventory": inventory,
-		"unpaid_weeks": unpaid_weeks, "flags": flags, "chronicle": chronicle, "pending_events": pending_events,
+		"unpaid_weeks": unpaid_weeks, "days_used": days_used, "flags": flags, "chronicle": chronicle, "pending_events": pending_events,
 		"stats": stats, "seeds": sd, "game_over": game_over, "ending": ending, "rng_state": str(rng.state), "rng_seed": str(rng.seed),
 		"next_mission_id": next_mission_id, "shop": shop, "week_deaths": week_deaths, "tutorial_seen": tutorial_seen,
 	}
@@ -1300,6 +1325,11 @@ static func from_dict(d: Dictionary) -> Campaign:
 				m[k] = int(m[k])
 	c.inventory = d["inventory"]
 	c.unpaid_weeks = int(d["unpaid_weeks"])
+	# saves from before the guild-wide week: the busiest member's days
+	var busiest := 0
+	for m in c.roster:
+		busiest = maxi(busiest, m.days_used)
+	c.days_used = int(d.get("days_used", busiest))
 	c.flags = d["flags"]
 	c.chronicle = d["chronicle"]
 	c.pending_events = d["pending_events"]

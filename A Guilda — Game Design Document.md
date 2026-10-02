@@ -58,7 +58,7 @@ Stats are numbers that directly affect combat. All stats except Cooldown Reducti
 |Dodge|Reduces the enemy's chance to hit.|
 |Speed|How soon the character acts again after a turn. Higher speed = earlier and more turns.|
 |Movement|Tiles the character can move per turn.|
-|Crit Chance|Chance that an attack or a defense is critical. Critical attack = double damage. Critical defense = half damage taken.|
+|Crit Chance|Chance that an attack or a defense is critical. Critical attack = one and a half times the damage. Critical defense = half damage taken.|
 |Attack|Damage for all attack types: physical, ranged and magical.|
 |Accuracy|Chance to hit with any attack type.|
 |Range|How far the character can target attacks or skills. Also applies to melee skills.|
@@ -143,12 +143,13 @@ This is the core of the XCOM-like tension.
 
 * At 0 HP a member is **Downed**, not dead. They bleed out in 3 turns unless stabilized by an ally (Action, adjacent) or a healing skill.
 * Hits on a Downed member, or overkill damage above 50% of max HP, kill instantly.
-* Members who were Downed receive an injury after the quest:
+* Members who were Downed receive an injury after the quest (serious 40% / 55% / 70% of the time by difficulty, light otherwise).
+* Members who lost half their max HP or more over the battle, even if healed back up, may get a light injury: 20% at half, 50% at a full bar, up to 80%.
 
 |Injury|Recovery|Effect|
 |-|-|-|
 |Light|1 week|Cannot go on quests|
-|Serious|2–4 weeks|Cannot go on quests|
+|Serious|2–5 weeks|Cannot go on quests|
 |Permanent (10% chance on serious)|Never|Stat penalty or negative trait, e.g. lost eye (−15 Accuracy)|
 
 * Dead members are gone. Their equipment is lost unless an ally carries the body to extraction.
@@ -250,10 +251,11 @@ Each week the board offers more missions than the guild can take. Taking one clo
 **Weekly board**
 
 * 4–6 missions per week, each tied to a region and usually to a faction.
-* Missions last 1–5 days. Members on a mission are unavailable, so roster size and injuries limit how many missions fit in a week.
+* Missions last 1–4 days, and the guild has 7 days a week however many members it has: two to four missions, three on average. A bigger roster does not take more missions; it covers for the injured.
 * Some missions are **conflicting pairs**: escort a Saltborn convoy or raid it for the Glass Caravans. Taking one cancels the other.
 * Unchosen missions expire at the end of the week and trigger their "if ignored" effect.
-* Each mission shows region, faction, difficulty (1–5 skulls), duration, reward and its consequence if ignored.
+* Each mission shows region, faction, difficulty (1–7 skulls), duration, reward and its consequence if ignored.
+* **Skulls are member levels.** A skull-N quest is a hard fight for four level-N members: more enemies, and enemies whose blows, hide and pace keep step with a level-N member and that level's gear. The board follows the calendar, not the guild's fortunes: most quests match the level a member on two quests a week has reached by then (level 4 around week 5, level 7 around week 16), about a third are one or two skulls easier and one in five is a skull harder.
 
 **Mission categories**
 
@@ -489,7 +491,7 @@ Rules:
 
 ### Music and Sound Effects
 
-* **Music:** medieval folk (lute, fiddle, flute) in the guild; tense percussion and strings in combat; adaptive layers that rise with danger.
+* **Music:** medieval folk (lute, fiddle, flute) in the guild; a battle theme for horns and strings over war drums in combat; adaptive layers that rise with danger.
 * **Sound effects:** distinct sounds for hit, miss, critical, block and armor break, so outcomes read by ear.
 * **Death:** a short, silent moment and a unique sting when a member dies.
 * **Voices:** short barks per member in combat (no full voice acting).

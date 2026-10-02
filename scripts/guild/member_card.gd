@@ -65,8 +65,6 @@ static func status_text(m: Member) -> String:
 	if not m.injury.is_empty():
 		var w := int(m.injury["weeks"])
 		return "[color=#%s]%s injury · %d week%s[/color]" % [UITheme.RED.to_html(false), m.injury.get("kind", "light").capitalize(), w, "" if w == 1 else "s"]
-	if m.days_left() < 7:
-		return "[color=#%s]%d/7 days free[/color]" % [UITheme.TEXT_DIM.to_html(false), m.days_left()]
 	return "[color=#%s]Ready[/color]" % UITheme.GREEN.to_html(false)
 
 

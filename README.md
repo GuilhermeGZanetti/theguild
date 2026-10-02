@@ -2,7 +2,7 @@
 
 A turn-based tactics and guild management game in the spirit of XCOM and Battle Brothers, drawn in 3D pixel art.
 
-You inherit an abandoned tavern in Carrow, an emblem no one can identify and a ledger full of blank pages. Recruit adventurers, send squads on missions, keep the four factions of Ambral alive and hold back **the Hush**, a grey silence that erases places and people from memory. Every week there are more missions than members. Whatever you leave on the board has a price.
+You inherit an abandoned tavern in Carrow, an emblem no one can identify and a ledger full of blank pages. Recruit adventurers, send squads on missions, keep the four factions of Ambral alive and hold back **the Hush**, a grey silence that erases places and people from memory. Every week there are more missions than days to spend on them. Whatever you leave on the board has a price.
 
 The full design is in [`A Guilda — Game Design Document.md`](A%20Guilda%20—%20Game%20Design%20Document.md).
 
@@ -15,7 +15,7 @@ Download a build, or open the project in **Godot 4.7.2** and press Play (main sc
 | Guild hub | Click a facility in the tavern or use the buttons on the left. Q/E rotate, wheel zooms, WASD pans. |
 | Battle | Click a blue tile to move and click an enemy to attack. Keys 1–6 pick skills; right-click or Esc cancels. F defends, V sets overwatch, T waits, G stabilizes, C carries, X extracts, R interacts and Space ends the turn. While exploring, Tab (or a portrait) picks the next member and Space ends the squad turn. Q/E rotate, wheel zooms, WASD or middle-drag pans. |
 
-**The loop.** Each week every member has 7 days to spend on missions. Pick missions on the Quest Board, where each one is pinned as the client's letter, and assemble a squad. Fight, then read the post-quest report for rewards, XP, injuries and deaths. **End Week** pays wages, heals the injured, refreshes recruits and the board, and lets the Hush advance.
+**The loop.** Each week the guild has 7 days to spend on missions, however many members it has: missions last 1 to 4 days, so two to four of them fit, three on average. The rest of the roster covers for the injured. Pick missions on the Quest Board, where each one is pinned as the client's letter, and assemble a squad. Fight, then read the post-quest report for rewards, XP, injuries and deaths. **End Week** pays wages, heals the injured, refreshes recruits and the board, and lets the Hush advance.
 
 **How you lose.** The game ends if:
 
@@ -29,6 +29,8 @@ Download a build, or open the project in **Godot 4.7.2** and press Play (main sc
 **Exploration.** Hunt, clear, escort, rescue and retrieve missions take place on large maps under fog. You see the ground but not who stands on it, and the fog lifts around your members. Until a patrol spots you, the squad explores: move every member, end the squad turn, and the patrols walk their beat. Red tiles show where an unaware enemy would see you. When one enemy spots a member, its whole group joins and combat begins for that group only, on the usual timeline; other patrols keep walking until they see you too. Striking an unaware enemy counts as a flank. Hunt targets and caches wait in a far final area at the end of a marked trail. Defense and survive missions stay single fights, but the enemy comes out of the fog.
 
 **Leveling.** Every quest gives 100 XP. Level 2 takes one quest, level 3 three more, level 4 five more, and so on up to level 7: 36 quests in all, or about 30 with kill and bonus XP, so a member who goes on two quests a week reaches it near the end of a campaign. Each class has two skill trees of six rows (levels 2 to 7). Each row offers one skill from each tree: learn one of the two, never both, and mix trees freely from row to row. With a Library you can retrain a row for gold. The level-7 skills are the strongest, and the tree of your level-7 skill gives the member its subclass title.
+
+**Skulls.** A quest's skulls (1 to 7) are member levels: a skull-N quest is a hard fight for four level-N members. Each skull past the first brings about half an enemy more and makes every enemy keep step with a member one level up: +27% HP and Attack, +25% Defense, +4 Accuracy, +2 Dodge, Speed and Crit. At matching levels an ordinary enemy drops a Ranger or Mystic in about three hits, a Warrior in five or six, and takes three to five hits itself (a critical hit deals one and a half times the damage); elites take seven or eight. The board follows the calendar, not the guild's fortunes: most quests match the level a member on two quests a week has reached by then (level 4 around week 5, level 7 around week 16), about a third are one or two skulls easier and one in five is a skull harder. Story missions sit at the level of the week they open.
 
 **Difficulty.** There are three levels: Forgiving, Standard and Merciless. **Ironman** keeps a single autosave, and leaving mid-battle abandons the mission.
 

@@ -10,6 +10,7 @@ var _layer: AudioStreamPlayer
 var _current := ""
 var _pool: Array = []
 var _cache := {}
+var _fades := {}
 var danger := 0.0
 
 
@@ -72,11 +73,9 @@ func play_music(track: String, layer_track := "", fade := 1.2) -> void:
 		_music_a.stream = stream
 		_music_a.volume_db = -40.0
 		_music_a.play()
-		var tw := create_tween()
-		tw.tween_property(_music_a, "volume_db", 0.0, fade)
-	var tw2 := create_tween()
-	tw2.tween_property(_music_b, "volume_db", -60.0, fade)
-	tw2.tween_callback(_music_b.stop)
+		_fade(_music_a, 0.0, fade)
+	_fade(_music_b, -60.0, fade, true)
+	_cancel_fade(_layer)
 	_layer.stop()
 	if layer_track != "":
 		var ls := _music(layer_track)
@@ -89,9 +88,25 @@ func play_music(track: String, layer_track := "", fade := 1.2) -> void:
 func stop_music(fade := 1.0) -> void:
 	_current = ""
 	for p in [_music_a, _music_b, _layer]:
-		var tw := create_tween()
-		tw.tween_property(p, "volume_db", -60.0, fade)
+		_fade(p, -60.0, fade, true)
+
+
+## One fade per player: starting a new one cancels the old, so a fade-out still
+## running (e.g. stop_music before a scene change) can't stop the next track.
+func _fade(p: AudioStreamPlayer, db: float, time: float, stop_after := false) -> void:
+	_cancel_fade(p)
+	var tw := create_tween()
+	tw.tween_property(p, "volume_db", db, time)
+	if stop_after:
 		tw.tween_callback(p.stop)
+	_fades[p] = tw
+
+
+func _cancel_fade(p: AudioStreamPlayer) -> void:
+	var tw: Tween = _fades.get(p)
+	if tw and tw.is_valid():
+		tw.kill()
+	_fades.erase(p)
 
 
 func set_danger(v: float) -> void:

@@ -21,23 +21,23 @@
       "reward": {"gold": 160, "renown": 10, "item": "ledger_page", "hush": -3}
     },
     "s2": {
-      "act": 1, "min_week": 3, "min_renown": 10, "region": "coast", "objective": "retrieve", "skulls": 2, "days": 3,
-      "title": "The Grey Shore", "enemies": {"hollow": 3, "stinger": 1}, "hush_map": 2, "caches": 3,
+      "act": 1, "min_week": 3, "min_renown": 10, "region": "coast", "objective": "retrieve", "skulls": 3, "days": 3,
+      "title": "The Grey Shore", "enemies": {"hollow": 4, "stinger": 2, "reef_harpooner": 1}, "hush_map": 2, "caches": 3,
       "client": "Pilot Ysse of Gullrest, Saltborn Compact", "letter": "The waves at Saltbone Beach have stopped making a sound. I have sailed that shore since I was a spawnling, and the silence is worse than any storm. Pages keep washing up in the surf, blank pages with smudges where names should be, like the one they say you found. My jellyfish goes dark whenever I reach for them. Walk the beach, gather the pages before the tide takes them back, and tell me I am not losing my mind.",
       "brief": "Fishermen say a stretch of Saltbone Beach has gone quiet. The waves make no sound. Pages like the one you found have been washing up in the surf. Collect them before the tide takes them back.",
       "outro": "Every page holds a name you cannot read, and every name belonged to your guild. The Hollows on the shore wore the old emblem on their rotted coats. The Hush does not only take places. It takes the people who fought it.",
       "reward": {"gold": 180, "renown": 12, "hush": -6}
     },
     "s3": {
-      "act": 1, "min_week": 5, "min_renown": 25, "region": "carrow", "objective": "survive", "skulls": 2, "days": 3, "turns": 7,
-      "title": "The Old Guildhall", "enemies": {"hollow": 3, "quietling": 1}, "hush_map": 2, "biome": "hush_town",
+      "act": 1, "min_week": 5, "min_renown": 25, "region": "carrow", "objective": "survive", "skulls": 4, "days": 3, "turns": 7,
+      "title": "The Old Guildhall", "enemies": {"hollow": 4, "quietling": 2}, "hush_map": 2, "biome": "hush_town",
       "client": "Mother Coll, Almshouse of the Cracked Bell", "letter": "The pages you brought back point to the ruined hall on the north edge of town. I was a girl when the old guild met there. I cannot remember a single face, only laughter through the windows. Something still lives in that hall, and it does not like being remembered. My grandson is prying the founder's sigil from the hearthstone, and he needs you to hold the hall until he is done. Please. Keep him safe.",
       "brief": "The ledger's pages point to a ruined hall on Carrow's northern edge, where the old guild met. Something still lives there, and it does not like being remembered. Hold the hall until the founder's sigil can be pried from the hearthstone.",
       "outro": "The sigil matches the emblem above your door. Carved beneath it, half-erased, is the founder's creed: 'We are what the realm refuses to forget.' Word spreads. The four great factions of Ambral want to meet the guild that walked out of the old hall alive.",
       "reward": {"gold": 220, "renown": 20, "hush": -10}, "next_act": 2
     },
     "s4": {
-      "act": 2, "min_week": 8, "min_renown": 70, "region": "ember", "objective": "hunt", "skulls": 3, "days": 4,
+      "act": 2, "min_week": 8, "min_renown": 70, "region": "ember", "objective": "hunt", "skulls": 5, "days": 3,
       "title": "The Founder's Trail", "boss": "spirit_elder", "enemies": {"masked_spirit": 2, "rot_deer": 2},
       "client": "Elder Bramm of the Third Ring, Rootwardens", "letter": "Twenty autumns ago a woman walked through our wood carrying a ledger and a bell-hammer. We sheltered her at a shrine deep in the Ember Wood, and she left her journal there when she went on toward the grey. The masked Elder who guards that shrine has grown jealous of its memories and will not give them up. My roots are too slow for this. Follow the old path, face the Elder, and bring her journal back into the light.",
       "brief": "The Rootwardens remember a woman who crossed the Ember Wood twenty years ago, carrying a ledger and a bell-hammer. A masked Elder guards the shrine where she rested. It will not give up her journal willingly.",
@@ -45,7 +45,7 @@
       "reward": {"gold": 280, "renown": 20, "hush": -10, "item": "bell_shard"}
     },
     "s5": {
-      "act": 2, "min_week": 11, "min_renown": 130, "region": "coast", "objective": "defense", "skulls": 4, "days": 4, "turns": 8,
+      "act": 2, "min_week": 11, "min_renown": 130, "region": "coast", "objective": "defense", "skulls": 6, "days": 3, "turns": 8,
       "title": "The Sunken Belfry", "enemies": {"reef_raider": 2, "stinger": 1, "hollow": 2}, "hush_map": 3, "boss": "stinger_queen",
       "client": "Captain Maro Saltwhistle, Saltborn Compact", "letter": "At low tide the drowned belfry rises off our coast, and inside it hangs the clapper of your cracked Bell. My grandmother swore to it, and my jellyfish remembers her swearing. The Stinger Queen nests in the tower and every creature in the shallows answers to her. Hold the belfry long enough for us to ring the clapper once. They say the Hush will then show you the road to its heart. I say we will finally know.",
       "brief": "At low tide, the drowned belfry off the coast rises from the sea. Inside hangs the Bell's lost clapper. Hold the belfry long enough to ring it once, and the Hush will show you the road to its heart.",
@@ -53,7 +53,7 @@
       "reward": {"gold": 320, "renown": 25, "hush": -10}, "next_act": 3
     },
     "s6": {
-      "act": 3, "min_week": 13, "min_renown": 160, "region": "unremembered", "objective": "clear", "skulls": 4, "days": 4,
+      "act": 3, "min_week": 13, "min_renown": 160, "region": "unremembered", "objective": "clear", "skulls": 6, "days": 4,
       "title": "The Grey Road", "enemies": {"hollow": 4, "quietling": 2}, "elite_count": 1, "hush_map": 4,
       "client": "Someone who used to live here", "letter": "I do not remember my name. I remember a village, a door painted blue, a road. The road is still there, paved with things the realm forgot: signposts to places that are gone, doors without houses. Things walk it that should not. You carry a ledger that remembers. Clear the road to the Heart, and maybe, when it is over, someone will remember me too.",
       "brief": "The road into the Hush is paved with things the realm forgot: signposts to vanished villages, doors without houses. Clear the way to the Heart.",
@@ -61,7 +61,7 @@
       "reward": {"gold": 300, "renown": 25, "hush": -10}, "unlock_final": true
     },
     "final": {
-      "act": 3, "min_week": 1, "min_renown": 0, "region": "unremembered", "objective": "final", "skulls": 5, "days": 5,
+      "act": 3, "min_week": 1, "min_renown": 0, "region": "unremembered", "objective": "final", "skulls": 7, "days": 4,
       "title": "The Heart of the Hush", "boss": "the_unnamed", "enemies": {"hollow": 3, "quietling": 1}, "hush_map": 5, "pages": 3,
       "client": "The founder, in fading ink", "letter": "This is the page I kept blank for you. She waits at the Heart: the Unnamed, who was one of us before the Hush wrote over her. She will take your skills one by one, as she took our names. Three pages of the old ledger lie scattered around her. Recover them, read her name aloud, and she will break. Those of yours who were never written in the Memorial will stand beside her. Forgive them. Then end this.",
       "brief": "The Unnamed erases one of your skills in every phase of the fight. Recover the three lost pages of the old ledger during the battle to restore her name and break her. Your fallen who were never written in the Memorial will walk beside her.",

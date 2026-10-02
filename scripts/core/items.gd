@@ -150,12 +150,12 @@ static func random_loot(rng: RandomNumberGenerator, skulls: int) -> Dictionary:
 		keys.erase("bell_shard")
 		return trinket(keys[rng.randi() % keys.size()])
 	var tier := 1
-	var t := rng.randf() + skulls * 0.12
+	var t := rng.randf() + skulls * 0.09
 	if t > 1.05:
 		tier = 3
 	elif t > 0.6:
 		tier = 2
-	if skulls >= 5 and rng.randf() < 0.15:
+	if skulls >= 6 and rng.randf() < 0.15:
 		tier = 4
 	if roll < 0.75:
 		var wk: Array = DB.items["weapons"].keys()

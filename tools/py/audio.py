@@ -1,8 +1,8 @@
 """Procedural music and sound effects for A Guilda (numpy only).
 
-Music: medieval folk in the guild (lute, fiddle, flute, frame drum), tense
-percussion and strings in combat, with danger layers that line up sample for
-sample with their base track. Loops are seamless: everything that rings past
+Music: a hand-written jig in the guild (lute, fiddle, flute, frame drum), a
+horn-and-strings battle theme over war drums in combat, with danger layers
+that line up sample for sample with their base track. Loops are seamless: everything that rings past
 the loop end is wrapped back onto the start.
 
     python tools/py/audio.py [--only music|sfx] [--track name]
@@ -111,6 +111,21 @@ def fiddle(f, dur, rng, vib=5.8, harm=10):
     bow = lowpass_fft(noise(len(t), rng), 3000) * 0.03
     e = env_adsr(len(t), 0.05, 0.08, 0.8, min(0.1, dur * 0.3))
     return (y + bow) * e * 0.22
+
+
+def horn(f, dur, rng, vib=4.5):
+    """Brass-like: rich harmonics with a bright blat on the attack."""
+    t = t_axis(dur)
+    vib_amt = np.clip((t - 0.3) * 2, 0, 1) * 0.004
+    ph = 2 * np.pi * np.cumsum(f * (1 + vib_amt * np.sin(2 * np.pi * vib * t + rng.uniform(0, 6)))) / SR
+    bright = 0.5 + 0.25 * np.exp(-t * 9) * np.clip(t / 0.03, 0, 1)
+    y = np.zeros_like(t)
+    for k in range(1, 13):
+        if f * k > SR / 2.2:
+            break
+        y += bright ** (k - 1) * np.sin(k * ph)
+    e = env_adsr(len(t), 0.06, 0.15, 0.8, min(0.18, dur * 0.3))
+    return y * e * 0.16
 
 
 def pad(f, dur, rng, detune=0.006, harm=6, attack=0.6, release=0.8):
@@ -317,35 +332,91 @@ def melody(rng, chords, scale, beats_per_chord, rhythm_pool, start_note, motif_b
     return notes
 
 
+def tune(bars, unit, beats_per_bar):
+    """Hand-written melody: one 'D5:2 A4:1 r:1' string per bar, durations in
+    `unit` beats; every bar must fill exactly. Returns [(beat, dur, midi)]."""
+    notes = []
+    for i, bar in enumerate(bars):
+        pos = 0.0
+        for tok in bar.split():
+            name, d = tok.split(":")
+            d = float(d) * unit
+            if name != "r":
+                notes.append((i * beats_per_bar + pos, d, midi(name)))
+            pos += d
+        assert abs(pos - beats_per_bar) < 1e-6, "bar %d is %.2f beats: %s" % (i, pos, bar)
+    return notes
+
+
+def third_below(n, scale):
+    """The diatonic third under n, for folk-style parallel harmony."""
+    return scale[scale.index(n) - 2]
+
+
 # ------------------------------------------------------------------ tracks
+# Tavern jig in AABB form, 8 bars of 6/8 per part, written in eighth notes.
+# Each part shares its first bars and only the cadence changes.
+JIG_A = ["D5:2 A4:1 F4:2 A4:1", "G4:2 C5:1 E5:2 C5:1", "D5:2 F5:1 E5:1 D5:1 C5:1", "A4:1 G4:1 F4:1 E4:3",
+         "F4:1 A4:1 C5:1 F5:2 E5:1", "G5:2 E5:1 C5:2 E5:1"]
+JIG_B = ["A5:2 F5:1 C5:2 F5:1", "G5:2 D5:1 B4:2 D5:1", "E5:1 D5:1 C5:1 A4:2 C5:1", "D5:1 E5:1 F5:1 A5:2 G5:1",
+         "F5:2 C5:1 A4:2 C5:1", "E5:1 G5:1 E5:1 C5:2 G4:1", "B4:1 D5:1 G5:1 F5:1 E5:1 D5:1"]
+JIG = (JIG_A + ["D5:1 B4:1 G4:1 B4:1 C5:1 D5:1", "E5:2 C5:1 A4:3"]
+       + JIG_A + ["D5:1 G5:1 F5:1 E5:1 D5:1 B4:1", "A4:1 C5:1 E5:1 D5:3"]
+       + JIG_B + ["C5:2 D5:1 E5:3"]
+       + JIG_B + ["C5:2 B4:1 A4:3"])
+
+
 def track_guild(seed=11):
     # tavern jig in D dorian, 6/8 felt as two beats of three eighths
     tr = Track(bars=32, bpm=104, beats_per_bar=3, seed=seed)
     rng = tr.rng
-    root = midi("D4")
-    prog = [("D3", "m"), ("C3", "M"), ("D3", "m"), ("A2", "m"), ("F3", "M"), ("C3", "M"), ("G2", "M"), ("A2", "m")] * 4
+    part_a = [("D3", "m"), ("C3", "M"), ("D3", "m"), ("A2", "m"), ("F3", "M"), ("C3", "M"), ("G2", "M")]
+    part_b = [("F3", "M"), ("G2", "M"), ("A2", "m"), ("D3", "m"), ("F3", "M"), ("C3", "M"), ("G2", "M"), ("A2", "m")]
+    prog = part_a + [("A2", "m")] + part_a + [("D3", "m")] + part_b + part_b
     chords = [chord(midi(r), q) for r, q in prog]
-    scale = scale_notes(root % 12, "dorian", 50, 88)
+    scale = scale_notes(midi("D4") % 12, "dorian", 50, 88)
     for ci, ch in enumerate(chords):
         b0 = ci * 3
-        # lute: bass + broken chord in eighths (triplet feel)
+        in_b = ci >= 16
         tr.at(b0, pluck(freq(ch[0] - 12), 1.6, 0.7, 2.2, rng), 0.9)
-        pattern = [ch[0], ch[1], ch[2], ch[1] + 12, ch[2], ch[1]]
-        for k, n in enumerate(pattern):
-            tr.at(b0 + k * 0.5, pluck(freq(n), 0.9, 0.8, 3.5, rng), 0.45 if k % 3 else 0.6)
-        # frame drum
+        if in_b:
+            # B part: boom-chick lute, bass on each dotted beat and strums between
+            tr.at(b0 + 1.5, pluck(freq(ch[2] - 12), 1.2, 0.7, 2.5, rng), 0.7)
+            for k in (1, 2, 4, 5):
+                for j, n in enumerate((ch[1], ch[2], ch[0] + 12)):
+                    tr.at(b0 + k * 0.5 + j * 0.012 / tr.beat, pluck(freq(n), 0.5, 0.85, 5.0, rng), 0.3 if k in (1, 4) else 0.22)
+        else:
+            # A part: broken chord in eighths, two shapes alternating
+            if ci % 2 == 0:
+                pattern = [ch[0], ch[1], ch[2], ch[0] + 12, ch[2], ch[1]]
+            else:
+                pattern = [ch[0], ch[2], ch[0] + 12, ch[1] + 12, ch[0] + 12, ch[2]]
+            for k, n in enumerate(pattern):
+                tr.at(b0 + k * 0.5, pluck(freq(n), 0.9, 0.8, 3.5, rng), 0.6 if k % 3 == 0 else 0.45)
+        # frame drum, with a fill into each new part
         if ci >= 4:
             tr.at(b0, drum("bodhran", rng), 0.8)
             tr.at(b0 + 1.5, drum("bodhran", rng, 0.6), 0.6)
             tr.at(b0 + 2.5, drum("rim", rng), 0.5)
-    mel = melody(rng, chords, scale, 3, [0.5, 0.5, 1.0, 1.5], midi("A4"), span=(62, 81))
-    for (b, d, n) in mel:
-        if b < 12:  # first phrase: flute alone
-            tr.at(b, flute(freq(n), d * tr.beat + 0.05, rng), 0.9)
-        elif (b // 24) % 2 == 0:
-            tr.at(b, fiddle(freq(n), d * tr.beat + 0.04, rng), 0.95)
-        else:
-            tr.at(b, flute(freq(n + 12), d * tr.beat + 0.05, rng), 0.7)
+            if ci % 8 == 7:
+                tr.at(b0 + 2.0, drum("bodhran", rng, 0.5), 0.5)
+                tr.at(b0 + 2.5, drum("bodhran", rng, 0.7), 0.6)
+            if in_b:
+                for k in range(6):
+                    tr.at(b0 + k * 0.5, drum("shaker", rng, 1.0 if k % 3 == 0 else 0.6), 0.7)
+    for (b, d, n) in tune(JIG, 0.5, 3):
+        dur = d * tr.beat
+        part = int(b // 24)
+        if part == 0:  # A: flute alone
+            tr.at(b, flute(freq(n), dur + 0.05, rng), 0.9)
+        elif part == 1:  # A again: fiddle
+            tr.at(b, fiddle(freq(n), dur + 0.04, rng), 0.95)
+        elif part == 2:  # B: fiddle, flute a third below
+            tr.at(b, fiddle(freq(n), dur + 0.04, rng), 0.9)
+            tr.at(b, flute(freq(third_below(n, scale)), dur + 0.05, rng), 0.45)
+        else:  # B again: flute, fiddle an octave down
+            tr.at(b, flute(freq(n), dur + 0.05, rng), 0.85)
+            tr.at(b, fiddle(freq(n - 12), dur + 0.04, rng), 0.5)
     return normalize(tr.finish(0.22, 1.4), 0.8)
 
 
@@ -371,50 +442,94 @@ def track_menu(seed=3):
     return normalize(tr.finish(0.35, 2.2), 0.75)
 
 
-def _combat_base(tr, rng, prog, root_scale, hush=False):
-    chords = [chord(midi(r), q) for r, q in prog]
-    for ci, ch in enumerate(chords):
-        b0 = ci * 4
-        # low string ostinato in eighths
-        for k in range(8):
-            n = ch[0] - 12 if k % 4 != 3 else ch[0] - 12 + (7 if k % 8 == 3 else 5)
-            tr.at(b0 + k * 0.5, fiddle(freq(n), 0.5 * tr.beat * 0.9, rng, vib=0, harm=8), 0.55 if k % 2 == 0 else 0.4)
-        tr.at(b0, pad(freq(ch[0]), 4 * tr.beat + 0.3, rng, harm=6, attack=0.3), 0.8)
-        # war drums
-        tr.at(b0, drum("taiko", rng), 1.0)
-        tr.at(b0 + 1.5, drum("tom", rng), 0.6)
-        tr.at(b0 + 2, drum("taiko", rng, 0.7), 0.8)
-        tr.at(b0 + 3.5, drum("tom", rng, 0.8), 0.5)
-        if hush:
-            tr.at(b0, bell(freq(ch[0] + 24 + (1 if ci % 2 else 0)), 3.5, 0.6), 0.22)
-    return chords
+# Battle in E minor, 32 bars of 4/4 in four sections: ostinato with a horn
+# call, the theme, a heroic bridge, the theme again. Every section ends on
+# B major so it pulls back into E minor (and the loop seam does the same).
+BATTLE_THEME_PROG = [("E3", "m"), ("C3", "M"), ("D3", "M"), ("E3", "m"), ("E3", "m"), ("C3", "M"), ("D3", "M"), ("B2", "M")]
+BATTLE_PROG = ([("E3", "m"), ("E3", "m"), ("C3", "M"), ("D3", "M"), ("E3", "m"), ("E3", "m"), ("C3", "M"), ("B2", "M")]
+               + BATTLE_THEME_PROG
+               + [("C3", "M"), ("D3", "M"), ("G3", "M"), ("E3", "m"), ("C3", "M"), ("D3", "M"), ("B2", "M"), ("B2", "M")]
+               + BATTLE_THEME_PROG)
+BATTLE_HORN_CALL = ["E4:3 B3:1", "E4:1 G4:1 B4:2", "C5:2 B4:1 G4:1", "A4:4",
+                    "E4:3 B3:1", "E4:1 G4:1 B4:2", "C5:2 G4:1 E4:1", "D#4:1 F#4:1 A4:2"]
+BATTLE_THEME = ["B4:1 E5:1.5 F#5:0.5 G5:1", "E5:1.5 D5:0.5 C5:1 B4:1", "A4:1 D5:1.5 E5:0.5 F#5:1", "G5:1.5 F#5:0.5 E5:2",
+                "B4:1 E5:1.5 F#5:0.5 G5:1", "E5:1.5 G5:0.5 C6:1 B5:1", "A5:1.5 F#5:0.5 D5:1 E5:1", "F#5:1.5 E5:0.5 D#5:2"]
+BATTLE_BRIDGE = ["E4:2 G4:1.5 C5:0.5", "D5:2 A4:1 F#4:1", "G4:1.5 B4:0.5 D5:2", "E5:2 D5:1 B4:1",
+                 "C5:1.5 B4:0.5 C5:1 E5:1", "D5:1.5 A4:0.5 D5:1 F#5:1", "D#5:2 B4:1 D#5:1", "F#5:4"]
 
 
 def track_combat(seed=21, layer=False):
-    tr = Track(bars=16, bpm=124, beats_per_bar=4, seed=seed)
+    tr = Track(bars=32, bpm=120, beats_per_bar=4, seed=seed)
     rng = tr.rng
-    prog = [("E2", "m"), ("E2", "m"), ("F2", "M"), ("E2", "m"), ("C3", "M"), ("D3", "M"), ("B2", "dim"), ("E2", "5")] * 2
-    if not layer:
-        chords = _combat_base(tr, rng, prog, "phrygian")
-        scale = scale_notes(midi("E3") % 12, "phrygian", 52, 84)
-        mel = melody(np.random.default_rng(seed + 1), chords, scale, 4, [0.5, 0.5, 1.0, 1.5], midi("B4"), span=(64, 79))
-        for (b, d, n) in mel:
-            if (b // 16) % 2 == 1:
-                tr.at(b, fiddle(freq(n), d * tr.beat, rng, vib=6.5), 0.55)
-        return normalize(tr.finish(0.18, 1.2), 0.82)
-    # danger layer: driving percussion and a high tremolo
-    chords = [chord(midi(r), q) for r, q in prog]
+    chords = [chord(midi(r), q) for r, q in BATTLE_PROG]
+    if layer:
+        # danger layer: driving percussion and a high string tremolo on the chord
+        for ci, ch in enumerate(chords):
+            b0 = ci * 4
+            for k in range(16):
+                tr.at(b0 + k * 0.25, drum("shaker", rng, 1.0 if k % 4 == 0 else 0.6), 1.0)
+            for k in (0.75, 1.75, 2.75, 3.25, 3.75):
+                tr.at(b0 + k, drum("rim", rng), 0.8)
+            for k in range(16):
+                n = (ch[2] if k % 2 == 0 else ch[1]) + 12
+                tr.at(b0 + k * 0.25, fiddle(freq(n), 0.13, rng, vib=0, harm=6), 0.2)
+            if ci % 4 == 3:
+                tr.at(b0 + 3, drum("cymbal", rng), 1.0)
+        return normalize(tr.finish(0.18, 1.2), 0.7)
     for ci, ch in enumerate(chords):
         b0 = ci * 4
-        for k in range(16):
-            tr.at(b0 + k * 0.25, drum("shaker", rng, 1.0 if k % 4 == 0 else 0.6), 1.0)
-        for k in (0.75, 1.75, 2.75, 3.25, 3.75):
-            tr.at(b0 + k, drum("rim", rng), 0.8)
-        for k in range(8):
-            tr.at(b0 + k * 0.5, fiddle(freq(ch[2] + 12), 0.24, rng, vib=0, harm=6), 0.25)
-        if ci % 4 == 3:
-            tr.at(b0 + 3, drum("cymbal", rng), 1.0)
-    return normalize(tr.finish(0.18, 1.2), 0.7)
+        sec = ci // 8  # 0 ostinato, 1 theme, 2 bridge, 3 theme again
+        root, third = ch[0], ch[1] - ch[0]
+        # low strings: galloping bass, broad half notes under the bridge
+        if sec == 2:
+            for k in (0, 2):
+                tr.at(b0 + k, fiddle(freq(root - 12), 1.9 * tr.beat, rng, vib=0, harm=8), 0.55)
+        else:
+            for beat in range(4):
+                n = root - 12 + (7 if beat == 3 else 0)
+                for off, d, g in ((0, 0.45, 0.55), (0.5, 0.22, 0.38), (0.75, 0.22, 0.42)):
+                    tr.at(b0 + beat + off, fiddle(freq(n), d * tr.beat, rng, vib=0, harm=8), g)
+        # mid strings: arpeggio ostinato, two shapes alternating
+        shape = [0, 7, 12, 7, third, 7, 12, 7] if ci % 2 == 0 else [0, 7, third, 7, 12, 7, third + 12, 7]
+        for k, iv in enumerate(shape):
+            tr.at(b0 + k * 0.5, fiddle(freq(root + iv), 0.42 * tr.beat, rng, vib=0, harm=6), 0.3 if k % 2 else 0.38)
+        tr.at(b0, pad(freq(root), 4 * tr.beat + 0.3, rng, harm=6, attack=0.3), 0.7)
+        if sec >= 2:
+            tr.at(b0, choir(freq(root), 4 * tr.beat + 0.5, rng), 0.9)
+            tr.at(b0, choir(freq(ch[2]), 4 * tr.beat + 0.5, rng), 0.7)
+        # war drums
+        tr.at(b0, drum("taiko", rng), 1.0)
+        if sec == 2:
+            tr.at(b0 + 2.5, drum("taiko", rng, 0.6), 0.6)
+        else:
+            tr.at(b0 + 1.5, drum("tom", rng), 0.6)
+            tr.at(b0 + 2, drum("taiko", rng, 0.7), 0.8)
+            tr.at(b0 + 3.5, drum("tom", rng, 0.8), 0.5)
+        if sec in (1, 3):
+            tr.at(b0 + 1, drum("rim", rng), 0.6)
+            tr.at(b0 + 3, drum("rim", rng), 0.6)
+        if sec == 3:
+            tr.at(b0 + 2.5, drum("taiko", rng, 0.6), 0.6)
+        if ci % 8 == 0:
+            tr.at(b0, drum("cymbal", rng), 0.9)
+        if ci in (22, 23):  # snare-like build out of the bridge
+            for k in range(16):
+                tr.at(b0 + k * 0.25, drum("rim", rng, 0.3 + 0.7 * ((ci - 22) * 16 + k) / 32), 0.6)
+        elif ci % 8 == 7:  # tom fill into the next section
+            for k in range(4):
+                tr.at(b0 + 3 + k * 0.25, drum("tom", rng, 0.6 + 0.12 * k), 0.6)
+    for (b, d, n) in tune(BATTLE_HORN_CALL, 1, 4):
+        tr.at(b, horn(freq(n), d * tr.beat + 0.05, rng), 0.7)
+    for (b, d, n) in tune(BATTLE_THEME, 1, 4):
+        for start in (32, 96):
+            # two slightly detuned fiddles read as a string section
+            tr.at(start + b, fiddle(freq(n), d * tr.beat, rng, vib=6.5), 0.4)
+            tr.at(start + b, fiddle(freq(n) * 1.003, d * tr.beat, rng, vib=6.0), 0.4)
+        tr.at(96 + b, horn(freq(n - 12), d * tr.beat + 0.05, rng), 0.55)
+    for (b, d, n) in tune(BATTLE_BRIDGE, 1, 4):
+        tr.at(64 + b, horn(freq(n - 12), d * tr.beat + 0.05, rng), 0.7)
+        tr.at(64 + b, fiddle(freq(n), d * tr.beat, rng, vib=5.5), 0.35)
+    return normalize(tr.finish(0.18, 1.2), 0.82)
 
 
 def track_hush(seed=31):

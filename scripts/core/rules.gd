@@ -9,6 +9,7 @@ const FULL_COVER := 40
 const HIGH_GROUND_HIT := 10
 const FLANK_HIT := 15
 const FLANK_CRIT := 10
+const CRIT_MULT := 1.5            # a critical hit deals half again its damage
 const RANGE_FALLOFF := 10
 const MAX_RANGE_EXTRA := 3
 const OVERWATCH_PENALTY := 10
@@ -70,19 +71,34 @@ static func apply_defense(raw: float, current_def: float, pierce: float = 0.0) -
 	return {"damage": dmg, "wear": wear}
 
 
+## Chance of a light injury for a member who lost `lost` HP over a whole battle;
+## healing does not undo the wounds. None below half of max HP, then 20% at
+## half, 50% at a full bar lost and at most 80% from one and a half bars.
+static func wound_chance(lost: int, max_hp: int) -> float:
+	var f := float(lost) / maxf(1.0, float(max_hp))
+	if f < 0.5:
+		return 0.0
+	return clampf(0.2 + 0.6 * (f - 0.5), 0.0, 0.8)
+
+
+## How likely a member who went Downed and survived comes back with a serious
+## injury (otherwise a light one), by difficulty.
+const DOWNED_SERIOUS := [0.4, 0.55, 0.7]
+
+
 ## Each member's share of a quest's XP: about one ordinary quest's worth
 ## (DB.QUEST_XP), a little more for harder ones. The fallen's shares go to the
 ## survivors.
 static func xp_share(skulls: int, squad: int, survivors: int, bonus_mult: float = 1.0) -> int:
 	if survivors <= 0:
 		return 0
-	var pool := (100.0 + 8.0 * (skulls - 1)) * maxf(squad, 1) * bonus_mult
+	var pool := (100.0 + 5.0 * (skulls - 1)) * maxf(squad, 1) * bonus_mult
 	return roundi(pool / survivors)
 
 
 ## Extra XP for a member's kills and rescues in one quest.
 static func deed_xp(kills: int, stabilizes: int, skulls: int) -> int:
-	return kills * (2 + skulls) + stabilizes * 12
+	return kills * (2 + skulls / 2) + stabilizes * 12
 
 
 static func grade(objectives_done: bool, bonus_done: int, bonus_total: int, rounds: int, par_rounds: int, deaths: int, downed: int) -> String:
@@ -136,8 +152,25 @@ static func rank_name(rank: int) -> String:
 	return ["Unknown", "Local", "Respected", "Renowned", "Famed", "Legendary"][clampi(rank, 0, 5)]
 
 
-static func max_skulls(rank: int) -> int:
-	return clampi(2 + rank, 2, 5)
+## One skull per member level: a skull-N quest is a hard fight for four
+## level-N members.
+const MAX_SKULLS := 7
+
+
+## The level a guild's front line has reached by the start of this week: a
+## member on two quests a week earns about 2.4 quests' worth of XP (kills and
+## bonuses included), and level L takes (L - 1)^2 quests.
+static func expected_level(week: int) -> float:
+	return minf(1.0 + sqrt(2.4 * maxi(0, week - 1)), MAX_SKULLS)
+
+
+## Skulls of an ordinary quest posted this week, for `roll` in [0, 1): 45%
+## match the expected level, 35% are one or two skulls easier and 20% one
+## harder. The threat follows the calendar, not the guild's fortunes.
+static func quest_skulls(week: int, roll: float) -> int:
+	var center := floori(expected_level(week) + 0.2)
+	var off := 1 if roll >= 0.8 else (0 if roll >= 0.35 else (-1 if roll >= 0.12 else -2))
+	return clampi(center + off, 1, MAX_SKULLS)
 
 
 ## Time of day of a mission, fixed by its seed: 55% day, 25% dusk, 20% night.

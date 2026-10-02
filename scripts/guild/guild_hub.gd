@@ -160,10 +160,10 @@ func refresh() -> void:
 	hb.mouse_filter = Control.MOUSE_FILTER_PASS
 	res_box.add_child(hb)
 	var hint := campaign.story_hint()
-	var avail := campaign.available_members(1).size()
+	var avail := campaign.available_members().size()
 	var txt := "[color=#%s]%s[/color]" % [UITheme.GOLD.to_html(false), hint] if hint != "" else ""
-	txt += ("\n" if txt != "" else "") + "[color=#%s]%d member%s ready · %d mission%s on the board[/color]" % [UITheme.TEXT_DIM.to_html(false), avail,
-		"" if avail == 1 else "s", campaign.board.size(), "" if campaign.board.size() == 1 else "s"]
+	txt += ("\n" if txt != "" else "") + "[color=#%s]%d of %d days left · %d member%s ready · %d mission%s on the board[/color]" % [UITheme.TEXT_DIM.to_html(false),
+		campaign.days_left(), Campaign.WEEK_DAYS, avail, "" if avail == 1 else "s", campaign.board.size(), "" if campaign.board.size() == 1 else "s"]
 	hint_label.text = txt
 	var vs := get_viewport_rect().size
 	var hp: Control = hint_label.get_meta("panel")
@@ -302,8 +302,8 @@ func _hover_bbcode(r: Array) -> String:
 			var s := "[color=#%s]%s[/color]\nLv %d %s" % [gold, m.name, m.level, m.class_name_full()]
 			if not m.injury.is_empty():
 				s += "\n[color=#%s]Injured: %d week%s[/color]" % [UITheme.RED.to_html(false), int(m.injury["weeks"]), "" if int(m.injury["weeks"]) == 1 else "s"]
-			else:
-				s += "\n[color=#%s]%d days free this week[/color]" % [dim, m.days_left()]
+			elif m.days_used > 0:
+				s += "\n[color=#%s]Out %d day%s this week[/color]" % [dim, m.days_used, "" if m.days_used == 1 else "s"]
 			if m.pending_picks() > 0:
 				s += "\n[color=#%s]%d new skill%s to choose[/color]" % [UITheme.GREEN.to_html(false), m.pending_picks(), "" if m.pending_picks() == 1 else "s"]
 			return s

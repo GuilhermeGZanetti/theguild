@@ -111,7 +111,7 @@ func is_ranged_skill(s: Dictionary) -> bool:
 func start() -> void:
 	for u in units:
 		var d := Rules.turn_delay(u.stat("speed"))
-		u.next_time = d * rng.randf_range(0.15, 0.95) * (0.75 if u.team == BattleUnit.TEAM_PLAYER else 1.0)
+		u.next_time = d * rng.randf_range(0.15, 0.95)
 		u.def_cur = u.max_def()
 	_update_hidden()
 	update_vision()
@@ -500,6 +500,7 @@ func do_move(u: BattleUnit, dest: Vector2i) -> bool:
 	var walked_vis: Array = []   # what the squad sees after each step (null: unchanged)
 	var known := _known_foes(u)
 	var halt := false
+	var spotted := false
 	for step in path:
 		if not u.active():
 			break
@@ -559,8 +560,13 @@ func do_move(u: BattleUnit, dest: Vector2i) -> bool:
 					emit({"t": "vision", "cells": vis.keys()})
 				else:
 					walked_vis[walked.size() - 1] = vis.keys()
-			if _new_foe_seen(u, known) or _detection_step(u):
+			if _detection_step(u):
 				halt = true
+			if _new_foe_seen(u, known):
+				spotted = true
+				# exploring, the member walks on; only an unaware pod spotting them stops the move
+				if phase != "explore":
+					halt = true
 		if (stop or halt or not u.active() or u.has_status("root")) and _alone_on(u, u.pos):
 			break
 	if not walked.is_empty():
@@ -569,7 +575,7 @@ func do_move(u: BattleUnit, dest: Vector2i) -> bool:
 		var body := unit(u.carrying)
 		if body:
 			body.pos = u.pos
-	if halt and u.active() and u.team == BattleUnit.TEAM_PLAYER and pending_alerts.is_empty():
+	if (halt or spotted) and u.active() and u.team == BattleUnit.TEAM_PLAYER and pending_alerts.is_empty():
 		emit({"t": "float", "uid": u.uid, "text": "Enemy spotted!", "kind": "warn"})
 	_process_alerts()
 	_check_end()
@@ -1320,7 +1326,7 @@ func _resolve_damage(att: BattleUnit, o: BattleUnit, s: Dictionary, eff: Diction
 	if extra.get("aoo", false):
 		raw *= 1.0 + float(att.mod("aoo_dmg", 0.0))
 	if crit:
-		raw *= 2.0 + float(att.mod("crit_mult", 0.0))
+		raw *= Rules.CRIT_MULT + float(att.mod("crit_mult", 0.0))
 	raw *= 1.0 - clampf(o.status_power("fortified") / 100.0, 0.0, 0.8)
 	var crit_def := false
 	var cd_chance := o.stat("crit") * 0.5 + (Rules.DEFEND_CRIT_DEF if o.has_status("defending") else 0)
@@ -1384,6 +1390,7 @@ func _apply_damage(o: BattleUnit, dmg: int, src: BattleUnit) -> void:
 		o.lucky_used = true
 		o.hp = 1
 		emit({"t": "float", "uid": o.uid, "text": "Lucky!", "kind": "good"})
+	o.hp_lost += before - maxi(0, o.hp)
 	_check_boss_phase(o, before)
 	if o.hp > 0:
 		return
@@ -1708,7 +1715,7 @@ func _check_boss_phase(o: BattleUnit, before: int) -> void:
 
 # ====================================================================== spawning
 func spawn_enemy(eid: String, p: Vector2i) -> BattleUnit:
-	var u := BattleFactory.enemy_unit(eid, skulls, grid.hush, rng)
+	var u := BattleFactory.enemy_unit(eid, skulls, grid.hush, rng, difficulty)
 	u.pos = p
 	add_unit(u)
 	u.next_time = time + Rules.turn_delay(u.stat("speed")) * rng.randf_range(0.3, 0.8)
@@ -1718,7 +1725,8 @@ func spawn_enemy(eid: String, p: Vector2i) -> BattleUnit:
 
 
 func spawn_npc(eid: String, p: Vector2i, role: String, nm: String) -> BattleUnit:
-	var u := BattleFactory.enemy_unit(eid, 1, 0, rng)
+	# sturdier on harder quests, where the blows are heavier too
+	var u := BattleFactory.enemy_unit(eid, skulls, 0, rng)
 	u.team = BattleUnit.TEAM_NPC
 	u.npc = true
 	u.objective_role = role
@@ -2078,7 +2086,8 @@ func _process_alerts() -> void:
 		if phase == "explore":
 			_start_combat()
 		for e in woke:
-			e.next_time = time + Rules.turn_delay(e.stat("speed")) * rng.randf_range(0.3, 0.9)
+			# an ambushed pod is caught flat-footed; one that spotted the squad is not
+			e.next_time = time + Rules.turn_delay(e.stat("speed")) * (rng.randf_range(0.15, 0.9) if a[1] else rng.randf_range(0.4, 1.0))
 		if a[1]:
 			for e in woke:
 				if e.active() and not over:
@@ -2097,7 +2106,7 @@ func _start_combat() -> void:
 		if u.team == BattleUnit.TEAM_ENEMY and not u.alerted:
 			continue
 		var d := Rules.turn_delay(u.stat("speed"))
-		u.next_time = time + d * rng.randf_range(0.15, 0.9) * (0.7 if u.team == BattleUnit.TEAM_PLAYER else 1.0)
+		u.next_time = time + d * rng.randf_range(0.15, 0.9)
 	if current != null:
 		# the member who was walking keeps the rest of their turn
 		current.next_time = time

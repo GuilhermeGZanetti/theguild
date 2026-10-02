@@ -126,7 +126,7 @@ func test_conflicting_missions_cancel_each_other():
 	mb["conflict"] = ma["id"]
 	ma["rival"] = "glass"
 	c.board = [ma, mb]
-	var squad := c.available_members(1).slice(0, 4)
+	var squad := c.available_members().slice(0, 4)
 	var b := BattleFactory.build(ma, squad, c.battle_context(ma))
 	b.result = "victory"
 	b.over = true
@@ -136,11 +136,96 @@ func test_conflicting_missions_cancel_each_other():
 	assert_eq(int(c.factions["glass"]["power"]), 4)
 
 
+func _won(c: Campaign, m: Dictionary, squad: Array) -> Dictionary:
+	var b := BattleFactory.build(m, squad, c.battle_context(m))
+	b.result = "victory"
+	b.over = true
+	c.board.append(m)
+	return c.finish_mission(m, b)
+
+
+func test_the_guild_shares_seven_days_a_week():
+	var c := _new()
+	var squad := c.available_members().slice(0, 2)
+	var m1 := c._make_mission("contract", "carrow")
+	m1["days"] = 3
+	var m2 := c._make_mission("contract", "carrow")
+	m2["days"] = 3
+	var m3 := c._make_mission("contract", "carrow")
+	m3["days"] = 2
+	_won(c, m1, squad)
+	assert_eq(c.days_left(), 4)
+	# other members, same clock: who goes does not matter
+	var others := c.available_members().filter(func(x): return not x in squad)
+	assert_eq(c.can_launch(m2, others), "")
+	_won(c, m2, others)
+	assert_eq(c.days_left(), 1)
+	assert_ne(c.can_launch(m3, squad), "", "a 2-day mission no longer fits the week")
+	c.end_week()
+	assert_eq(c.days_left(), Campaign.WEEK_DAYS, "a new week, a new seven days")
+
+
+func test_mission_lengths_fit_two_to_four_a_week():
+	for cat in DB.missions["categories"]:
+		var d: Array = DB.missions["categories"][cat]["days"]
+		assert_between(int(d[0]), 1, 4, "%s is 1-4 days" % cat)
+		assert_between(int(d[1]), 1, 4, "%s is 1-4 days" % cat)
+	for sid in DB.story["missions"]:
+		assert_between(int(DB.story["missions"][sid]["days"]), 1, 4, "%s is 1-4 days" % sid)
+
+
+func test_enemy_count_ignores_the_squad_size():
+	var c := _new()
+	var m := c._make_mission("contract", "carrow")
+	m["objective"] = "clear"
+	var counts: Array = []
+	for n in [1, 4]:
+		var b := BattleFactory.build(m, c.available_members().slice(0, n), c.battle_context(m))
+		counts.append(b.team_units(BattleUnit.TEAM_ENEMY, false).size())
+	assert_eq(counts[0], counts[1], "a lone member faces the same force as a full squad")
+
+
+func test_heavy_wounds_can_injure_even_when_healed():
+	assert_eq(Rules.wound_chance(10, 40), 0.0, "a quarter of the HP lost is nothing")
+	assert_almost_eq(Rules.wound_chance(20, 40), 0.2, 0.001)
+	assert_almost_eq(Rules.wound_chance(40, 40), 0.5, 0.001)
+	assert_almost_eq(Rules.wound_chance(400, 40), 0.8, 0.001, "never certain")
+	var c := _new()
+	var m := c._make_mission("contract", "carrow")
+	var squad := c.available_members().slice(0, 4)
+	var b := BattleFactory.build(m, squad, c.battle_context(m))
+	var hurt := 0
+	for u in b.units:
+		if u.team == BattleUnit.TEAM_PLAYER and u.member != null:
+			u.hp_lost = u.max_hp() * 3   # beaten down and healed back up, again and again
+	b.result = "victory"
+	b.over = true
+	var rep := c.finish_mission(m, b)
+	for mem in squad:
+		if not mem.injury.is_empty():
+			hurt += 1
+			assert_eq(mem.injury["kind"], "light")
+			assert_eq(rep["injuries"][mem.id]["cause"], "wounds")
+	assert_gt(hurt, 0, "80% each: someone in four gets hurt")
+
+
+func test_battle_counts_hp_lost_through_healing():
+	var c := _new()
+	var m := c._make_mission("contract", "carrow")
+	var b := BattleFactory.build(m, c.available_members().slice(0, 1), c.battle_context(m))
+	var u: BattleUnit = b.team_units(BattleUnit.TEAM_PLAYER)[0]
+	b.start()
+	b._apply_damage(u, 10, null)
+	b._heal(u, 10, null)
+	b._apply_damage(u, 10, null)
+	assert_eq(u.hp_lost, 20, "healing does not erase the wounds already taken")
+
+
 func test_carried_out_corpse_stays_dead():
 	var c := _new()
 	var ma := c._make_mission("rivalry", "coast", "saltborn")
 	ma["rival"] = "glass"
-	var squad := c.available_members(1).slice(0, 4)
+	var squad := c.available_members().slice(0, 4)
 	var b := BattleFactory.build(ma, squad, c.battle_context(ma))
 	var victim: BattleUnit = null
 	for u in b.units:
@@ -203,5 +288,5 @@ func test_hunt_target_matches_the_board():
 		var m: Dictionary = c._make_mission("contract", "ember")
 		m["objective"] = "hunt"
 		rng.seed = i
-		var picks := BattleFactory.pick_enemies(m, 4, rng, 0, {})
+		var picks := BattleFactory.pick_enemies(m, rng, 0, {})
 		assert_eq(picks[0], m["elite"], "the hunted %s waits in the battle" % m["elite"])

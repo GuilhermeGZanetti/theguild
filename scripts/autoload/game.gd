@@ -72,6 +72,7 @@ func load_slot(s: int) -> bool:
 				var mem := campaign.member(int(id))
 				if mem:
 					mem.days_used += int(m.get("days", 1))
+			campaign.days_used += int(m.get("days", 1))
 			campaign.board = campaign.board.filter(func(x): return int(x["id"]) != int(m.get("id", -1)))
 			campaign.pending_events.append({"kind": "faction", "title": "Abandoned Mission",
 				"text": "The squad sent to \"%s\" came back empty-handed after the guild lost contact. Renown -10." % m.get("title", "?")})

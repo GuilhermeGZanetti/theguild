@@ -53,6 +53,7 @@ var hidden := false
 var kills := 0
 var stabilizes := 0
 var was_downed := false
+var hp_lost := 0             # every point of HP lost this battle, healed or not (light injuries)
 var echo := false
 var xp_value := 10
 var skulls := 1

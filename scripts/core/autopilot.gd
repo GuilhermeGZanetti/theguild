@@ -29,10 +29,12 @@ func play_week(max_missions := 3, allow_final := true) -> void:
 			continue
 		if m.get("story_id", "") == "final" and (not allow_final or c.roster.size() < 4 or _avg_level() < 4):
 			continue
-		if int(m["skulls"]) > 1.1 * _avg_level() + 1.4 and m["category"] not in ["story", "breach"]:
-			continue
 		var squad := _pick_squad(m)
 		if squad.size() < mini(3, c.squad_cap()) or c.can_launch(m, squad) != "":
+			continue
+		# skulls are member levels: nothing past the squad's, and the story at most one past
+		var reach := 1 if m["category"] in ["story", "breach"] else 0
+		if int(m["skulls"]) > roundi(_level_of(squad)) + reach:
 			continue
 		var b := BattleFactory.build(m, squad, c.battle_context(m))
 		run_battle(b)
@@ -65,8 +67,15 @@ func _avg_level() -> float:
 	return s / maxf(n, 1)
 
 
+func _level_of(squad: Array) -> float:
+	var s := 0.0
+	for m in squad:
+		s += m.level
+	return s / maxf(squad.size(), 1)
+
+
 func _pick_squad(m: Dictionary) -> Array:
-	var avail := c.available_members(int(m["days"]))
+	var avail := c.available_members()
 	avail.sort_custom(func(a, b): return a.level > b.level)
 	var squad: Array = []
 	var classes := {}

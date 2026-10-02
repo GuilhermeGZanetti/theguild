@@ -2,6 +2,23 @@ class_name BattleFactory
 extends RefCounted
 ## Builds battles: units from guild members and enemy data, maps, objectives.
 
+## Enemies before the skull and objective adjustments: sized for a full squad
+## of four whatever the guild actually sends.
+const BASE_ENEMIES := 4
+## One more enemy for every two skulls past the first.
+const ENEMIES_PER_SKULL := 0.5
+## enemies.json holds 1-skull stats. Each skull past the first is about one
+## member level: these keep an enemy's blows, hide and pace in step with a
+## member of the same level and that level's gear.
+const SKULL_HP := 0.27
+const SKULL_ATTACK := 0.27
+const SKULL_DEFENSE := 0.25
+const SKULL_ACCURACY := 4
+const SKULL_DODGE := 2
+const SKULL_SPEED := 2
+const SKULL_CRIT := 1
+const SKULL_RESOLVE := 4
+
 
 static func member_unit(m: Member, resolve_bonus: int = 0) -> BattleUnit:
 	var u := BattleUnit.new()
@@ -35,19 +52,20 @@ static func enemy_unit(eid: String, skulls: int, hush_level: int, rng: RandomNum
 	u.enemy_id = eid
 	u.name = d["name"]
 	var s: Dictionary = d["stats"].duplicate()
-	var k := float(skulls - 1)
+	var k := maxi(0, skulls - 1)
 	var dm: float = [0.85, 1.0, 1.15][clampi(difficulty, 0, 2)]
-	var hush_m := 1.0 + 0.05 * hush_level
-	s["hp"] = roundi(float(s["hp"]) * (1.0 + 0.17 * k) * dm * hush_m)
-	s["attack"] = roundi(float(s["attack"]) * (1.0 + 0.14 * k) * dm * hush_m)
-	s["defense"] = roundi(float(s["defense"]) * (1.0 + 0.12 * k))
-	s["accuracy"] = int(s["accuracy"]) + 3 * int(k)
-	s["dodge"] = int(s["dodge"]) + int(k)
-	s["resolve"] = mini(100, int(s["resolve"]) + 4 * int(k))
+	var hush_m := 1.0 + 0.03 * hush_level
+	s["hp"] = roundi(float(s["hp"]) * (1.0 + SKULL_HP * k) * dm * hush_m)
+	s["attack"] = roundi(float(s["attack"]) * (1.0 + SKULL_ATTACK * k) * dm * hush_m)
+	s["defense"] = roundi(float(s["defense"]) * (1.0 + SKULL_DEFENSE * k))
+	s["accuracy"] = int(s["accuracy"]) + SKULL_ACCURACY * k
+	s["dodge"] = int(s["dodge"]) + SKULL_DODGE * k
+	s["speed"] = int(s["speed"]) + SKULL_SPEED * k
+	s["crit"] = int(s["crit"]) + SKULL_CRIT * k
+	s["resolve"] = mini(100, int(s["resolve"]) + SKULL_RESOLVE * k)
 	u.st = s
 	u.hp = int(s["hp"])
-	# on the members' ten-level scale: roughly where a squad stands when it
-	# takes on quests of this many skulls
+	# on the members' level scale: a skull-N quest is sized for level-N members
 	u.level = skulls + (1 if d.get("elite", false) else 0) + (2 if d.get("boss", false) else 0)
 	u.skills = d.get("skills", []).duplicate()
 	u.basic = u.skills[0] if not u.skills.is_empty() else "e_claw"
@@ -129,7 +147,10 @@ static func build(mission: Dictionary, squad: Array, ctx: Dictionary) -> Battle:
 		u.facing = map.get("player_facing", Vector2i(0, -1))
 		b.add_unit(u)
 	# --- enemies
-	var enemy_list: Array = pick_enemies(mission, squad.size(), b.rng, hush_level, ctx)
+	# rolled from the mission alone: the map (and so the squad size) never changes the force
+	var force_rng := RandomNumberGenerator.new()
+	force_rng.seed = int(mission.get("seed", 1)) + 7919
+	var enemy_list: Array = pick_enemies(mission, force_rng, hush_level, ctx)
 	var espawns: Array = map["enemy_spawns"]
 	var ei := 0
 	if b.explore:
@@ -202,10 +223,12 @@ static func build(mission: Dictionary, squad: Array, ctx: Dictionary) -> Battle:
 		"defense":
 			var obj := b.spawn_npc("villager", map["object_spawn"], "object", DB.missions["objects"].get(region, "cart").capitalize())
 			obj.team = BattleUnit.TEAM_PLAYER
-			obj.st["hp"] = 60 + 20 * b.skulls
+			# about ten blows from the enemies of its quest
+			var k := b.skulls - 1
+			obj.st["hp"] = roundi(240.0 * (1.0 + SKULL_HP * k))
 			obj.hp = int(obj.st["hp"])
 			obj.st["dodge"] = 0
-			obj.st["defense"] = 4
+			obj.st["defense"] = roundi(8.0 * (1.0 + SKULL_DEFENSE * k))
 			obj.sprite = "__object_" + region
 			b.objective["object_name"] = obj.name
 			b.objective["object_uid"] = obj.uid
@@ -219,7 +242,8 @@ static func build(mission: Dictionary, squad: Array, ctx: Dictionary) -> Battle:
 			region_pool = mission["enemies"]
 		for r in range(3, turns + 1, 2):
 			var wave: Array = []
-			for j in 1 + b.skulls / 2 + (1 if r > turns / 2 else 0):
+			var late := r > turns / 2
+			for j in 1 + (1 if late else 0) + (1 if late and b.skulls >= 5 else 0):
 				wave.append(_weighted(region_pool, b.rng))
 			b.waves.append({"round": r, "enemies": wave, "spots": map["edge_spawns"].duplicate()})
 	for w in b.waves:
@@ -263,6 +287,17 @@ static func _place_pods(b: Battle, pod_defs: Array, enemy_list: Array, mission: 
 			continue
 		groups[used[gi % used.size()]].append(rest.pop_front())
 		gi += 1
+	# a crowded station sends its extra enemies to the nearest one with room
+	for i in pod_defs.size():
+		while groups[i].size() > pod_defs[i]["cells"].size():
+			var dest := -1
+			for d in range(1, pod_defs.size()):
+				for j in [i - d, i + d]:
+					if dest < 0 and j >= 0 and j < pod_defs.size() and groups[j].size() < pod_defs[j]["cells"].size():
+						dest = j
+			if dest < 0:
+				break
+			groups[dest].append(groups[i].pop_back())
 	for i in pod_defs.size():
 		var cells: Array = pod_defs[i]["cells"]
 		var uids: Array = []
@@ -300,24 +335,26 @@ static func _weighted(pool: Dictionary, rng: RandomNumberGenerator) -> String:
 	return pool.keys()[0]
 
 
-static func pick_enemies(mission: Dictionary, squad_size: int, rng: RandomNumberGenerator, hush_level: int, ctx: Dictionary) -> Array:
+## The enemy force depends on the mission alone: sending fewer members never
+## makes a fight smaller.
+static func pick_enemies(mission: Dictionary, rng: RandomNumberGenerator, hush_level: int, ctx: Dictionary) -> Array:
 	var out: Array = []
 	var region: String = mission.get("region", "carrow")
 	var skulls := int(mission.get("skulls", 1))
 	var pool: Dictionary = mission.get("enemies", DB.regions[region]["enemies"])
 	var objective: String = mission.get("objective", "clear")
-	var count := squad_size - 1 + int(skulls / 2) + rng.randi_range(0, 1)
+	var count := BASE_ENEMIES + roundi(ENEMIES_PER_SKULL * (skulls - 1)) + rng.randi_range(0, 1)
 	if MapGen.is_explore(mission):
 		count += 1   # spread over several pods that rarely fight all at once
 	if objective in ["survive", "defense"]:
-		count = maxi(2, count - 2)
+		count = maxi(2, count - 2 - (skulls - 1) / 3)   # the waves bring the rest
 	if objective == "escort":
 		count = maxi(3, count - 1)
 	if mission.get("category", "") == "training":
 		count = maxi(2, count - 1)
 	if mission.has("boss"):
 		out.append(mission["boss"])
-	elif objective == "hunt" or (skulls >= 3 and rng.randf() < 0.35) or int(mission.get("elite_count", 0)) > 0:
+	elif objective == "hunt" or rng.randf() < 0.1 * (skulls - 2) or int(mission.get("elite_count", 0)) > 0:
 		var elites: Array = DB.regions[region]["elite"]
 		var pick: String = elites[rng.randi() % elites.size()]
 		# the hunt target named on the board is the one waiting at the end of the trail

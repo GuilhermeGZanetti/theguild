@@ -13,7 +13,7 @@ func subtitle() -> String:
 	mission = campaign.mission_by_id(int(params.get("mission", -1)))
 	if mission.is_empty():
 		return ""
-	return "%s · %d days · up to %d members" % [mission["title"], int(mission["days"]), campaign.squad_cap()]
+	return "%s · %d days (the guild has %d left) · up to %d members" % [mission["title"], int(mission["days"]), campaign.days_left(), campaign.squad_cap()]
 
 
 func build() -> void:
@@ -24,7 +24,7 @@ func build() -> void:
 	if picked.is_empty() and not params.has("touched"):
 		params["touched"] = true
 		# preselect the healthiest available members, one per class first
-		var pool: Array = campaign.available_members(int(mission["days"]))
+		var pool: Array = campaign.available_members()
 		pool.sort_custom(func(a, b): return a.level > b.level)
 		var classes := {}
 		for m in pool:
@@ -71,7 +71,7 @@ func build() -> void:
 
 
 func _row(m: Member) -> Control:
-	var ok := m.is_available() and m.days_left() >= int(mission["days"])
+	var ok := m.is_available()
 	var b := Button.new()
 	b.focus_mode = Control.FOCUS_NONE
 	b.toggle_mode = true
@@ -93,7 +93,7 @@ func _row(m: Member) -> Control:
 		c.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	h.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	if not ok:
-		b.tooltip_text = "Injured." if not m.injury.is_empty() else "Only %d days left this week." % m.days_left()
+		b.tooltip_text = "Injured."
 		b.modulate = Color(0.7, 0.7, 0.7)
 	var mm := m
 	b.pressed.connect(func():

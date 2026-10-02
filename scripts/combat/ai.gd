@@ -100,6 +100,32 @@ func best_plan(u: BattleUnit) -> Dictionary:
 	return best
 
 
+## A bleeding friend within a move comes first: walk next to them and
+## stabilize, as a player would.
+func _rescue_step(u: BattleUnit) -> bool:
+	if u.moved or u.acted:
+		return false
+	var reach := b.reachable(u)
+	for o in b.allies_of(u, false, false):
+		if o.state != "downed" or o.stabilized or o.carried_by >= 0:
+			continue
+		var best := Vector2i(-1, -1)
+		var best_cost := 9999
+		for tile in reach:
+			if reach[tile].get("pass_only", false) or b.unit_at(tile) != null or Rules.chebyshev(tile, o.pos) != 1:
+				continue
+			if int(reach[tile]["cost"]) < best_cost:
+				best_cost = int(reach[tile]["cost"])
+				best = tile
+		if best == Vector2i(-1, -1):
+			continue
+		b.do_move(u, best)
+		if b.can_stabilize(u, o):
+			b.do_stabilize(u, o)
+		return true
+	return false
+
+
 ## Player-side autopilot: interact with objectives and walk VIPs out.
 ## Returns true when the whole turn was spent on the objective.
 func _objective_step(u: BattleUnit) -> bool:
@@ -122,6 +148,8 @@ func _objective_step(u: BattleUnit) -> bool:
 		if b.can_stabilize(u, o):
 			b.do_stabilize(u, o)
 			return false
+	if _rescue_step(u):
+		return true
 	for c in b.interact_targets(u):
 		b.do_interact(u, c)
 		return false
@@ -244,9 +272,9 @@ func eval_skill(u: BattleUnit, skill_id: String, tgt: Vector2i, from: Vector2i) 
 			var hit: float = row["hit"] / 100.0
 			var crit: float = row["crit"] / 100.0
 			var avg := (float(row["dmg_min"]) + float(row["dmg_max"])) * 0.5 * float(row.get("hits", 1))
-			var exp := hit * avg * (1.0 + crit)
+			var exp := hit * avg * (1.0 + crit * (Rules.CRIT_MULT - 1.0))
 			var kill := 0.0
-			if avg * (1.0 + crit * 0.5) >= o.hp:
+			if avg * (1.0 + crit * (Rules.CRIT_MULT - 1.0) * 0.5) >= o.hp:
 				kill = 22.0 * hit
 			if o.state == "downed":
 				kill = 30.0 * hit
