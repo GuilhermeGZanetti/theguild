@@ -184,6 +184,7 @@ func next_turn() -> BattleUnit:
 func _begin_turn(u: BattleUnit) -> void:
 	u.moved = false
 	u.acted = false
+	u.run_left = 0
 	u.rampage_used = false
 	emit({"t": "turn", "uid": u.uid, "quiet": phase == "explore"})
 	if u.state == "downed":
@@ -366,9 +367,14 @@ func move_budget(u: BattleUnit) -> int:
 
 
 ## Running doubles the move but spends the action too, so it needs one left.
+## A unit that walked can still run on, as far as the whole run would have taken it.
 func run_budget(u: BattleUnit) -> int:
 	if u.acted or u.carrying >= 0:
 		return 0
+	if u.moved:
+		if u.has_status("root") or u.has_status("pinned"):
+			return 0
+		return u.run_left
 	return move_budget(u) * 2
 
 
@@ -383,6 +389,7 @@ func is_run(u: BattleUnit, reach: Dictionary, dest: Vector2i) -> bool:
 
 
 ## Dijkstra over the grid honouring height, water, units and zones of control.
+## Half covers can be vaulted onto a free tile beyond (then "prev" is two tiles back).
 ## Returns cell -> {"cost", "prev", "zoc"}.
 func reachable(u: BattleUnit, budget := -1) -> Dictionary:
 	if budget < 0:
@@ -419,6 +426,21 @@ func reachable(u: BattleUnit, budget := -1) -> Dictionary:
 			var z := not zoc_holders(n, u).is_empty()
 			out[n] = {"cost": nc, "prev": p, "zoc": z}
 			frontier.append([nc, n])
+		for d in BattleGrid.DIRS4:
+			var vc := grid.vault_cost(p, d, u.swims, u.floats)
+			if vc < 0:
+				continue
+			var land := p + d * 2
+			var nc := cost + vc
+			if nc > budget or (out.has(land) and int(out[land]["cost"]) <= nc):
+				continue
+			var occ := unit_at(land)
+			if occ != null and (not u.hostile_to(occ) or knows(u, occ)):
+				continue
+			# vaulting through a zone of control stops the unit on landing
+			var z := not zoc_holders(land, u).is_empty() or not zoc_holders(p + d, u).is_empty()
+			out[land] = {"cost": nc, "prev": p, "zoc": z}
+			frontier.append([nc, land])
 	# cannot stop on occupied tiles
 	for c in out.keys():
 		var occ := unit_at(c)
@@ -448,6 +470,18 @@ func distance_field(goals: Array, swims := false, floats := false) -> Dictionary
 			if not grid.standable(n, swims, floats):
 				continue
 			var nd: int = dist[p] + sc
+			if not dist.has(n) or nd < int(dist[n]):
+				dist[n] = nd
+				frontier.append(n)
+		for d in BattleGrid.DIRS4:
+			# vaulting from n over the half cover at n + d onto p
+			var n := p - d * 2
+			if not grid.standable(n, swims, floats):
+				continue
+			var vc := grid.vault_cost(n, d, swims, floats)
+			if vc < 0:
+				continue
+			var nd: int = dist[p] + vc
 			if not dist.has(n) or nd < int(dist[n]):
 				dist[n] = nd
 				frontier.append(n)
@@ -484,10 +518,13 @@ func do_move(u: BattleUnit, dest: Vector2i) -> bool:
 	var path := path_to(u, dest, reach)
 	if path.is_empty():
 		return false
-	if is_run(u, reach, dest):
+	var running := is_run(u, reach, dest)
+	var run_cap := run_budget(u)
+	if running:
 		u.acted = true
 		emit({"t": "float", "uid": u.uid, "text": "Run!", "kind": "warn"})
 	u.moved = true
+	u.run_left = 0
 	for o in aoo_attackers(u, path):
 		if not u.active():
 			break
@@ -571,6 +608,9 @@ func do_move(u: BattleUnit, dest: Vector2i) -> bool:
 			break
 	if not walked.is_empty():
 		emit({"t": "move", "uid": u.uid, "path": walked, "vis": walked_vis})
+	if not running and reach.has(u.pos):
+		# a walk keeps the rest of the run for later, at the cost of the action
+		u.run_left = maxi(0, run_cap - int(reach[u.pos]["cost"]))
 	if u.carrying >= 0:
 		var body := unit(u.carrying)
 		if body:
@@ -664,6 +704,17 @@ func _high_ground(u_pos: Vector2i, t_pos: Vector2i) -> bool:
 	return grid.height(u_pos) - grid.height(t_pos) >= 1
 
 
+## Ranged skills reach one tile further per level `from` stands above `target`
+## (optimal and maximum range alike). Melee, charges and teleports do not grow.
+func height_reach(s: Dictionary, from: Vector2i, target: Vector2i) -> int:
+	if not is_ranged_skill(s) or s.get("range", {}).get("kind", "") == "charge":
+		return 0
+	for eff in s.get("effects", []):
+		if eff.get("t", "") == "teleport":
+			return 0
+	return maxi(0, grid.height(from) - grid.height(target))
+
+
 func _in_skill_range(u: BattleUnit, s: Dictionary, from: Vector2i, target: Vector2i) -> bool:
 	var rr := skill_range(u, s, from)
 	var kind: String = s.get("range", {}).get("kind", "melee")
@@ -672,10 +723,7 @@ func _in_skill_range(u: BattleUnit, s: Dictionary, from: Vector2i, target: Vecto
 	if kind == "melee":
 		return Rules.chebyshev(from, target) == 1 and absi(grid.height(from) - grid.height(target)) <= 2
 	var d := Rules.distance(from, target)
-	var mx: int = rr[2]
-	if kind == "weapon" and _high_ground(from, target):
-		mx += 1
-	return d >= rr[0] and d <= mx
+	return d >= rr[0] and d <= rr[2] + height_reach(s, from, target)
 
 
 func _los_ok(u: BattleUnit, s: Dictionary, from: Vector2i, target: Vector2i) -> bool:
@@ -723,10 +771,10 @@ func valid_targets(u: BattleUnit, skill_id: String, from := Vector2i(-99, -99)) 
 					out.append(op)
 		"tile", "empty_tile":
 			var rr := skill_range(u, s, from)
-			for c in grid.cells_in_radius(from, rr[2] + 1):
+			for c in grid.cells_in_radius(from, rr[2] + 1 + maxi(0, grid.height(from))):
 				if tgt == "empty_tile" and (not grid.standable(c, u.swims, u.floats) or unit_at(c, true) != null):
 					continue
-				if Rules.distance(from, c) < rr[0] or Rules.distance(from, c) > rr[2]:
+				if not _in_skill_range(u, s, from, c):
 					continue
 				if not _los_ok(u, s, from, c):
 					continue
@@ -937,7 +985,7 @@ func attack_context(att: BattleUnit, target: BattleUnit, s: Dictionary, eff: Dic
 	var high := _high_ground(from, target.pos)
 	var beyond := 0
 	if s.get("range", {}).get("kind", "") == "weapon":
-		var opt := int(att.stat("range")) + int(s["range"].get("bonus", 0)) + (1 if high else 0)
+		var opt := int(att.stat("range")) + int(s["range"].get("bonus", 0)) + height_reach(s, from, target.pos)
 		beyond = maxi(0, Rules.distance(from, target.pos) - opt)
 	var acc := att.stat("accuracy") + float(eff.get("acc", 0))
 	if ranged:

@@ -424,7 +424,8 @@ func _begin_player_turn(u: BattleUnit) -> void:
 		Dialogs.message(self, "Your first fight",
 			("Each turn a member may [color=#%s]move[/color] (blue tiles) and take [color=#%s]one action[/color].\n\n" +
 			"• Click a blue tile to move. Hovering shows the path, cover and attacks of opportunity.\n" +
-			"• Yellow tiles are a [color=#%s]Run[/color]: twice as far, but it uses up the action too.\n" +
+			"• Yellow tiles are a [color=#%s]Run[/color]: twice as far, but it uses up the action too. You can stop on a blue tile first and still run on.\n" +
+			"• Members vault half cover (crates, barrels, low walls) when the tile beyond is free.\n" +
 			"• Enemies marked red can be attacked from where you stand: click one, or pick a skill below (keys 1-6). Hit and crit chances show before you commit.\n" +
 			"• Orange tiles are enemy zones of control: stepping in stops you; leaving provokes a free attack.\n" +
 			"• A member at 0 HP is [color=#%s]Downed[/color] and bleeds out. Stabilize them (G) or carry them (C) to the green extraction zone.\n\n" +
@@ -435,7 +436,7 @@ func _begin_player_turn(u: BattleUnit) -> void:
 func _refresh_player() -> void:
 	if active == null:
 		return
-	reach = battle.reachable_with_run(active) if not active.moved else {}
+	reach = battle.reachable_with_run(active)
 	_refresh_all()
 	_update_hover()
 
@@ -920,11 +921,11 @@ func _draw_ranges() -> void:
 		else:
 			_show_targets(cells)
 			var rr := battle.skill_range(active, s, active.pos)
-			var area := battle.grid.cells_in_radius(active.pos, rr[2])
+			var area := battle.grid.cells_in_radius(active.pos, rr[2] + maxi(0, battle.grid.height(active.pos)))
 			var inr: Array = []
 			for c in area:
 				var d := Rules.distance(active.pos, c)
-				if d >= rr[0] and d <= rr[2] and (s.get("range", {}).get("kind", "") != "melee" or Rules.chebyshev(active.pos, c) == 1):
+				if d >= rr[0] and d <= rr[2] + battle.height_reach(s, active.pos, c) and (s.get("range", {}).get("kind", "") != "melee" or Rules.chebyshev(active.pos, c) == 1):
 					inr.append(c)
 			overlay.show_cells("range", inr, C_ENEMY, C_ENEMY_B, 0.0, EDGE_BOLD)
 		return
@@ -1265,13 +1266,16 @@ func _walk(uv: UnitView, u: BattleUnit, path: Array, fast: bool, knock: bool, vi
 		var d: Vector2i = c - Vector2i(roundi(from.x - 0.5), roundi(from.z - 0.5))
 		if not knock:
 			uv.face(Vector2i(signi(d.x), signi(d.y)) if absi(d.x) >= absi(d.y) else Vector2i(0, signi(d.y)))
-		var hop := absf(target.y - from.y) > 0.1
+		# two tiles in one step: vaulting a half cover
+		var vault := not knock and absi(d.x) + absi(d.y) >= 2
+		var hop := vault or absf(target.y - from.y) > 0.1
+		var arc := 0.7 if vault else 0.25
 		var tw := uv.create_tween()
 		tw.tween_method(func(f: float):
 			var p := from.lerp(target, f)
 			if hop:
-				p.y += sin(f * PI) * 0.25
-			uv.position = p, 0.0, 1.0, step_t * (1.3 if hop else 1.0))
+				p.y += sin(f * PI) * arc
+			uv.position = p, 0.0, 1.0, step_t * (2.2 if vault else (1.3 if hop else 1.0)))
 		await tw.finished
 		view_cell[u.uid] = c
 		var i := path.find(c)

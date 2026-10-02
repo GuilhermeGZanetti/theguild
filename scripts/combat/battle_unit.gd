@@ -29,6 +29,7 @@ var bleed := 0
 var stabilized := false
 var moved := false
 var acted := false
+var run_left := 0           # after a walk, how far a run could still carry the unit this turn
 var lucky_used := false
 var rampage_used := false
 var alerted := true         # enemies in an unaware pod patrol until they spot the squad

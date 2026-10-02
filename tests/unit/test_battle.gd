@@ -65,6 +65,73 @@ func test_walk_keeps_the_action_and_no_run_after_acting():
 	assert_false(b.do_move(p, Vector2i(mv + 1, mv)), "can't run once the action is spent")
 
 
+func test_walk_then_run_on_to_the_run_band():
+	var b := _flat_battle(20, 20)
+	var p := b.add_unit(_warrior(0, Vector2i(0, 0)))
+	b.add_unit(_warrior(1, Vector2i(19, 19)))
+	b.start()
+	b._begin_turn(p)
+	var mv := b.move_budget(p)
+	assert_true(b.do_move(p, Vector2i(2, 0)))
+	assert_false(p.acted, "the walk keeps the action")
+	assert_eq(b.run_budget(p), mv * 2 - 2, "and the rest of the run")
+	var reach := b.reachable_with_run(p)
+	assert_true(reach.has(Vector2i(mv * 2, 0)), "the run band is still in reach")
+	assert_false(reach.has(Vector2i(mv * 2 + 1, 0)), "but no further than a single run")
+	assert_true(b.is_run(p, reach, Vector2i(3, 0)), "any step after the walk is a run")
+	assert_true(b.do_move(p, Vector2i(mv * 2, 0)))
+	assert_true(p.acted, "running on spends the action")
+	assert_eq(b.run_budget(p), 0, "and there is no third leg")
+	b._begin_turn(p)
+	assert_true(b.do_move(p, Vector2i(mv * 2 - 2, 0)))
+	p.acted = true
+	assert_eq(b.run_budget(p), 0, "acting after the walk gives up the run")
+
+
+## A wall of full cover down column x = 3 with one gap at (3, 5).
+func _walled_battle() -> Battle:
+	var b := _flat_battle()
+	for y in 10:
+		var tl := b.grid.t(Vector2i(3, y))
+		tl["solid"] = y != 5
+		tl["cover"] = 2 if y != 5 else 0
+	return b
+
+
+func test_vault_half_cover_onto_a_free_tile():
+	var b := _walled_battle()
+	var gap := b.grid.t(Vector2i(3, 5))
+	gap["solid"] = true
+	gap["cover"] = 1
+	var p := b.add_unit(_warrior(0, Vector2i(2, 5)))
+	b.add_unit(_warrior(1, Vector2i(9, 0)))
+	var reach := b.reachable(p)
+	assert_true(reach.has(Vector2i(4, 5)), "vaults the half cover")
+	assert_eq(int(reach[Vector2i(4, 5)]["cost"]), 2, "for the obstacle's tile and the landing")
+	assert_eq(b.path_to(p, Vector2i(5, 5), reach), [Vector2i(4, 5), Vector2i(5, 5)])
+	var ally := b.add_unit(_warrior(0, Vector2i(4, 5)))
+	assert_false(b.reachable(p).has(Vector2i(5, 5)), "needs a free tile to land on")
+	ally.pos = Vector2i(7, 7)
+	gap["cover"] = 2
+	assert_false(b.reachable(p).has(Vector2i(4, 5)), "full cover cannot be vaulted")
+	gap["cover"] = 1
+	b.start()
+	b._begin_turn(p)
+	assert_true(b.do_move(p, Vector2i(5, 5)))
+	assert_eq(p.pos, Vector2i(5, 5))
+
+
+func test_walk_over_a_downed_ally():
+	var b := _walled_battle()
+	var p := b.add_unit(_warrior(0, Vector2i(2, 5)))
+	var body := b.add_unit(_warrior(0, Vector2i(3, 5)))
+	body.state = "downed"
+	b.add_unit(_warrior(1, Vector2i(9, 0)))
+	var reach := b.reachable(p)
+	assert_true(reach[Vector2i(3, 5)].get("pass_only", false), "no standing on the body")
+	assert_eq(int(reach[Vector2i(4, 5)]["cost"]), 2, "but the tile beyond is in reach")
+
+
 func _has_non_zoc_route(b: Battle, u: BattleUnit, dest: Vector2i) -> bool:
 	var reach := b.reachable(u)
 	var path := b.path_to(u, dest, reach)
@@ -116,6 +183,43 @@ func _mystic(pos: Vector2i) -> BattleUnit:
 	u.team = BattleUnit.TEAM_PLAYER
 	u.pos = pos
 	return u
+
+
+func _ranger(pos: Vector2i) -> BattleUnit:
+	rng.seed = 23
+	var m := Member.create(rng, "ranger", "human", 1)
+	m.traits = []
+	var u := BattleFactory.member_unit(m)
+	u.team = BattleUnit.TEAM_PLAYER
+	u.pos = pos
+	return u
+
+
+func test_high_ground_adds_a_tile_of_reach_per_level():
+	var b := _flat_battle(16, 5)
+	var r := b.add_unit(_ranger(Vector2i(0, 2)))
+	var shoot := DB.skill("shoot")
+	var mx: int = b.skill_range(r, shoot, r.pos)[2]
+	var foe := b.add_unit(_warrior(1, Vector2i(mx + 2, 2)))
+	b.start()
+	assert_false(foe.pos in b.valid_targets(r, "shoot"), "out of reach on flat ground")
+	b.grid.t(r.pos)["h"] = 1
+	assert_false(foe.pos in b.valid_targets(r, "shoot"), "one level up is one tile short")
+	b.grid.t(r.pos)["h"] = 2
+	assert_true(foe.pos in b.valid_targets(r, "shoot"), "two levels up reach two tiles further")
+	var ctx := b.attack_context(r, foe, shoot, shoot["effects"][0])
+	assert_eq(int(ctx["beyond"]), mx + 2 - (int(r.stat("range")) + 2), "optimal range grows too")
+	b.grid.t(foe.pos)["h"] = 1
+	assert_false(foe.pos in b.valid_targets(r, "shoot"), "only the difference in height counts")
+	# area spells, heals and fixed ranges reach further too, teleports do not
+	var m := b.add_unit(_mystic(Vector2i(0, 0)))
+	b.grid.t(m.pos)["h"] = 2
+	var far := Vector2i(b.skill_range(m, DB.skill("firebolt"), m.pos)[2] + 2, 0)
+	assert_true(far in b.valid_targets(m, "firebolt"), "a fireball from the hill lands further")
+	var ally := b.add_unit(_warrior(0, Vector2i(int(DB.skill("mend")["range"]["max"]) + 2, 0)))
+	assert_true(ally.pos in b.valid_targets(m, "mend"), "a heal from the hill reaches further")
+	var step := Vector2i(int(DB.skill("shadowstep")["range"]["max"]) + 1, 1)
+	assert_false(step in b.valid_targets(m, "shadowstep"), "a teleport does not")
 
 
 func test_area_spells_always_land_and_burn_allies_too():

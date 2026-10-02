@@ -98,6 +98,25 @@ func step_cost(a: Vector2i, b: Vector2i, swims := false, floats := false) -> int
 	return c
 
 
+## Low obstacles (half-cover props) can be vaulted.
+func vaultable(p: Vector2i) -> bool:
+	if not inb(p):
+		return false
+	var tl := t(p)
+	return tl["solid"] and int(tl["cover"]) == 1
+
+
+## Cost of vaulting from `a` over the half cover at `a + dir` onto `a + 2 dir`:
+## the obstacle's tile plus the landing step, -1 when there is nothing to vault
+## or no footing on the far side.
+func vault_cost(a: Vector2i, dir: Vector2i, swims := false, floats := false) -> int:
+	var mid := a + dir
+	if not vaultable(mid) or height(mid) > height(a):
+		return -1
+	var sc := step_cost(a, a + dir * 2, swims, floats)
+	return -1 if sc < 0 else sc + 1
+
+
 ## Cover (0 none, 1 half, 2 full) a unit at `target` gets against `from`.
 func cover_from(target: Vector2i, from: Vector2i) -> int:
 	var d := Vector2(from - target)

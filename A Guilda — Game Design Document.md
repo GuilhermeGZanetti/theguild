@@ -99,7 +99,7 @@ Members can gain new traits from events: surviving a near-death hit, killing a b
 \\text{delay} = \\frac{1000}{\\text{Speed} + 50}
 ```
 
-**Actions per turn.** One Move and one Action, in any order. Alternatives: Defend (+20 Dodge and +1 crit defense chance until next turn), Overwatch (attack the first enemy that moves in range), or Wait (act later in the timeline).
+**Actions per turn.** One Move and one Action, in any order. Alternatives: Defend (+20 Dodge and +1 crit defense chance until next turn), Overwatch (attack the first enemy that moves in range), or Wait (act later in the timeline). Running moves up to twice the Movement but spends the Action; a member can walk first and then run on, as far as one run from the start of the turn would have reached. Half cover (crates, barrels, low walls) can be vaulted onto a free tile beyond, at the cost of both tiles.
 
 **Hit chance.** Every attack shows its final chance, clamped between 5% and 95%, so nothing is ever certain.
 
@@ -111,7 +111,7 @@ Members can gain new traits from events: surviving a near-death hit, killing a b
 |-|-|
 |Half cover|−20 hit|
 |Full cover|−40 hit|
-|Attacker on higher ground|+10 hit, +1 Range|
+|Attacker on higher ground|+10 hit; +1 Range (optimal and max) per level above the target, for every ranged skill except charges and teleports|
 |Flanking (target has no cover from attacker)|+15 hit, +10 Crit|
 |Each tile beyond optimal range|−10 hit|
 

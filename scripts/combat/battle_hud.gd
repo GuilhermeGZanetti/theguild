@@ -335,7 +335,9 @@ func refresh_actions(b: Battle, u: BattleUnit, mode: String, selected: String) -
 	var end := UIKit.button("End Squad Turn" if exploring else "End Turn", func(): action_pressed.emit("end", ""), "btn_green" if exploring else "", 0)
 	end.tooltip_text = "Every member stops; unaware patrols move  [Space]" if exploring else "End this unit's turn  [Space]"
 	action_box.add_child(end)
-	var moved := "Moved" if u.moved else "Move: %d" % b.move_budget(u)
+	var moved := "Move: %d" % b.move_budget(u)
+	if u.moved:
+		moved = "Moved · Run: %d" % b.run_budget(u) if b.run_budget(u) > 0 else "Moved"
 	var acted := "Acted" if u.acted else "Action ready"
 	if mode == "target" and selected != "":
 		action_hint.text = "%s: choose a target · Right-click to cancel" % DB.skill(selected).get("name", selected)

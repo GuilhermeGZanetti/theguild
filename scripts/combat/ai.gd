@@ -320,7 +320,8 @@ func position_score(u: BattleUnit, tile: Vector2i, hostiles: Array) -> float:
 			continue
 		var d := Rules.distance(tile, o.pos)
 		nearest = minf(nearest, d)
-		if d <= int(o.stat("move")) + int(o.stat("range")) + 1:
+		var climb := 0 if o.melee else maxi(0, b.grid.height(o.pos) - b.grid.height(tile))
+		if d <= int(o.stat("move")) + int(o.stat("range")) + 1 + climb:
 			var c := b.grid.cover_from(tile, o.pos)
 			sc += c * 2.5
 			if c == 0 and not o.melee:

@@ -14,7 +14,7 @@ const STAT_TIPS := {
 	"crit": "Chance of a critical hit (x1.5 damage).",
 	"attack": "Damage of weapon attacks and skills.",
 	"accuracy": "Raises hit chance.",
-	"range": "Optimal range of ranged attacks. -10 hit per tile beyond.",
+	"range": "Optimal range of ranged attacks. -10 hit per tile beyond. +1 per level of high ground over the target.",
 	"resolve": "Resists fear, stuns and other status effects; steadies morale when allies fall.",
 }
 
