@@ -137,10 +137,14 @@ func test_traits_never_conflict():
 func test_injury_and_nursery():
 	var m := Member.create(rng, "warrior", "human", 1)
 	m.traits = []
-	var r := m.injure("light", rng, 0.0)
+	var r := m.injure("light", rng, 0)
 	assert_eq(int(r["weeks"]), 1)
-	m.injure("serious", rng, 0.5)
-	assert_between(int(m.injury["weeks"]), 1, 2)
+	for lv in [1, 2, 3]:
+		rng.seed = 5
+		var base := int(m.injure("serious", rng, 0)["weeks"])
+		rng.seed = 5
+		assert_eq(int(m.injure("serious", rng, lv)["weeks"]), maxi(1, base - lv), "each Nursery level takes a week off")
+	assert_eq(int(m.injure("light", rng, 3)["weeks"]), 1, "an injury always takes at least a week")
 
 
 func test_racial_traits_apply():

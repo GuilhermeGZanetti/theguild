@@ -550,13 +550,13 @@ func _refit_skills() -> void:
 
 
 # ------------------------------------------------------------------ injuries
-func injure(kind: String, rng: RandomNumberGenerator, nursery_speed: float, extra_weeks: int = 0) -> Dictionary:
+func injure(kind: String, rng: RandomNumberGenerator, nursery_weeks: int, extra_weeks: int = 0) -> Dictionary:
 	var weeks := 1
 	if kind == "serious":
 		weeks = rng.randi_range(2, 5)
 	var m := mods()
-	var f := (1.0 + float(m.get("heal_pct", 0.0))) * (1.0 - nursery_speed)
-	weeks = maxi(1, roundi(weeks * f) + extra_weeks)
+	weeks = roundi(weeks * (1.0 + float(m.get("heal_pct", 0.0))))
+	weeks = maxi(1, weeks - nursery_weeks + extra_weeks)
 	injury = {"kind": kind, "weeks": weeks}
 	var result := {"kind": kind, "weeks": weeks, "permanent": ""}
 	if kind == "serious" and rng.randf() < 0.10:

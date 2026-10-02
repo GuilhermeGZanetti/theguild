@@ -161,8 +161,14 @@ func memorial_resolve() -> int:
 	return int(DB.facilities["memorial"]["resolve"][facilities["memorial"]])
 
 
-func nursery_speed() -> float:
-	return float(DB.facilities["nursery"]["speed"][facilities["nursery"]])
+## Weeks the Nursery takes off every injury (recovery never drops below a week).
+func nursery_weeks() -> int:
+	return int(DB.facilities["nursery"]["weeks"][facilities["nursery"]])
+
+
+## Share of the usual chance of a new injury a member still runs after a quest.
+func nursery_injury_chance() -> float:
+	return float(DB.facilities["nursery"]["injury_chance"][facilities["nursery"]])
 
 
 func allied_factions() -> Array:
@@ -865,20 +871,23 @@ func finish_mission(mission: Dictionary, battle: Battle) -> Dictionary:
 		var ups := m.add_xp(xp, rng)
 		if not ups.is_empty():
 			rep["levels"][m.id] = ups
+		var care := nursery_injury_chance()
 		if u.was_downed:
 			m.history["near_deaths"] += 1
 			m.history["downed"] += 1
-			var serious_ch: float = Rules.DOWNED_SERIOUS[difficulty]
-			var kind := "serious" if rng.randf() < serious_ch else "light"
-			var extra := -1 if flags.get("healing_sap", false) and kind == "serious" else 0
-			var inj := m.injure(kind, rng, nursery_speed(), extra)
-			inj["cause"] = "downed"
-			rep["injuries"][m.id] = inj
+			# a top Nursery may spare the downed an injury altogether
+			if care >= 1.0 or rng.randf() < care:
+				var serious_ch: float = Rules.DOWNED_SERIOUS[difficulty]
+				var kind := "serious" if rng.randf() < serious_ch else "light"
+				var extra := -1 if flags.get("healing_sap", false) and kind == "serious" else 0
+				var inj := m.injure(kind, rng, nursery_weeks(), extra)
+				inj["cause"] = "downed"
+				rep["injuries"][m.id] = inj
 			if rng.randf() < 0.25 and m.add_trait("survivor"):
 				rep["traits"][m.id] = "survivor"
-		elif rng.randf() < Rules.wound_chance(u.hp_lost, u.max_hp()):
+		elif rng.randf() < Rules.wound_chance(u.hp_lost, u.max_hp()) * care:
 			# took a beating, even if a healer patched it up during the fight
-			var inj := m.injure("light", rng, nursery_speed())
+			var inj := m.injure("light", rng, nursery_weeks())
 			inj["cause"] = "wounds"
 			inj["lost"] = u.hp_lost
 			rep["injuries"][m.id] = inj
@@ -1215,7 +1224,7 @@ func resolve_event(ev_id: String, choice: int) -> String:
 		if e.has("member_injure"):
 			var healthy: Array = members.filter(func(x): return x.injury.is_empty())
 			if not healthy.is_empty():
-				healthy[rng.randi() % healthy.size()].injure("light", rng, 0.0)
+				healthy[rng.randi() % healthy.size()].injure("light", rng, 0)
 		if e.has("member_resolve"):
 			pass
 	if e.has("named_recruit"):

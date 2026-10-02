@@ -209,6 +209,37 @@ func test_heavy_wounds_can_injure_even_when_healed():
 	assert_gt(hurt, 0, "80% each: someone in four gets hurt")
 
 
+## Every member of the squad Downed in `trials` won quests; how many came home injured.
+func _downed_injuries(c: Campaign, trials: int) -> int:
+	var squad := c.available_members().slice(0, 4)
+	var hurt := 0
+	for i in trials:
+		var m := c._make_mission("contract", "carrow")
+		var b := BattleFactory.build(m, squad, c.battle_context(m))
+		for u in b.units:
+			if u.team == BattleUnit.TEAM_PLAYER and u.member != null:
+				u.was_downed = true
+		b.result = "victory"
+		b.over = true
+		c.finish_mission(m, b)
+		for mem in squad:
+			if not mem.injury.is_empty():
+				hurt += 1
+				mem.injury = {}
+	return hurt
+
+
+func test_top_nursery_spares_a_quarter_of_new_injuries():
+	var c := _new()
+	c.facilities["nursery"] = 2
+	assert_eq(c.nursery_weeks(), 2)
+	assert_eq(_downed_injuries(c, 2), 8, "below level 3 the Downed are always injured")
+	c.facilities["nursery"] = 3
+	assert_eq(c.nursery_weeks(), 2, "level 3 takes no extra week off")
+	var hurt := _downed_injuries(c, 10)
+	assert_between(hurt, 20, 39, "about three in four of 40 Downed are injured")
+
+
 func test_battle_counts_hp_lost_through_healing():
 	var c := _new()
 	var m := c._make_mission("contract", "carrow")

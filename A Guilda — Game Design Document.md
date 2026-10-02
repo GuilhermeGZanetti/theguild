@@ -153,7 +153,7 @@ This is the core of the XCOM-like tension.
 |Permanent (10% chance on serious)|Never|Stat penalty or negative trait, e.g. lost eye (−15 Accuracy)|
 
 * Dead members are gone. Their equipment is lost unless an ally carries the body to extraction.
-* The Nursery facility reduces recovery time.
+* Nursery levels 1 and 2 each shorten recovery by one week, but an injury always takes at least one week to heal. Level 3 keeps the two weeks, cuts the chance of new injuries (from being Downed or from heavy wounds) by 25% and treats permanent injuries.
 * Ironman mode: single autosave, no reloads.
 
 ### Retreat
@@ -237,7 +237,7 @@ Each facility has 3 levels.
 |Facility|Effect|
 |-|-|
 |Recruiter|More and better candidates; reveals hidden tier and potential|
-|Nursery|Faster injury recovery; at level 3, can treat permanent injuries|
+|Nursery|Levels 1–2: injury recovery one week shorter each (minimum one week); level 3: still two weeks shorter, 25% less chance of new injuries, can treat permanent injuries|
 |Training Grounds|Passive XP for members not on quests|
 |Forge|Equipment upgrades and crafting|
 |Library|New skills to learn; cheaper skill costs|

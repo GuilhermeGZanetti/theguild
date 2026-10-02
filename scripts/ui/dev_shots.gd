@@ -127,7 +127,7 @@ func _campaign() -> void:
 	c.tutorial_seen["hub"] = true
 	for fid in ["library", "forge", "memorial", "training", "nursery", "recruiter"]:
 		c.facilities[fid] = 1 + (1 if fid in ["forge", "training"] else 0)
-	c.roster[1].injure("serious", c.rng, 0.0)
+	c.roster[1].injure("serious", c.rng, 0)
 	var extra := Member.create(c.rng, "ranger", "mothkin", 2, 5)
 	c.add_member(extra)
 	c.roster[0].add_xp(400, c.rng)
