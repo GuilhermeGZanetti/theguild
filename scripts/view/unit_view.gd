@@ -1,7 +1,8 @@
 class_name UnitView
 extends Node3D
 ## A unit on the map: a pixel-perfect standee sprite (Y-billboard stretched
-## by 1/cos(pitch) so it shows 1:1 on screen), blob shadow and animations.
+## by 1/cos(pitch) so it shows 1:1 on screen, lit by the scene), blob shadow
+## and animations.
 
 const PX := 24.0
 const FRAME_TIME := {"idle": 0.2, "walk": 0.1, "attack": 0.085, "cast": 0.11, "hit": 0.12, "dodge": 0.1,
@@ -68,7 +69,7 @@ func setup(p_variant: String, palette: Dictionary, p_pitch: float, region := "")
 	add_child(sprite)
 	shadow = MeshInstance3D.new()
 	var pm := PlaneMesh.new()
-	var sw := 0.7 if canvas <= 64 else 1.1 * canvas / 96.0
+	var sw := 0.52 if canvas <= 64 else 0.82 * canvas / 96.0
 	pm.size = Vector2(sw, sw * 0.62)
 	shadow.mesh = pm
 	var smat := StandardMaterial3D.new()
@@ -196,9 +197,10 @@ func set_alpha(v: float) -> void:
 		shadow.visible = v > 0.2
 
 
-func set_highlight(v: float) -> void:
+func set_highlight(v: float, color := Color(1.0, 0.92, 0.55)) -> void:
 	if mat:
 		mat.set_shader_parameter("highlight", v)
+		mat.set_shader_parameter("highlight_color", color)
 
 
 func set_tint(c: Color) -> void:
@@ -209,7 +211,7 @@ func set_tint(c: Color) -> void:
 func head_offset() -> Vector3:
 	## World offset of the top of the sprite (for HP bars and barks).
 	if meta.is_empty():
-		return Vector3(0, 1.4, 0)
+		return Vector3(0, 1.05, 0)
 	var anchor: Array = meta.get("anchor", [32, 50])
-	var top_px := float(anchor[1]) - canvas * 0.28 if canvas <= 64 else float(anchor[1]) - canvas * 0.5
+	var top_px := float(anchor[1]) - canvas * 0.405 if canvas <= 64 else float(anchor[1]) - canvas * 0.57
 	return Vector3(0, top_px / PX / cos(deg_to_rad(pitch)) * cos(deg_to_rad(pitch)) * 1.0 + 0.2, 0)

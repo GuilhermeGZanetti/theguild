@@ -64,6 +64,12 @@ const SKIRT_DECO := {
 	"hush": ["pebbles", "ash"],
 }
 const SMALL_PROPS := ["bush", "rock_s", "stump", "mushrooms"]
+# unit sprite light (update_unit_light): the sky's share of full daylight on
+# a unit (how dark shade gets), the lift of the darks (as in the shader) and
+# how far the exposure adapts from the hour's real light toward unit_tint()
+const UNIT_SKY_SHARE := 0.5
+const UNIT_LIFT := 0.75
+const UNIT_ADAPT := 0.7
 
 
 func build(g: BattleGrid, wv: WorldView, p_pad := 9, skirt_props := true) -> void:
@@ -113,6 +119,7 @@ func build(g: BattleGrid, wv: WorldView, p_pad := 9, skirt_props := true) -> voi
 	wv.bounds = Rect2(0, 0, g.w, g.h)
 	set_mist(mist_color, 1.0 if pad > 0 else 0.0)
 	set_hush(float(hush_level))
+	update_unit_light()
 
 
 ## Dusk warms and lowers the sun; night swaps it for moonlight, darkens the
@@ -135,9 +142,39 @@ func _time_of_day(look: Dictionary) -> void:
 			light_boost = 1.8
 
 
-## Unit sprites are unlit: tint them to the hour so they sit in the scene.
+## How a unit in full light looks at this hour (the sprites' exposure target).
 func unit_tint() -> Color:
 	return {"dusk": Color(1.0, 0.9, 0.84), "night": Color(0.72, 0.78, 1.0)}.get(time, Color.WHITE)
+
+
+## Feeds the scene's light to the unit sprites (shaders/unit_sprite.gdshader).
+## Their palettes are authored for full sun at noon in this biome, which maps
+## to 1.0; shade, the hour and point lights move them from there. Call again
+## after changing the environment or the sun.
+func update_unit_light() -> void:
+	var day: Dictionary = BIOME_LOOK.get(biome, BIOME_LOOK["town"])
+	var amb_d := _rgb(day["ambient"]) * float(day["amb_e"])
+	var sun_d := _rgb(day["sun"]) * float(day["sun_e"]) * 1.4
+	var ka := UNIT_SKY_SHARE / _lum(amb_d)
+	var ks := (1.0 - UNIT_SKY_SHARE) / _lum(sun_d)
+	var n := amb_d * ka + sun_d * ks
+	var amb := _rgb(environment.ambient_light_color) * environment.ambient_light_energy * ka / n
+	var full := amb + _rgb(sun.light_color) * sun.light_energy * ks / n
+	var tint := _rgb(unit_tint())
+	var expo := Vector3.ONE
+	for i in 3:
+		expo[i] = pow(tint[i] / pow(full[i], UNIT_LIFT), UNIT_ADAPT)
+	RenderingServer.global_shader_parameter_set("unit_amb_light", amb)
+	RenderingServer.global_shader_parameter_set("unit_light_k", Vector3.ONE * ks / n)
+	RenderingServer.global_shader_parameter_set("unit_expo", expo)
+
+
+static func _rgb(c: Color) -> Vector3:
+	return Vector3(c.r, c.g, c.b)
+
+
+static func _lum(v: Vector3) -> float:
+	return v.dot(Vector3(0.3, 0.59, 0.11))
 
 
 func _build_terrain() -> void:

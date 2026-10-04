@@ -676,7 +676,7 @@ BUILDERS = {"floater": build_floater, "serpent": build_serpent, "quad": build_qu
 # ======================================================================
 # Main
 # ======================================================================
-CHAR_SCALE = 1.2
+CHAR_SCALE = 0.9
 
 
 def portrait_camera(scene, center, ortho, pitch_deg):

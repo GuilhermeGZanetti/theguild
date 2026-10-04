@@ -4,10 +4,10 @@ extends Node3D
 ## zones of control, extraction zone, objective area, enemy watch and the
 ## hover cursor.
 
-const LAYERS := ["extract", "objective", "run", "move", "zoc", "watch", "range", "active", "target", "aoe", "path", "cursor", "fx"]
+const LAYERS := ["extract", "objective", "run", "move", "zoc", "watch", "range", "active", "inspect", "target", "aoe", "path", "cursor", "fx"]
 const EDGE := 1.0 / 24.0
 ## Layers whose brightness breathes so they read at a glance.
-const PULSE := {"active": [0.55, 1.0], "target": [0.5, 1.0]}
+const PULSE := {"active": [0.55, 1.0], "inspect": [0.5, 1.0], "target": [0.5, 1.0]}
 
 var map_view: BattleMapView
 var layers := {}

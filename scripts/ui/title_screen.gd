@@ -42,6 +42,7 @@ func _build_backdrop() -> void:
 	map_view.environment.ambient_light_energy = 0.75
 	map_view.sun.light_color = Color(1.0, 0.66, 0.48)
 	map_view.sun.light_energy = 0.9
+	map_view.update_unit_light()
 	# a few guild members by a campfire near the middle
 	var c := Vector2i(grid.w / 2, grid.h / 2)
 	var spot := c

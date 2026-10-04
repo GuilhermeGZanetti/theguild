@@ -17,6 +17,9 @@ const C_TARGET_B := Color(1.0, 0.3, 0.2, 1.0)
 const C_ACTIVE := Color(1.0, 0.85, 0.3, 0.4)
 const C_ACTIVE_B := Color(1.0, 0.92, 0.5, 1.0)
 const EDGE_BOLD := 3.0 / 24.0
+# the unit inspected from the timeline: its outline and tile, by side
+const INSPECT_COLOR := {BattleUnit.TEAM_PLAYER: Color(0.55, 0.78, 1.0), BattleUnit.TEAM_ENEMY: Color(1.0, 0.45, 0.38)}
+const INSPECT_NPC := Color(0.55, 0.92, 0.55)
 const C_WATCH := Color(1.0, 0.12, 0.08, 0.32)
 const C_WATCH_B := Color(1.0, 0.3, 0.25, 1.0)
 const C_WATCH_G := Color(1.0, 0.25, 0.2, 0.5)
@@ -59,6 +62,7 @@ var selected_skill := ""
 var reach := {}
 var hover_cell := Vector2i(-1, -1)
 var hover_uid := -1
+var inspect_uid := -1                # unit inspected from the timeline (HUD)
 var active: BattleUnit = null
 var cover_icons: Array = []
 var turn_arrow: Polygon2D = null
@@ -118,6 +122,8 @@ func _ready() -> void:
 	add_child(hud)
 	hud.action_pressed.connect(_on_action)
 	hud.menu_pressed.connect(_open_menu)
+	hud.inspect_changed.connect(_on_inspect)
+	hud.inspect_pinned.connect(func(uid: int): _focus_unit(battle.unit(uid)))
 	hud.refresh_objective(battle)
 	var focus := Vector3.ZERO
 	var n := 0
@@ -187,7 +193,6 @@ func _spawn_view(u: BattleUnit) -> UnitView:
 	var uv := UnitView.new()
 	map_view.add_child(uv)
 	uv.setup(u.sprite, u.palette, wv.pitch, battle.grid.region)
-	uv.set_tint(map_view.unit_tint())
 	uv.uid = u.uid
 	uv.position = map_view.unit_pos(u.pos)
 	uv.face(u.facing)
@@ -670,6 +675,8 @@ func _process(delta: float) -> void:
 			cells.append(u.pos)
 		elif u.alive() and views.has(u.uid) and views[u.uid].visible and u.team == BattleUnit.TEAM_ENEMY and Rules.chebyshev(u.pos, hover_cell) <= 1:
 			cells.append(u.pos)
+		elif u.uid == inspect_uid:
+			cells.append(u.pos)
 	if hover_cell != Vector2i(-1, -1):
 		cells.append(hover_cell)
 	map_view.update_fades(cells, bv["fwd_h"])
@@ -679,6 +686,34 @@ func _process(delta: float) -> void:
 	_update_turn_marker()
 	_update_objective_marker()
 	_update_cache_markers()
+	if inspect_uid >= 0 and views.has(inspect_uid):
+		var k := 0.5 + 0.5 * sin(Time.get_ticks_msec() / 1000.0 * 6.0)
+		views[inspect_uid].set_highlight(lerpf(0.55, 1.0, k), _inspect_color(battle.unit(inspect_uid)))
+
+
+## The HUD's inspected unit changed (a timeline portrait hovered or pinned):
+## outline its sprite, mark its tile and show its stats under the portrait.
+func _on_inspect() -> void:
+	var u: BattleUnit = battle.unit(hud.inspected()) if hud.inspected() >= 0 else null
+	if u != null and not u.alive():
+		u = null
+	var uid := u.uid if u else -1
+	if inspect_uid >= 0 and inspect_uid != uid and views.has(inspect_uid):
+		var was := active != null and state == "player" and inspect_uid == active.uid
+		views[inspect_uid].set_highlight(0.8 if was else 0.0)
+	inspect_uid = uid
+	hud.show_inspect(u, battle)
+	if u and views.has(uid) and views[uid].visible and u.carried_by < 0:
+		var c := _inspect_color(u)
+		overlay.show_cells("inspect", [u.pos], Color(c, 0.35), Color(c, 1.0), 0.0, EDGE_BOLD, Color(0, 0, 0, 0), C_RIM)
+	else:
+		overlay.clear("inspect")
+
+
+func _inspect_color(u: BattleUnit) -> Color:
+	if u == null:
+		return Color.WHITE
+	return INSPECT_NPC if u.npc else INSPECT_COLOR.get(u.team, Color.WHITE)
 
 
 func _update_objective_marker() -> void:
@@ -776,10 +811,10 @@ func pick() -> Array:
 		if u == null or not uv.visible or not u.alive() or u.carried_by >= 0 or uv.meta.is_empty():
 			continue
 		var feet := wv.world_to_screen(uv.global_position)
-		var h: float = (float(uv.meta["anchor"][1]) - (uv.canvas * 0.22 if uv.canvas <= 64 else uv.canvas * 0.3)) * ps
-		var w: float = uv.canvas * 0.34 * ps
+		var h: float = (float(uv.meta["anchor"][1]) - (uv.canvas * 0.36 if uv.canvas <= 64 else uv.canvas * 0.42)) * ps
+		var w: float = uv.canvas * 0.26 * ps
 		if u.state == "downed":
-			h = 10 * ps
+			h = 8 * ps
 		var r := Rect2(feet.x - w / 2.0, feet.y - h, w, h + 2 * ps)
 		if r.has_point(mp):
 			var depth := wv.camera.global_position.distance_to(uv.global_position)
@@ -875,6 +910,7 @@ func _update_hover() -> void:
 
 
 func _click() -> void:
+	hud.clear_pin()
 	if state != "player" or active == null:
 		return
 	var r := pick()
@@ -971,11 +1007,11 @@ func _show_cover_icons(cell: Vector2i, aoo: int) -> void:
 	if aoo > 0:
 		var r := UIKit.tex_rect(UIKit.small_tex("aoo"))
 		r.tooltip_text = "Leaving this zone of control provokes an attack of opportunity."
-		r.set_meta("world", map_view.cell_top(active.pos) + Vector3(0, 1.6, 0))
+		r.set_meta("world", map_view.cell_top(active.pos) + Vector3(0, 1.2, 0))
 		hud.float_layer.add_child(r)
 		cover_icons.append(r)
 		var l := UIKit.label("Attack of opportunity!", 8, UITheme.RED, UITheme.pixel_font)
-		l.set_meta("world", map_view.cell_top(active.pos) + Vector3(0, 1.9, 0))
+		l.set_meta("world", map_view.cell_top(active.pos) + Vector3(0, 1.45, 0))
 		hud.float_layer.add_child(l)
 		cover_icons.append(l)
 	_place_cover_icons()
@@ -999,9 +1035,9 @@ func _clear_cover_icons() -> void:
 func _head(u: BattleUnit) -> Vector3:
 	if views.has(u.uid):
 		var uv: UnitView = views[u.uid]
-		var h := 1.5 if uv.canvas <= 64 else 2.3
+		var h := 1.15 if uv.canvas <= 64 else 1.75
 		return uv.global_position + Vector3(0, h, 0)
-	return map_view.unit_pos(u.pos) + Vector3(0, 1.5, 0)
+	return map_view.unit_pos(u.pos) + Vector3(0, 1.15, 0)
 
 
 func _wait(t: float) -> void:
@@ -1158,13 +1194,13 @@ func _play_one(e: Dictionary) -> void:
 			await _wait(1.6)
 		"teleport":
 			if uv:
-				fx.burst(uv.global_position + Vector3(0, 0.5, 0), e.get("fx", "shadow"), 14)
+				fx.burst(uv.global_position + Vector3(0, 0.4, 0), e.get("fx", "shadow"), 14)
 				uv.set_alpha(0.0)
 				Audio.sfx("teleport")
 				await _wait(0.15)
 				uv.position = map_view.unit_pos(e["to"])
 				view_cell[int(e["uid"])] = e["to"]
-				fx.burst(uv.global_position + Vector3(0, 0.5, 0), e.get("fx", "shadow"), 14)
+				fx.burst(uv.global_position + Vector3(0, 0.4, 0), e.get("fx", "shadow"), 14)
 				uv.set_alpha(1.0)
 			await _wait(0.2)
 		"terrain":
@@ -1181,7 +1217,7 @@ func _play_one(e: Dictionary) -> void:
 					nv.set_alpha(0.0)
 					var tw := nv.create_tween()
 					tw.tween_method(func(a): nv.set_alpha(a), 0.0, 1.0, 0.4)
-					fx.burst(nv.global_position + Vector3(0, 0.5, 0), "hush" if u.hush else "smoke", 16)
+					fx.burst(nv.global_position + Vector3(0, 0.4, 0), "hush" if u.hush else "smoke", 16)
 					Audio.sfx("spawn", 0.05, -3.0)
 					await _wait(0.3)
 		"reveal":
@@ -1189,7 +1225,7 @@ func _play_one(e: Dictionary) -> void:
 				view_hidden.erase(u.uid)
 				uv.visible = _view_visible(u)
 				if uv.visible:
-					fx.burst(uv.global_position + Vector3(0, 0.5, 0), "smoke", 12)
+					fx.burst(uv.global_position + Vector3(0, 0.4, 0), "smoke", 12)
 					hud.float_text(_head(u), "Revealed!", UITheme.GOLD)
 					Audio.sfx("reveal")
 					await _wait(0.3)
@@ -1243,7 +1279,7 @@ func _play_one(e: Dictionary) -> void:
 			if u:
 				hud.float_text(_head(u) + Vector3(0, 0.3, 0), "Armor broken -%d" % roundi(float(e["loss"])), UITheme.BLUE)
 				Audio.sfx("armor_break")
-				fx.burst(_head(u) - Vector3(0, 0.6, 0), "impact", 10)
+				fx.burst(_head(u) - Vector3(0, 0.45, 0), "impact", 10)
 			await _wait(0.2)
 		"statuses", "status_end", "end_turn", "start":
 			pass
@@ -1310,8 +1346,8 @@ func _play_skill(e: Dictionary, u: BattleUnit, uv: UnitView) -> void:
 		fx.flash_light(uv.global_position, kind, 1.8, 0.6)
 	await _wait(0.2)
 	if kind in FX.RANGED and uv.global_position.distance_to(target_pos) > 1.6:
-		var from := uv.global_position + Vector3(0, 0.7, 0)
-		var to := target_pos + Vector3(0, 0.6, 0)
+		var from := uv.global_position + Vector3(0, 0.55, 0)
+		var to := target_pos + Vector3(0, 0.45, 0)
 		if kind == "lightning":
 			fx.lightning(from, to)
 			await _wait(0.12)
@@ -1361,7 +1397,7 @@ func _play_hit(e: Dictionary, u: BattleUnit, uv: UnitView) -> void:
 	if u.state == "active" or u.state == "downed":
 		uv.play("hit")
 	uv.hit_flash(Color(1, 1, 1) if not crit else Color(1, 0.9, 0.4))
-	fx.burst(uv.global_position + Vector3(0, 0.55, 0), e.get("fx", "slash"), 12 if crit else 7)
+	fx.burst(uv.global_position + Vector3(0, 0.42, 0), e.get("fx", "slash"), 12 if crit else 7)
 	var absorbed := int(e.get("absorbed", 0))
 	if crit:
 		hud.float_text(_head(u) + Vector3(0, 0.3, 0), "CRIT!", UITheme.GOLD, true)

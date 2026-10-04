@@ -2,10 +2,15 @@ class_name BattleHUD
 extends Control
 ## Combat HUD: timeline (or the squad while exploring), objective, unit
 ## panel, action bar, hit previews, floating combat text, HP/Defense bars,
-## barks and the objective marker.
+## barks and the objective marker. Hovering a timeline portrait inspects
+## that unit (stats under the portrait); a click pins it and looks at it.
 
 signal action_pressed(kind: String, arg: String)
 signal menu_pressed
+## The inspected unit changed (or needs a refresh): see inspected().
+signal inspect_changed
+## A timeline portrait was clicked to keep its unit inspected.
+signal inspect_pinned(uid: int)
 
 var scene  # BattleScene
 var timeline_box: HBoxContainer
@@ -19,6 +24,11 @@ var preview: PanelContainer
 var preview_body: VBoxContainer
 var info: PanelContainer
 var info_body: VBoxContainer
+var inspect_panel: PanelContainer
+var inspect_body: VBoxContainer
+var _inspect_hover := -1
+var _inspect_pin := -1
+var _mouse := Vector2(-1, -1)   # canvas position of the latest mouse event
 var float_layer: Control
 var bars_layer: Control
 var banner: Label
@@ -88,6 +98,8 @@ func refresh_timeline(b: Battle) -> void:
 		await get_tree().process_frame
 		var sp: Control = timeline_box.get_parent().get_parent()
 		sp.position.x = (size.x - sp.size.x) / 2.0
+		if inspected() >= 0:
+			inspect_changed.emit()
 		return
 	var seen_current := false
 	for entry in b.timeline_preview(10):
@@ -101,6 +113,8 @@ func refresh_timeline(b: Battle) -> void:
 	await get_tree().process_frame
 	var p: Control = timeline_box.get_parent().get_parent()
 	p.position.x = (size.x - p.size.x) / 2.0
+	if inspected() >= 0:
+		inspect_changed.emit()
 
 
 ## Exploring: the squad's portraits instead of the timeline; click one to
@@ -112,21 +126,25 @@ func _squad_bar(b: Battle) -> void:
 	for u in b.units:
 		if u.team != BattleUnit.TEAM_PLAYER or not u.alive() or u.carried_by >= 0:
 			continue
-		var e := _timeline_entry(u, b.current == u)
 		var ready: bool = u in b.explore_units()
+		var orders: bool = ready and not u.npc and u.objective_role == ""
+		var e := _timeline_entry(u, b.current == u, not orders)
 		if not ready:
 			e.modulate = Color(0.5, 0.5, 0.55)
-		if ready and not u.npc and u.objective_role == "":
+		if orders:
 			var uid: int = u.uid
-			e.tooltip_text += "\nClick (or Tab) to give orders"
+			e.set_meta("hint", "Click (or Tab) to give orders")
 			e.gui_input.connect(func(ev: InputEvent):
 				if ev is InputEventMouseButton and ev.pressed and ev.button_index == MOUSE_BUTTON_LEFT:
 					action_pressed.emit("select", str(uid)))
 		timeline_box.add_child(e)
 
 
-func _timeline_entry(u: BattleUnit, current: bool) -> Control:
+## A portrait in the timeline. Hovering it inspects the unit; with `pin` a
+## click keeps it inspected (click again to let go).
+func _timeline_entry(u: BattleUnit, current: bool, pin := true) -> Control:
 	var frame := PanelContainer.new()
+	frame.set_meta("uid", u.uid)
 	var col := Color8(70, 110, 190) if u.team == BattleUnit.TEAM_PLAYER else Color8(190, 70, 60)
 	if u.npc:
 		col = Color8(90, 170, 90)
@@ -136,8 +154,16 @@ func _timeline_entry(u: BattleUnit, current: bool) -> Control:
 	var por := _portrait(u)
 	por.custom_minimum_size = Vector2(20, 20) if not current else Vector2(24, 24)
 	frame.add_child(por)
-	frame.tooltip_text = "%s%s" % [u.name, " (Downed)" if u.state == "downed" else ""]
 	frame.mouse_filter = Control.MOUSE_FILTER_PASS
+	if pin:
+		var uid: int = u.uid
+		frame.set_meta("hint", "Click to keep it highlighted")
+		frame.gui_input.connect(func(ev: InputEvent):
+			if ev is InputEventMouseButton and ev.pressed and ev.button_index == MOUSE_BUTTON_LEFT:
+				_inspect_pin = -1 if _inspect_pin == uid else uid
+				inspect_changed.emit()
+				if _inspect_pin == uid:
+					inspect_pinned.emit(uid))
 	if u.state == "downed":
 		por.modulate = Color(1, 0.5, 0.5)
 	return frame
@@ -405,6 +431,12 @@ func _build_preview() -> void:
 	add_child(info)
 	info_body = UIKit.vbox(1)
 	info.add_child(info_body)
+	inspect_panel = UIKit.panel("panel", Vector4(5, 4, 5, 4))
+	inspect_panel.visible = false
+	inspect_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(inspect_panel)
+	inspect_body = UIKit.vbox(1)
+	inspect_panel.add_child(inspect_body)
 
 
 func show_preview(pv: Dictionary, at: Vector2) -> void:
@@ -468,23 +500,7 @@ func show_info(u: BattleUnit, at: Vector2, b: Battle) -> void:
 	if u == null:
 		info.visible = false
 		return
-	info_body.add_child(UIKit.header(u.name, 10, UITheme.RED if u.team == BattleUnit.TEAM_ENEMY else UITheme.BLUE))
-	var t := "HP %d/%d   Def %d   Dodge %d   Acc %d" % [u.hp, u.max_hp(), roundi(u.defense_now()), roundi(u.stat("dodge")), roundi(u.stat("accuracy"))]
-	t += "\nMove %d   Range %d   Speed %d   Resolve %d" % [roundi(u.stat("move")), roundi(u.stat("range")), roundi(u.stat("speed")), roundi(u.stat("resolve"))]
-	info_body.add_child(UIKit.label(t, 8, UITheme.TEXT))
-	if u.team == BattleUnit.TEAM_ENEMY:
-		var names: Array = []
-		for s in u.skills:
-			names.append(DB.skill(s).get("name", s))
-		info_body.add_child(UIKit.label("Skills: " + ", ".join(names), 8, UITheme.TEXT_DIM))
-		var cov := b.grid.cover_dirs(u.pos)
-		if not cov.is_empty():
-			info_body.add_child(UIKit.label("In cover", 8, UITheme.BLUE))
-	if u.state == "downed":
-		info_body.add_child(UIKit.label("Downed: %s" % ("stabilized" if u.stabilized else "bleeds out in %d turns" % u.bleed), 8, UITheme.RED))
-	for s in u.statuses:
-		var sd: Dictionary = DB.statuses.get(s["id"], {})
-		info_body.add_child(UIKit.label("%s (%d) %s" % [sd.get("name", s["id"]), int(s["dur"]), sd.get("desc", "")], 8, DB.color_of(sd.get("color", [200, 200, 200]))))
+	_unit_info(info_body, u, b)
 	info.visible = true
 	info.reset_size()
 	var pos := at + Vector2(14, 10)
@@ -495,6 +511,103 @@ func show_info(u: BattleUnit, at: Vector2, b: Battle) -> void:
 
 func hide_info() -> void:
 	info.visible = false
+
+
+## The unit's stats, skills (enemies), cover, downed state and statuses.
+func _unit_info(body: VBoxContainer, u: BattleUnit, b: Battle) -> void:
+	body.add_child(UIKit.header(u.name, 10, UITheme.RED if u.team == BattleUnit.TEAM_ENEMY else UITheme.BLUE))
+	var t := "HP %d/%d   Def %d   Dodge %d   Acc %d" % [u.hp, u.max_hp(), roundi(u.defense_now()), roundi(u.stat("dodge")), roundi(u.stat("accuracy"))]
+	t += "\nMove %d   Range %d   Speed %d   Resolve %d" % [roundi(u.stat("move")), roundi(u.stat("range")), roundi(u.stat("speed")), roundi(u.stat("resolve"))]
+	body.add_child(UIKit.label(t, 8, UITheme.TEXT))
+	if u.team == BattleUnit.TEAM_ENEMY:
+		var names: Array = []
+		for s in u.skills:
+			names.append(DB.skill(s).get("name", s))
+		body.add_child(UIKit.label("Skills: " + ", ".join(names), 8, UITheme.TEXT_DIM))
+		var cov := b.grid.cover_dirs(u.pos)
+		if not cov.is_empty():
+			body.add_child(UIKit.label("In cover", 8, UITheme.BLUE))
+	if u.state == "downed":
+		body.add_child(UIKit.label("Downed: %s" % ("stabilized" if u.stabilized else "bleeds out in %d turns" % u.bleed), 8, UITheme.RED))
+	for s in u.statuses:
+		var sd: Dictionary = DB.statuses.get(s["id"], {})
+		body.add_child(UIKit.label("%s (%d) %s" % [sd.get("name", s["id"]), int(s["dur"]), sd.get("desc", "")], 8, DB.color_of(sd.get("color", [200, 200, 200]))))
+
+
+# ------------------------------------------------------------------ inspect
+## The unit inspected from the timeline: the hovered portrait, else the
+## pinned one (-1: none).
+func inspected() -> int:
+	return _inspect_hover if _inspect_hover >= 0 else _inspect_pin
+
+
+func clear_pin() -> void:
+	if _inspect_pin >= 0:
+		_inspect_pin = -1
+		inspect_changed.emit()
+
+
+## Shows `u`'s stats under its timeline portrait (null hides them).
+func show_inspect(u: BattleUnit, b: Battle) -> void:
+	UIKit.clear(inspect_body)
+	if u == null:
+		inspect_panel.visible = false
+		return
+	_unit_info(inspect_body, u, b)
+	var hint := "Click the portrait again to let go" if _inspect_pin == u.uid else ""
+	var f := _timeline_frame(u.uid)
+	if hint == "" and f != null:
+		hint = f.get_meta("hint", "")
+	if hint != "":
+		inspect_body.add_child(UIKit.label(hint, 8, UITheme.TEXT_DIM))
+	inspect_panel.visible = true
+	inspect_panel.reset_size()
+	_place_inspect()
+
+
+func _timeline_frame(uid: int) -> Control:
+	for c in timeline_box.get_children():
+		if c.has_meta("uid") and int(c.get_meta("uid")) == uid and not c.is_queued_for_deletion():
+			return c
+	return null
+
+
+func _place_inspect() -> void:
+	var f := _timeline_frame(inspected())
+	if f == null:
+		return
+	var p: Control = timeline_box.get_parent().get_parent()
+	var x := f.get_global_rect().get_center().x - inspect_panel.size.x / 2.0
+	var pos := Vector2(x, p.get_global_rect().end.y + 3) - get_global_rect().position
+	pos.x = clampf(pos.x, 4, size.x - inspect_panel.size.x - 4)
+	inspect_panel.position = pos
+
+
+func _input(event: InputEvent) -> void:
+	if event is InputEventMouse:
+		_mouse = (event as InputEventMouse).position
+
+
+## Tracks the hovered portrait (timeline entries are rebuilt often, so this
+## polls instead of relying on enter/exit signals) and drops a pin whose
+## unit left the timeline.
+func _process(_delta: float) -> void:
+	var hov := -1
+	if timeline_box.is_visible_in_tree():
+		var mp := _mouse if _mouse.x >= 0 else get_global_mouse_position()
+		for c in timeline_box.get_children():
+			if c.has_meta("uid") and not c.is_queued_for_deletion() and c.get_global_rect().has_point(mp):
+				hov = int(c.get_meta("uid"))
+				break
+	var changed := hov != _inspect_hover
+	_inspect_hover = hov
+	if _inspect_pin >= 0 and timeline_box.get_child_count() > 0 and _timeline_frame(_inspect_pin) == null:
+		_inspect_pin = -1
+		changed = true
+	if changed:
+		inspect_changed.emit()
+	elif inspect_panel.visible:
+		_place_inspect()
 
 
 # ------------------------------------------------------------------ floating text & bars
@@ -592,9 +705,9 @@ func update_bars(b: Battle, views: Dictionary) -> void:
 		var top: Vector3 = uv.global_position + Vector3(0, 0, 0)
 		var sp: Vector2 = scene.wv.world_to_screen(top)
 		var px: float = scene.wv.pixel_scale()
-		var h_px: float = (float(uv.meta.get("anchor", [32, 50])[1]) - (uv.canvas * 0.2 if uv.canvas <= 64 else uv.canvas * 0.35)) if not uv.meta.is_empty() else 40.0
+		var h_px: float = (float(uv.meta.get("anchor", [32, 50])[1]) - (uv.canvas * 0.345 if uv.canvas <= 64 else uv.canvas * 0.46)) if not uv.meta.is_empty() else 30.0
 		if u.state == "downed":
-			h_px = 14
+			h_px = 11
 		holder.position = sp - Vector2(float(holder.get_meta("w", 22)) / 2.0, h_px * px + 4)
 
 

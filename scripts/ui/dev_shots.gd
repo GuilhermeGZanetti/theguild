@@ -52,7 +52,6 @@ func _battle(region: String, far := false, when := "day", whole := false, obj :=
 		var uv := UnitView.new()
 		mv.add_child(uv)
 		uv.setup(u.sprite, u.palette, wv.pitch, region)
-		uv.set_tint(mv.unit_tint())
 		uv.position = mv.unit_pos(u.pos)
 		uv.face(u.facing)
 		uv.visible = b.is_seen(u) or whole
@@ -278,6 +277,13 @@ func _input_test() -> void:
 	ok = ok and u.pos == target
 	await get_tree().create_timer(0.5).timeout
 	await _save_as("input_battle")
+	# hovering a timeline portrait inspects that unit
+	var tl: HBoxContainer = inst.hud.timeline_box
+	var f: Control = tl.get_child(tl.get_child_count() - 1)
+	await _mouse_to(f.get_global_transform_with_canvas() * (f.size / 2.0))
+	var want := int(f.get_meta("uid", -1))
+	print("INPUT inspect: ", inst.inspect_uid, " (portrait of ", want, ")")
+	ok = ok and want >= 0 and inst.inspect_uid == want
 	inst.queue_free()
 	await get_tree().process_frame
 	_campaign()

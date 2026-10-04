@@ -77,6 +77,7 @@ func _night() -> void:
 	map_view.sun.light_energy = 0.55
 	map_view.sun.look_at_from_position(Vector3(W + 6, 11, H + 3), Vector3(W / 2.0, 0, H / 2.0), Vector3.UP)
 	map_view.sun.shadow_enabled = true
+	map_view.update_unit_light()
 
 
 func _omni(pos: Vector3, color: Color, rng_: float, energy: float, shadows := false) -> OmniLight3D:
@@ -432,8 +433,8 @@ func pick(mouse: Vector2) -> Array:
 			if uv.meta.is_empty():
 				continue
 			var feet := wv.world_to_screen(uv.global_position)
-			var h: float = (float(uv.meta["anchor"][1]) - uv.canvas * 0.22) * ps
-			var w: float = uv.canvas * 0.3 * ps
+			var h: float = (float(uv.meta["anchor"][1]) - uv.canvas * 0.36) * ps
+			var w: float = uv.canvas * 0.23 * ps
 			if Rect2(feet.x - w / 2.0, feet.y - h, w, h + 2 * ps).has_point(mouse):
 				var depth := wv.camera.global_position.distance_to(uv.global_position)
 				if depth < best_depth:
