@@ -67,7 +67,7 @@ Download a build, or open the project in **Godot 4.7.2** and press Play (main sc
   - Anime-style chibi models: the Tidefolk, Mothkin, Barkborn and Khepri follow the concept sheets in `concept_art/`, and every class of every race has a masculine and a feminine model, each in its race's palette.
 - **Audio**
   - Procedurally synthesized folk music in the guild.
-  - Combat music with a danger layer that rises as the squad gets hurt.
+  - Combat music per biome, all variations on one battle motif, each with a danger layer that rises as the squad gets hurt.
   - 50 distinct sound effects.
   - Members call out short lines in combat, often in their people's idiom, with babbled voices pitched to their race.
   - A silent moment and a sting when a member dies.

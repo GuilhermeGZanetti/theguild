@@ -180,13 +180,11 @@ func _build_test_battle() -> void:
 
 
 func _music() -> void:
-	var biome := battle.grid.biome
 	if battle.objective.get("type", "") == "final":
 		Audio.play_music("final", "final_layer")
-	elif biome in ["hush", "hush_town"]:
-		Audio.play_music("hush_battle", "combat_layer")
 	else:
-		Audio.play_music("combat", "combat_layer")
+		var track := Audio.battle_track(battle.grid.biome)
+		Audio.play_music(track, track + "_layer")
 
 
 func _spawn_view(u: BattleUnit) -> UnitView:

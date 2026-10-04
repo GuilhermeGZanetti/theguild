@@ -33,6 +33,17 @@ func test_battle_music_survives_the_march_out_fade():
 	assert_true(Audio._layer.playing, "danger layer still playing")
 
 
+func test_every_region_biome_has_battle_music_and_layer():
+	var biomes := ["hush_town"]
+	for r in DB.regions.values():
+		biomes.append(r.get("biome", "town"))
+	for b in biomes:
+		var track := Audio.battle_track(b)
+		assert_true(ResourceLoader.exists(Audio.MUSIC_DIR + track + ".wav"), "%s -> %s" % [b, track])
+		assert_true(ResourceLoader.exists(Audio.MUSIC_DIR + track + "_layer.wav"), "%s -> %s_layer" % [b, track])
+	assert_ne(Audio.battle_track("coast"), Audio.battle_track("desert"), "biomes get their own track")
+
+
 func test_crossfade_still_stops_the_old_track():
 	Audio.play_music("guild")
 	await wait_seconds(0.2)

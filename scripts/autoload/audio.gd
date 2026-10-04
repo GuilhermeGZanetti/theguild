@@ -3,6 +3,12 @@ extends Node
 
 const MUSIC_DIR := "res://assets/audio/music/"
 const SFX_DIR := "res://assets/audio/sfx/"
+## Battle track per biome; all share the battle theme's motif. Each track has
+## a "<track>_layer" danger layer. Unlisted biomes (town) get "combat".
+const BATTLE_MUSIC := {
+	"coast": "combat_coast", "jungle": "combat_jungle", "autumn": "combat_autumn",
+	"desert": "combat_desert", "hush": "hush_battle", "hush_town": "hush_battle",
+}
 
 var _music_a: AudioStreamPlayer
 var _music_b: AudioStreamPlayer
@@ -83,6 +89,10 @@ func play_music(track: String, layer_track := "", fade := 1.2) -> void:
 			_layer.stream = ls
 			_layer.volume_db = -60.0
 			_layer.play(_music_a.get_playback_position())
+
+
+func battle_track(biome: String) -> String:
+	return BATTLE_MUSIC.get(biome, "combat")
 
 
 func stop_music(fade := 1.0) -> void:

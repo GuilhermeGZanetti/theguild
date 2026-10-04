@@ -1,8 +1,10 @@
 """Procedural music and sound effects for A Guilda (numpy only).
 
 Music: a hand-written jig in the guild (lute, fiddle, flute, frame drum), a
-horn-and-strings battle theme over war drums in combat, with danger layers
-that line up sample for sample with their base track. Loops are seamless: everything that rings past
+horn-and-strings battle theme over war drums in combat, and a battle track per
+biome that rewrites that theme's motif (coast shanty, jungle marimba, autumn
+waltz, desert maqam, the Hush half-forgotten). Each has a danger layer that
+lines up sample for sample with its base track. Loops are seamless: everything that rings past
 the loop end is wrapped back onto the start.
 
     python tools/py/audio.py [--only music|sfx] [--track name]
@@ -199,7 +201,82 @@ def drum(kind, rng, vel=1.0):
         t = t_axis(1.6)
         y = bandpass_fft(noise(len(t), rng), 4000, 10000) * np.exp(-t * 3.2)
         return y * 0.12 * vel
+    if kind == "hand":  # conga-like slap
+        t = t_axis(0.3)
+        f = 190 + 90 * np.exp(-t * 40)
+        y = np.sin(2 * np.pi * np.cumsum(f) / SR) * np.exp(-t * 16)
+        y += bandpass_fft(noise(len(t), rng), 800, 5000) * np.exp(-t * 60) * 0.4
+        return y * 0.4 * vel
+    if kind == "doum":  # the deep stroke of a goblet drum
+        t = t_axis(0.5)
+        f = 80 + 70 * np.exp(-t * 30)
+        y = np.sin(2 * np.pi * np.cumsum(f) / SR) * np.exp(-t * 7)
+        return y * 0.6 * vel
+    if kind == "tek":  # its rim stroke
+        t = t_axis(0.12)
+        y = bandpass_fft(noise(len(t), rng), 2000, 8000) * np.exp(-t * 70)
+        y += np.sin(2 * np.pi * 700 * t) * np.exp(-t * 90) * 0.5
+        return y * 0.3 * vel
+    if kind == "block":  # wood block
+        t = t_axis(0.15)
+        y = np.sin(2 * np.pi * 1100 * t) * np.exp(-t * 45) + np.sin(2 * np.pi * 2970 * t) * np.exp(-t * 70) * 0.3
+        return y * 0.25 * vel
     raise ValueError(kind)
+
+
+def mallet(f, dur, bright=1.0):
+    """Marimba: a wooden bar with its tuned overtone and a soft knock."""
+    t = t_axis(dur)
+    y = np.sin(2 * np.pi * f * t) * np.exp(-t * 3.5)
+    for ratio, amp, dk in ((3.93, 0.35, 14), (9.2, 0.12, 40)):
+        if f * ratio < SR / 2.2:
+            y += amp * bright * np.sin(2 * np.pi * f * ratio * t) * np.exp(-t * dk)
+    a = min(len(t), int(0.002 * SR))
+    y[:a] *= np.linspace(0, 1, a)
+    return y * 0.4
+
+
+def reed(f, dur, rng, vib=5.5):
+    """Double reed: nasal, odd-heavy harmonics with a scoop up into each note."""
+    t = t_axis(dur)
+    bend = 1 - 0.03 * np.exp(-t * 25)
+    vib_amt = np.clip((t - 0.2) * 2.5, 0, 1) * 0.01
+    ph = 2 * np.pi * np.cumsum(f * bend * (1 + vib_amt * np.sin(2 * np.pi * vib * t + rng.uniform(0, 6)))) / SR
+    y = np.zeros_like(t)
+    for k in range(1, 15):
+        fk = f * k
+        if fk > SR / 2.2:
+            break
+        y += (1.0 if k % 2 else 0.55) / k ** 0.8 * (1 + 1.5 * np.exp(-((fk - 1400) / 500) ** 2)) * np.sin(k * ph)
+    y += bandpass_fft(noise(len(t), rng), 1500, 4000) * 0.15
+    e = env_adsr(len(t), 0.03, 0.08, 0.85, min(0.1, dur * 0.3))
+    return y * e * 0.13
+
+
+def surf(dur, rng):
+    """A wave rolling in and drawing back."""
+    n = int(dur * SR)
+    env = np.sin(np.pi * np.linspace(0, 1, n)) ** 2
+    y = lowpass_fft(noise(n, rng), 600) * env * 2.0 + bandpass_fft(noise(n, rng), 2000, 6000) * env ** 3 * 0.3
+    return y * 0.5
+
+
+def wind(dur, rng):
+    """Desert wind: a band of noise that wanders in pitch."""
+    n = int(dur * SR)
+    t = np.arange(n) / SR
+    env = np.sin(np.pi * np.linspace(0, 1, n)) ** 2
+    lo = bandpass_fft(noise(n, rng), 300, 900)
+    hi = bandpass_fft(noise(n, rng), 1200, 3000)
+    mix = 0.5 + 0.5 * np.sin(2 * np.pi * t / dur * 3 + rng.uniform(0, 6))
+    return (lo * (1 - mix) + hi * mix * 0.6) * env * 0.9
+
+
+def crackle(dur, rng, density=14.0):
+    """Embers: sparse pops."""
+    n = int(dur * SR)
+    imp = (rng.random(n) < density / SR) * rng.uniform(0.2, 1.0, n)
+    return bandpass_fft(imp, 1500, 8000) * 6.0
 
 
 # ------------------------------------------------------------------ mixing
@@ -273,6 +350,7 @@ def write_wav(path, y, peak=None):
 MODES = {
     "aeolian": [0, 2, 3, 5, 7, 8, 10], "dorian": [0, 2, 3, 5, 7, 9, 10], "phrygian": [0, 1, 3, 5, 7, 8, 10],
     "ionian": [0, 2, 4, 5, 7, 9, 11], "mixolydian": [0, 2, 4, 5, 7, 9, 10], "harmonic": [0, 2, 3, 5, 7, 8, 11],
+    "phrygdom": [0, 1, 4, 5, 7, 8, 10],
 }
 
 
@@ -351,6 +429,35 @@ def tune(bars, unit, beats_per_bar):
 def third_below(n, scale):
     """The diatonic third under n, for folk-style parallel harmony."""
     return scale[scale.index(n) - 2]
+
+
+def lay(tr, bars, start, voice, gain, shift=0, unit=1):
+    """Plays a hand-written tune from beat `start`; voice(hz, seconds) -> samples."""
+    for (b, d, n) in tune(bars, unit, tr.bpb):
+        tr.at(start + b, voice(freq(n + shift), d * tr.beat), gain)
+
+
+def danger_layer(tr, chords, grid, kit, rims, trem, trem_gain=0.2, accent=4, cymbal_every=4, extra=None):
+    """A biome's danger layer: a fast grid of `kit`, rim accents, a high tremolo
+    on the chord and a cymbal every few bars; extra(ci, chord, b0) adds its own."""
+    rng = tr.rng
+    step = tr.bpb / grid
+    for ci, ch in enumerate(chords):
+        b0 = ci * tr.bpb
+        for k in range(grid):
+            tr.at(b0 + k * step, drum(kit, rng, 1.0 if k % accent == 0 else 0.6), 1.0)
+            n = (ch[2] if k % 2 == 0 else ch[1]) + 12
+            tr.at(b0 + k * step, trem(freq(n), step * tr.beat * 1.05), trem_gain)
+        for k in rims:
+            tr.at(b0 + k, drum("rim", rng), 0.8)
+        if ci % cymbal_every == cymbal_every - 1:
+            tr.at(b0 + tr.bpb - 1, drum("cymbal", rng), 1.0)
+        if extra:
+            extra(ci, ch, b0)
+    # match loudness, not peaks: the layers differ a lot in how spiky they are
+    y = tr.finish(0.18, 1.2)
+    y = y / (np.sqrt(np.mean(y ** 2)) + 1e-9) * 0.085
+    return 0.85 * np.tanh(y / 0.85)
 
 
 # ------------------------------------------------------------------ tracks
@@ -532,11 +639,36 @@ def track_combat(seed=21, layer=False):
     return normalize(tr.finish(0.18, 1.2), 0.82)
 
 
-def track_hush(seed=31):
-    tr = Track(bars=16, bpm=92, beats_per_bar=4, seed=seed)
+# Every biome has its own battle track, and all of them carry the battle
+# theme's head as their motif: scale degrees 5 1 2 3 | 1 7 6 5, in the rhythm
+# quarter, dotted quarter, eighth, quarter. Each biome rewrites it in its own
+# key, mode and metre and gives it to its own instruments. Track layout: four
+# 8-bar sections (call, theme, bridge, theme again), each ending on the
+# dominant so it pulls into the next and across the loop seam.
+
+# The Unremembered: the motif half forgotten. C phrygian, choir and bells; the
+# motif comes back on a music-box bell, then on strings that lose notes and
+# drift out of tune, with the bell echoing whatever is left.
+HUSH_PROG = [("C3", "m"), ("C3", "m"), ("Db3", "M"), ("C3", "m"), ("Ab2", "M"), ("G2", "dim"), ("Db3", "M"), ("C3", "5")] * 3
+HUSH_THEME = ["G4:1 C5:1.5 Db5:0.5 Eb5:1", "C5:1.5 Bb4:0.5 Ab4:1 G4:1", "Ab4:1 Db5:1.5 Eb5:0.5 F5:1", "Eb5:4",
+              "G4:1 C5:1.5 Db5:0.5 Eb5:1", "Db5:1.5 Bb4:0.5 G4:2", "Ab4:2 F4:2", "G4:4"]
+
+
+def track_hush(seed=31, layer=False):
+    tr = Track(bars=24, bpm=92, beats_per_bar=4, seed=seed)
     rng = tr.rng
-    prog = [("C3", "m"), ("C3", "m"), ("Db3", "M"), ("C3", "m"), ("Ab2", "M"), ("G2", "dim"), ("Db3", "M"), ("C3", "5")] * 2
-    chords = [chord(midi(r), q) for r, q in prog]
+    chords = [chord(midi(r), q) for r, q in HUSH_PROG]
+    if layer:
+        def extra(ci, ch, b0):
+            # a heartbeat, and a cymbal drawn backwards into every fourth bar
+            for k in (0, 2):
+                tr.at(b0 + k, drum("bodhran", rng), 0.9)
+                tr.at(b0 + k + 0.35, drum("bodhran", rng, 0.6), 0.6)
+            if ci % 4 == 3:
+                rev = drum("cymbal", rng)[::-1]
+                tr.at(b0 + 4 - len(rev) / SR / tr.beat, rev, 1.4)
+        cluster = lambda f, d: fiddle(f, d, rng, vib=0, harm=6) + 0.6 * fiddle(f * 2 ** (1 / 12), d, rng, vib=0, harm=6)  # noqa: E731
+        return danger_layer(tr, chords, 8, "rim", (), cluster, trem_gain=0.16, accent=2, cymbal_every=8, extra=extra)
     for ci, ch in enumerate(chords):
         b0 = ci * 4
         tr.at(b0, choir(freq(ch[0]), 4 * tr.beat + 0.8, rng), 1.0)
@@ -547,7 +679,304 @@ def track_hush(seed=31):
         tr.at(b0 + 3, bell(freq(ch[0] + 25), 2.5, 1.6), 0.12)
         for k in range(4):
             tr.at(b0 + k, pluck(freq(ch[0] - 12), 1.2, 0.5, 3.0, rng), 0.5)
+        if ci >= 8:
+            tr.at(b0, pad(freq(ch[0] - 12), 4 * tr.beat + 0.5, rng, harm=5, attack=0.8), 0.6)
+    lay(tr, HUSH_THEME, 32, lambda f, d: bell(f * 2, 2.4, 1.5), 0.4)
+    mem = np.random.default_rng(seed + 7)
+    for (b, d, n) in tune(HUSH_THEME, 1, 4):
+        forgotten = b >= 4 and mem.random() < 0.3
+        drift = 2 ** (mem.uniform(-0.35, 0.35) / 12)
+        if not forgotten:
+            tr.at(64 + b, fiddle(freq(n - 12) * drift, d * tr.beat, rng, vib=4.0), 0.6)
+            tr.at(64 + b + 0.5, bell(freq(n) * drift, 2.0, 1.8), 0.18)
     return normalize(tr.finish(0.45, 2.6), 0.78)
+
+
+# Coast of the Drowned Bells: a sea shanty in D minor, 6/8 written in eighths.
+# A foghorn horn states the motif in long notes; a sunken bell tolls slightly
+# out of tune over the surf.
+COAST_THEME_PROG = [("D3", "m"), ("Bb2", "M"), ("C3", "M"), ("F3", "M"), ("D3", "m"), ("D3", "m"), ("G2", "m"), ("A2", "M")]
+COAST_PROG = ([("D3", "m"), ("D3", "m"), ("Bb2", "M"), ("C3", "M"), ("D3", "m"), ("D3", "m"), ("G2", "m"), ("A2", "M")]
+              + COAST_THEME_PROG
+              + [("F3", "M"), ("C3", "M"), ("D3", "m"), ("Bb2", "M"), ("F3", "M"), ("C3", "M"), ("G2", "m"), ("A2", "M")]
+              + COAST_THEME_PROG)
+COAST_CALL = ["A3:3 D4:3", "E4:3 F4:3", "D4:6", "r:6", "A3:3 D4:3", "E4:3 F4:3", "Bb4:2 A4:1 G4:2 F4:1", "E4:6"]
+COAST_THEME = ["A4:1 D5:2 E5:1 F5:2", "D5:2 C5:1 Bb4:2 A4:1", "G4:1 C5:2 D5:1 E5:2", "F5:3 A4:2 G4:1",
+               "A4:1 D5:2 E5:1 F5:2", "A5:2 G5:1 F5:2 E5:1", "D5:2 G5:1 F5:1 E5:1 D5:1", "C#5:3 E5:3"]
+COAST_BRIDGE = ["C5:3 A4:2 C5:1", "E5:3 G5:2 E5:1", "F5:2 E5:1 D5:2 A4:1", "Bb4:3 D5:3",
+                "C5:2 F5:1 A5:2 F5:1", "G5:2 E5:1 C5:2 E5:1", "D5:2 Bb4:1 G4:2 Bb4:1", "A4:3 C#5:2 E5:1"]
+
+
+def track_coast(seed=51, layer=False):
+    tr = Track(bars=32, bpm=138, beats_per_bar=3, seed=seed)
+    rng = tr.rng
+    chords = [chord(midi(r), q) for r, q in COAST_PROG]
+    if layer:
+        def extra(ci, ch, b0):
+            if ci % 2 == 1:  # a bodhran roll up to the next downbeat
+                for k in range(4):
+                    tr.at(b0 + 2 + k * 0.25, drum("bodhran", rng, 0.5 + 0.15 * k), 0.6)
+        return danger_layer(tr, chords, 12, "shaker", (1.5, 2.5), lambda f, d: fiddle(f, d, rng, vib=0, harm=6), accent=3, extra=extra)
+    for ci, ch in enumerate(chords):
+        b0 = ci * 3
+        sec = ci // 8  # 0 foghorn call, 1 theme, 2 bridge, 3 theme again
+        root, third = ch[0], ch[1] - ch[0]
+        # low strings on the two dotted beats; the lute rolls up and back like the swell
+        tr.at(b0, fiddle(freq(root - 12), 1.4 * tr.beat, rng, vib=0, harm=8), 0.55)
+        tr.at(b0 + 1.5, fiddle(freq(root - 5), 1.4 * tr.beat, rng, vib=0, harm=8), 0.45)
+        for k, iv in enumerate([0, 7, 12, third + 12, 12, 7]):
+            tr.at(b0 + k * 0.5, pluck(freq(root + iv), 0.9, 0.8, 3.0, rng), 0.5 if k % 3 == 0 else 0.38)
+        tr.at(b0, pad(freq(root), 3 * tr.beat + 0.3, rng, harm=5, attack=0.4), 0.6)
+        if sec >= 2:
+            tr.at(b0, choir(freq(root), 3 * tr.beat + 0.5, rng), 0.9)
+            tr.at(b0, choir(freq(ch[2]), 3 * tr.beat + 0.5, rng), 0.6)
+        # stomp, stomp-and-clap
+        tr.at(b0, drum("bodhran", rng), 0.9)
+        tr.at(b0 + 1.5, drum("bodhran", rng, 0.8), 0.7)
+        tr.at(b0 + 1.5, drum("rim", rng), 0.55)
+        if sec >= 1:
+            tr.at(b0, drum("taiko", rng, 0.8), 0.7)
+            tr.at(b0 + 2.5, drum("bodhran", rng, 0.5), 0.45)
+        if sec == 3:
+            tr.at(b0 + 1.5, drum("taiko", rng, 0.6), 0.5)
+        if ci % 8 == 0:
+            tr.at(b0, drum("cymbal", rng), 0.9)
+        elif ci % 8 == 7:
+            for k in range(3):
+                tr.at(b0 + 1.5 + k * 0.5, drum("tom", rng, 0.6 + 0.15 * k), 0.6)
+        # the sea, and the drowned bell
+        if ci % 2 == 0:
+            tr.at(b0, surf(6 * tr.beat, rng), 0.5)
+        if ci % 4 == 0:
+            tr.at(b0, bell(freq(midi("D3")), 4.0, 0.5), 0.35)
+            tr.at(b0, bell(freq(midi("D3")) * 1.013, 4.0, 0.55), 0.2)
+    lay(tr, COAST_CALL, 0, lambda f, d: horn(f, d + 0.05, rng), 0.7, unit=0.5)
+    for start in (24, 72):
+        lay(tr, COAST_THEME, start, lambda f, d: fiddle(f, d, rng, vib=6.5), 0.4, unit=0.5)
+        lay(tr, COAST_THEME, start, lambda f, d: fiddle(f * 1.003, d, rng, vib=6.0), 0.4, unit=0.5)
+    lay(tr, COAST_THEME, 72, lambda f, d: horn(f, d + 0.05, rng), 0.5, shift=-12, unit=0.5)
+    lay(tr, COAST_BRIDGE, 48, lambda f, d: flute(f, d + 0.05, rng), 0.75, unit=0.5)
+    lay(tr, COAST_BRIDGE, 48, lambda f, d: fiddle(f, d, rng, vib=5.5), 0.35, shift=-12, unit=0.5)
+    return normalize(tr.finish(0.25, 1.8), 0.82)
+
+
+# Lampwick Stilts: A dorian over hand drums in 3-3-2. The marimba ostinato
+# climbs root, fifth, octave, ninth, tenth - the motif's own steps - under a
+# wooden flute; a misty pad hangs over the canals.
+JUNGLE_THEME_PROG = [("A2", "m"), ("D3", "M"), ("A2", "m"), ("G2", "M"), ("A2", "m"), ("D3", "M"), ("C3", "M"), ("E3", "m")]
+JUNGLE_PROG = ([("A2", "m"), ("D3", "M"), ("A2", "m"), ("D3", "M"), ("A2", "m"), ("D3", "M"), ("C3", "M"), ("E3", "m")]
+               + JUNGLE_THEME_PROG
+               + [("F2", "M"), ("G2", "M"), ("E3", "m"), ("A2", "m"), ("F2", "M"), ("G2", "M"), ("E3", "M"), ("E3", "M")]
+               + JUNGLE_THEME_PROG)
+JUNGLE_CALL = ["r:4", "r:4", "E4:1 A4:3", "r:2 B4:0.5 C5:1.5", "A4:4", "r:4", "E4:1 A4:1.5 B4:0.5 C5:1", "B4:3 r:1"]
+JUNGLE_THEME = ["E4:1 A4:1.5 B4:0.5 C5:1", "A4:1.5 G4:0.5 F#4:1 E4:1", "E4:1 A4:1.5 B4:0.5 C5:1", "D5:1.5 C5:0.5 B4:1 G4:1",
+                "E4:0.5 E4:0.5 A4:1.5 B4:0.5 C5:1", "D5:1 E5:1.5 D5:0.5 A4:1", "G4:1 C5:1 E5:1.5 D5:0.5", "B4:2.5 r:1.5"]
+JUNGLE_BRIDGE = ["C5:1.5 A4:0.5 C5:1 F5:1", "D5:1.5 B4:0.5 D5:1 G5:1", "E5:2 D5:1 B4:1", "C5:2 A4:2",
+                 "A4:1 C5:1 F5:1.5 E5:0.5", "D5:1 B4:1 G4:1 D5:1", "E5:1 B4:1 G#4:1 B4:1", "B4:2 G#4:1 r:1"]
+
+
+def track_jungle(seed=61, layer=False):
+    tr = Track(bars=32, bpm=116, beats_per_bar=4, seed=seed)
+    rng = tr.rng
+    chords = [chord(midi(r), q) for r, q in JUNGLE_PROG]
+    if layer:
+        def extra(ci, ch, b0):
+            for k in (0.25, 1.25, 2.25, 3.25):
+                tr.at(b0 + k, drum("hand", rng, 0.7), 0.7)
+        return danger_layer(tr, chords, 16, "shaker", (0.75, 1.75, 2.75, 3.75), lambda f, d: mallet(f, d * 2.0),
+                            trem_gain=0.15, extra=extra)
+    for ci, ch in enumerate(chords):
+        b0 = ci * 4
+        sec = ci // 8  # 0 flute call, 1 theme, 2 bridge, 3 theme again
+        root, third = ch[0], ch[1] - ch[0]
+        for k, iv in enumerate([0, 7, 12, 14, third + 12, 12, 7, 14]):
+            tr.at(b0 + k * 0.5, mallet(freq(root + 12 + iv), 0.8), 0.5 if k % 3 == 0 else 0.36)
+        for off, iv, d in ((0, 0, 1.4), (1.5, 0, 0.4), (2, 7, 0.9), (3.5, 12, 0.4)):
+            tr.at(b0 + off, pluck(freq(root + iv), d * tr.beat + 0.2, 0.5, 3.0, rng), 0.75)
+        tr.at(b0, pad(freq(root + 12), 4 * tr.beat + 0.6, rng, harm=4, attack=1.0), 0.5)
+        tr.at(b0, pad(freq(ch[2] + 12), 4 * tr.beat + 0.6, rng, harm=3, attack=1.2), 0.35)
+        # hand drums in 3-3-2, ghost slaps between, a stick on two and four
+        tr.at(b0, drum("doum", rng), 0.8)
+        tr.at(b0 + 1.5, drum("hand", rng), 0.8)
+        tr.at(b0 + 3, drum("hand", rng, 0.9), 0.75)
+        for k in (0.75, 2.25, 3.5):
+            tr.at(b0 + k, drum("hand", rng, 0.5), 0.45)
+        tr.at(b0 + 1, drum("tek", rng), 0.5)
+        tr.at(b0 + 3, drum("tek", rng), 0.5)
+        sub = 0.25 if sec in (1, 3) else 0.5
+        for k in range(int(4 / sub)):
+            tr.at(b0 + k * sub, drum("shaker", rng, 1.0 if k % 2 == 0 else 0.6), 0.7)
+        if ci % 2 == 1:
+            tr.at(b0 + 2.5, drum("block", rng), 0.6)
+        if sec == 3 or ci % 8 == 0:
+            tr.at(b0, drum("taiko", rng, 0.8), 0.7)
+        if ci % 8 == 0:
+            tr.at(b0, drum("cymbal", rng), 0.8)
+        elif ci % 8 == 7:
+            for k in range(4):
+                tr.at(b0 + 3 + k * 0.25, drum("hand", rng, 0.6 + 0.12 * k), 0.7)
+        if sec in (0, 2) and ci % 4 == 1:  # a bird somewhere above the mist
+            chirp = sweep(2600, 3700, 0.07) * fx_env(int(0.07 * SR), 0.003, 30)
+            tr.at(b0 + 1.25, chirp, 0.1)
+            tr.at(b0 + 1.45, chirp, 0.07)
+    lay(tr, JUNGLE_CALL, 0, lambda f, d: flute(f, d + 0.05, rng, breath=0.12), 0.85)
+    for start in (32, 96):
+        lay(tr, JUNGLE_THEME, start, lambda f, d: flute(f, d + 0.05, rng), 0.8)
+        lay(tr, JUNGLE_THEME, start, lambda f, d: mallet(f, d + 0.4), 0.35, shift=12)
+    lay(tr, JUNGLE_THEME, 96, lambda f, d: horn(f, d + 0.05, rng), 0.4, shift=-12)
+    lay(tr, JUNGLE_BRIDGE, 64, lambda f, d: mallet(f, d + 0.4), 0.6)
+    lay(tr, JUNGLE_BRIDGE, 64, lambda f, d: horn(f, d + 0.05, rng), 0.45, shift=-12)
+    return normalize(tr.finish(0.3, 1.9), 0.82)
+
+
+# The Ember Wood: a battle waltz in G minor, 3/4. The motif stretches over
+# four bars; a cello calls it, harp keeps the waltz turning, shrine bells and
+# crackling embers sit between the beats.
+AUTUMN_THEME_PROG = [("G2", "m"), ("G2", "m"), ("Eb3", "M"), ("Bb2", "M"), ("F3", "M"), ("C3", "m"), ("D3", "M"), ("D3", "M")]
+AUTUMN_PROG = ([("G2", "m"), ("G2", "m"), ("Eb3", "M"), ("Bb2", "M"), ("G2", "m"), ("G2", "m"), ("C3", "m"), ("D3", "M")]
+               + AUTUMN_THEME_PROG
+               + [("Eb3", "M"), ("F3", "M"), ("Bb2", "M"), ("G2", "m"), ("Eb3", "M"), ("F3", "M"), ("D3", "M"), ("D3", "M")]
+               + AUTUMN_THEME_PROG)
+AUTUMN_CALL = ["D4:1 G4:1.5 A4:0.5", "Bb4:3", "G4:1.5 F4:0.5 Eb4:1", "D4:3", "Bb3:2 A3:1", "G3:3", "C4:1.5 Bb3:0.5 A3:1", "D4:3"]
+AUTUMN_THEME = ["D5:1 G5:1.5 A5:0.5", "Bb5:3", "G5:1.5 F5:0.5 Eb5:1", "D5:3",
+                "C5:1 F5:1.5 G5:0.5", "G5:2 Eb5:1", "A5:1.5 G5:0.5 F#5:1", "D5:3"]
+AUTUMN_BRIDGE = ["Bb4:1 Eb5:1.5 F5:0.5", "A5:2 F5:1", "D5:1.5 F5:0.5 Bb5:1", "G5:2 D5:1",
+                 "Eb5:1 G5:1.5 Bb5:0.5", "C6:2 A5:1", "A5:1.5 F#5:0.5 D5:1", "F#5:2 A5:1"]
+
+
+def track_autumn(seed=71, layer=False):
+    tr = Track(bars=32, bpm=144, beats_per_bar=3, seed=seed)
+    rng = tr.rng
+    chords = [chord(midi(r), q) for r, q in AUTUMN_PROG]
+    if layer:
+        def extra(ci, ch, b0):
+            tr.at(b0 + 2.75, drum("block", rng), 0.6)
+            tr.at(b0, crackle(3 * tr.beat, rng, 30.0), 0.12)
+        return danger_layer(tr, chords, 12, "shaker", (1.5, 2.5), lambda f, d: fiddle(f, d, rng, vib=0, harm=6), extra=extra)
+    for ci, ch in enumerate(chords):
+        b0 = ci * 3
+        sec = ci // 8  # 0 cello call, 1 theme, 2 bridge, 3 theme again
+        root, third = ch[0], ch[1] - ch[0]
+        shape = [0, 7, 12, third + 12, 19, 24] if sec == 2 else [0, 7, 12, third + 12, 12, 7]
+        for k, iv in enumerate(shape):
+            tr.at(b0 + k * 0.5, pluck(freq(root + 12 + iv), 1.2, 0.9, 2.2, rng), 0.42 if k % 2 == 0 else 0.32)
+        # waltz strings: the deep note on one, the chord on two and three
+        tr.at(b0, fiddle(freq(root), 0.95 * tr.beat, rng, vib=0, harm=8), 0.6)
+        for k in (1, 2):
+            for n in (ch[1] + 12, ch[2] + 12):
+                tr.at(b0 + k, fiddle(freq(n), 0.45 * tr.beat, rng, vib=0, harm=6), 0.2)
+        tr.at(b0, pad(freq(root + 12), 3 * tr.beat + 0.4, rng, harm=5, attack=0.4), 0.5)
+        if sec >= 2:
+            tr.at(b0, choir(freq(root + 12), 3 * tr.beat + 0.5, rng), 0.9)
+            tr.at(b0, choir(freq(ch[2] + 12), 3 * tr.beat + 0.5, rng), 0.6)
+        tr.at(b0, drum("taiko" if sec >= 1 else "bodhran", rng, 0.9), 0.85)
+        tr.at(b0 + 1, drum("bodhran", rng, 0.5), 0.45)
+        tr.at(b0 + 2, drum("bodhran", rng, 0.5), 0.45)
+        if sec in (1, 3):
+            tr.at(b0 + 2.5, drum("rim", rng), 0.5)
+        if sec == 3:
+            tr.at(b0 + 1.5, drum("block", rng), 0.5)
+        if ci % 8 == 0:
+            tr.at(b0, drum("cymbal", rng), 0.8)
+        elif ci % 8 == 7:
+            for k in range(3):
+                tr.at(b0 + 2 + k / 3, drum("tom", rng, 0.6 + 0.15 * k), 0.6)
+        # shrine bells and embers
+        if ci % 2 == 0:
+            tr.at(b0, bell(freq(ch[2] + 36), 2.5, 1.3), 0.16)
+        if ci % 4 == 2:
+            tr.at(b0 + 1.5, bell(freq(root + 36), 2.5, 1.5), 0.1)
+        if ci % 4 == 0:
+            tr.at(b0, crackle(12 * tr.beat, rng), 0.15)
+    lay(tr, AUTUMN_CALL, 0, lambda f, d: fiddle(f, d, rng, vib=5.0), 0.7)
+    for start in (24, 72):
+        lay(tr, AUTUMN_THEME, start, lambda f, d: fiddle(f, d, rng, vib=6.5), 0.4)
+        lay(tr, AUTUMN_THEME, start, lambda f, d: fiddle(f * 1.003, d, rng, vib=6.0), 0.4)
+    lay(tr, AUTUMN_THEME, 72, lambda f, d: flute(f, d + 0.05, rng), 0.45)
+    lay(tr, AUTUMN_THEME, 72, lambda f, d: horn(f, d + 0.05, rng), 0.45, shift=-12)
+    lay(tr, AUTUMN_BRIDGE, 48, lambda f, d: horn(f, d + 0.05, rng), 0.65, shift=-12)
+    lay(tr, AUTUMN_BRIDGE, 48, lambda f, d: fiddle(f, d, rng, vib=5.5), 0.35)
+    return normalize(tr.finish(0.3, 2.1), 0.82)
+
+
+# The Sunken Dunes: E phrygian dominant over an open E drone. The motif's
+# second and third steps become F and G#; a reed sings it over an oud winding
+# through the mode and a goblet drum in maqsum; glass chimes from the ruins.
+DESERT_THEME_PROG = [("E3", "M"), ("A2", "m"), ("D3", "m"), ("E3", "M"), ("E3", "M"), ("F3", "M"), ("D3", "m"), ("E3", "M")]
+DESERT_PROG = ([("E3", "M"), ("E3", "M"), ("E3", "M"), ("F3", "M"), ("E3", "M"), ("E3", "M"), ("D3", "m"), ("E3", "M")]
+               + DESERT_THEME_PROG
+               + [("A2", "m"), ("D3", "m"), ("G2", "M"), ("C3", "M"), ("F3", "M"), ("D3", "m"), ("E3", "M"), ("E3", "M")]
+               + DESERT_THEME_PROG)
+DESERT_CALL = ["r:4", "r:4", "B3:2 E4:2", "F4:2 G#4:1 F4:0.5 E4:0.5", "E4:4", "r:4", "D4:1 F4:1 E4:1 D4:1",
+               "C4:1 B3:1 C4:0.5 B3:0.5 G#3:1"]
+DESERT_THEME = ["B4:1 E5:1.5 F5:0.5 G#5:1", "E5:1.5 D5:0.5 C5:1 B4:1", "A4:1 D5:1.5 E5:0.5 F5:1", "G#5:1.5 F5:0.5 E5:2",
+                "B4:1 E5:1.5 F5:0.5 G#5:1", "A5:1.5 G#5:0.5 F5:1 E5:1", "D5:1 F5:0.5 E5:0.5 D5:1 C5:1", "B4:2 C5:0.5 B4:0.5 G#4:1"]
+DESERT_BRIDGE = ["C5:2 B4:1 A4:1", "D5:2 F5:1 E5:1", "D5:1.5 B4:0.5 G4:2", "C5:1 E5:1 G5:2",
+                 "A5:2 C6:1 A5:1", "F5:1.5 E5:0.5 D5:2", "E5:1 F5:1 G#5:1 B5:1", "G#5:2 F5:1 E5:1"]
+
+
+def track_desert(seed=81, layer=False):
+    tr = Track(bars=32, bpm=100, beats_per_bar=4, seed=seed)
+    rng = tr.rng
+    chords = [chord(midi(r), q) for r, q in DESERT_PROG]
+    scale = scale_notes(midi("E3") % 12, "phrygdom", 36, 76)
+    if layer:
+        def extra(ci, ch, b0):
+            tr.at(b0, drum("doum", rng), 0.8)
+            tr.at(b0 + 2.5, drum("doum", rng, 0.7), 0.6)
+            tr.at(b0 + 3.5, bell(freq(midi("E7")), 0.5, 6.0), 0.12)
+        return danger_layer(tr, chords, 16, "tek", (0.75, 1.75, 2.75, 3.25), lambda f, d: fiddle(f, d, rng, vib=0, harm=6), extra=extra)
+    for ci, ch in enumerate(chords):
+        b0 = ci * 4
+        sec = ci // 8  # 0 reed call, 1 theme, 2 bridge, 3 theme again
+        root = ch[0]
+        # the drone holds E and B open under every chord
+        tr.at(b0, pad(freq(midi("E2")), 4 * tr.beat + 0.6, rng, harm=7, attack=0.5), 0.7)
+        tr.at(b0, pad(freq(midi("B2")), 4 * tr.beat + 0.6, rng, harm=5, attack=0.5), 0.4)
+        if root % 12 != 4:
+            tr.at(b0, pad(freq(root), 4 * tr.beat + 0.6, rng, harm=5, attack=0.5), 0.4)
+        # oud: winds through the mode from the chord root; arpeggios under the bridge
+        if sec == 2:
+            run = [root + iv for iv in (0, 7, 12, 7, ch[1] - root + 12, 7, 12, 7)]
+        else:
+            i = min(range(len(scale)), key=lambda j: abs(scale[j] - root))
+            run = [scale[i + s] for s in (0, 1, 2, 1, 0, -1, -2, -1)]
+        for k, n in enumerate(run):
+            tr.at(b0 + k * 0.5, pluck(freq(n), 0.8, 0.95, 3.5, rng), 0.45 if k % 2 == 0 else 0.35)
+        # goblet drum in maqsum: DUM tek . tek DUM . tek .
+        tr.at(b0, drum("doum", rng), 0.9)
+        tr.at(b0 + 2, drum("doum", rng, 0.85), 0.75)
+        for k in (0.5, 1.5, 3):
+            tr.at(b0 + k, drum("tek", rng), 0.7)
+        tr.at(b0 + 3.5, drum("tek", rng, 0.6), 0.35)
+        if sec in (1, 3):  # riq jingles
+            for k in range(8):
+                tr.at(b0 + k * 0.5, drum("shaker", rng, 1.0 if k % 2 == 0 else 0.6), 0.6)
+            tr.at(b0 + 1, bell(freq(midi("E7")), 0.5, 6.0), 0.08)
+            tr.at(b0 + 3, bell(freq(midi("E7")), 0.5, 6.0), 0.08)
+        if ci % 8 == 0 or (sec == 3 and ci % 2 == 0):
+            tr.at(b0, drum("taiko", rng, 0.8), 0.7)
+        if ci % 8 == 0:
+            tr.at(b0, drum("cymbal", rng), 0.8)
+        elif ci % 8 == 7:
+            for k in range(6):
+                tr.at(b0 + 2.5 + k * 0.25, drum("tek", rng, 0.5 + 0.1 * k), 0.7)
+        if sec == 2:
+            tr.at(b0, choir(freq(root + 12), 4 * tr.beat + 0.5, rng), 0.8)
+            tr.at(b0, choir(freq(ch[2] + 12), 4 * tr.beat + 0.5, rng), 0.55)
+        # glass chimes from the ruins, and the wind over the dunes
+        if sec in (1, 3) and ci % 2 == 1:
+            tr.at(b0, bell(freq(ch[2] + 24), 2.0, 2.0), 0.15)
+            tr.at(b0 + 0.25, bell(freq(ch[0] + 36), 1.5, 2.5), 0.08)
+        if ci % 4 == 0:
+            tr.at(b0, wind(16 * tr.beat, rng), 0.35)
+    lay(tr, DESERT_CALL, 0, lambda f, d: reed(f, d + 0.04, rng), 0.8)
+    for start in (32, 96):
+        lay(tr, DESERT_THEME, start, lambda f, d: reed(f, d + 0.04, rng), 0.75)
+    lay(tr, DESERT_THEME, 96, lambda f, d: fiddle(f, d, rng, vib=6.0), 0.4, shift=-12)
+    lay(tr, DESERT_BRIDGE, 64, lambda f, d: reed(f, d + 0.04, rng), 0.6)
+    lay(tr, DESERT_BRIDGE, 64, lambda f, d: fiddle(f, d, rng, vib=5.5), 0.3)
+    return normalize(tr.finish(0.3, 2.3), 0.82)
 
 
 def track_final(seed=41, layer=False):
@@ -589,7 +1018,16 @@ MUSIC = {
     "menu": lambda: track_menu(),
     "combat": lambda: track_combat(),
     "combat_layer": lambda: track_combat(layer=True),
+    "combat_coast": lambda: track_coast(),
+    "combat_coast_layer": lambda: track_coast(layer=True),
+    "combat_jungle": lambda: track_jungle(),
+    "combat_jungle_layer": lambda: track_jungle(layer=True),
+    "combat_autumn": lambda: track_autumn(),
+    "combat_autumn_layer": lambda: track_autumn(layer=True),
+    "combat_desert": lambda: track_desert(),
+    "combat_desert_layer": lambda: track_desert(layer=True),
     "hush_battle": lambda: track_hush(),
+    "hush_battle_layer": lambda: track_hush(layer=True),
     "final": lambda: track_final(),
     "final_layer": lambda: track_final(layer=True),
 }
