@@ -8,6 +8,8 @@ const FACTIONS := ["saltborn", "lantern", "rootwardens", "glass"]
 ## for the injured.
 const WEEK_DAYS := 7
 const START_GOLD := [420, 320, 240]
+## Weekly chance an Allied faction sends one of its unique class to the tavern.
+const ALLY_RECRUIT_CHANCE := 0.25
 
 var guild_name := "The Guild"
 var week := 1
@@ -205,7 +207,9 @@ func change_hush(amount: int, reason := "") -> void:
 
 # ====================================================================== recruitment
 func roll_recruits() -> void:
-	recruits.clear()
+	# those owed to the guild keep their place at the bar until hired
+	var waiting := recruits.filter(func(r: Member) -> bool: return r.waits)
+	recruits = waiting
 	var lvl := int(facilities["recruiter"])
 	var n := int(DB.facilities["recruiter"]["pool"][lvl])
 	if hush_stage() >= 3:
@@ -223,6 +227,27 @@ func roll_recruits() -> void:
 			m.bio = "Sent by the %s." % DB.factions[f]["name"]
 			_finalize_recruit(m)
 			recruits.append(m)
+	# allies now and then send one of their own: their unique class, any talent
+	for f in allied_factions():
+		if rng.randf() < ALLY_RECRUIT_CHANCE:
+			var cls: String = DB.factions[f]["unique_class"]
+			var m := Member.create(rng, cls, DB.factions[f]["race"], _roll_tier(), _recruit_level(), week)
+			m.bio = "A %s the %s spared for the guild." % [DB.classes[cls]["name"], DB.factions[f]["name"]]
+			_finalize_recruit(m)
+			recruits.append(m)
+
+
+## A recruit the guild has earned (rescued, sworn to it, met on the road):
+## joins at once, or waits at the bar for free until hired when the barracks
+## are full. Returns true when they joined.
+func _welcome(m: Member) -> bool:
+	if active_members().size() < roster_cap():
+		add_member(m)
+		return true
+	m.hire_cost = 0
+	m.waits = true
+	recruits.append(m)
+	return false
 
 
 ## Levels are slow to earn, so hired hands arrive seasoned but never veteran.
@@ -286,6 +311,7 @@ func hire(m: Member) -> String:
 		return "Not enough gold."
 	gold -= m.hire_cost
 	recruits.erase(m)
+	m.waits = false
 	add_member(m)
 	stats["recruited"] += 1
 	return ""
@@ -835,13 +861,10 @@ func finish_mission(mission: Dictionary, battle: Battle) -> Dictionary:
 			rep["items"].append(Items.random_loot(rng, int(mission["skulls"])))
 		if reward.has("recruit"):
 			var rm := Member.from_dict(reward["recruit"])
-			if active_members().size() < roster_cap():
-				add_member(rm)
+			if _welcome(rm):
 				rep["recruit"] = rm.name
 			else:
-				rm.hire_cost = 0
-				recruits.append(rm)
-				rep["recruit"] = rm.name + " (waiting in the tavern: barracks full)"
+				rep["recruit"] = rm.name + " (waiting in the tavern until you make room)"
 		if reward.has("hush"):
 			rep["hush"] = int(reward["hush"])
 			regions[mission["region"]]["hush"] = maxi(0, int(regions[mission["region"]]["hush"]) - 1)
@@ -983,13 +1006,10 @@ func _faction_success(mission: Dictionary, rep: Dictionary) -> void:
 				var cls: String = DB.factions[f]["unique_class"]
 				var champion := Member.create(rng, cls, DB.factions[f]["race"], 2, maxi(3, _recruit_level() + 1), week)
 				champion.bio = "A %s sworn to the guild by the %s." % [DB.classes[cls]["name"], DB.factions[f]["name"]]
-				if active_members().size() < roster_cap():
-					add_member(champion)
-				else:
-					champion.hire_cost = 0
-					recruits.append(champion)
 				rep["recruit"] = champion.name + " the " + DB.classes[cls]["name"]
-				rep["faction"].append("The %s is now Allied. They will send reinforcements to the final battle." % DB.factions[f]["name"])
+				if not _welcome(champion):
+					rep["recruit"] += " (waiting in the tavern until you make room)"
+				rep["faction"].append("The %s is Allied. As long as they stay Allied, they will fight beside you in the final battle and now and then send a %s to your tavern." % [DB.factions[f]["name"], DB.classes[cls]["name"]])
 		_:
 			pass
 
@@ -1233,7 +1253,7 @@ func resolve_event(ev_id: String, choice: int) -> String:
 
 
 ## A unique recruit from a guild event: fixed name, class, race, traits and story.
-## Joins at once, or waits in the tavern for free when the barracks are full.
+## Joins at once, or waits in the tavern for free until hired when the barracks are full.
 func named_recruit(id: String) -> Member:
 	var d: Dictionary = DB.events["named"][id]
 	var m := Member.create(rng, d["cls"], d["race"], int(d["tier"]), int(d.get("level", 1)), week)
@@ -1246,10 +1266,7 @@ func named_recruit(id: String) -> Member:
 		m.add_trait(t)
 	m.bio = d["bio"]
 	m.hire_cost = 0
-	if active_members().size() < roster_cap():
-		add_member(m)
-	else:
-		recruits.append(m)
+	_welcome(m)
 	return m
 
 

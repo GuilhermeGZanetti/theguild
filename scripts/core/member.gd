@@ -59,6 +59,7 @@ var memorial := false
 var reveal := 2
 var bio := ""
 var hire_cost := 0
+var waits := false          # a recruit owed to the guild: stays at the bar until hired
 
 
 # ------------------------------------------------------------------ creation
@@ -586,6 +587,7 @@ func to_dict() -> Dictionary:
 		"skills": skills, "loadout": loadout, "prog": prog, "equipment": equipment,
 		"injury": injury, "days_used": days_used, "history": history, "gender": gender, "variant": variant, "palette": palette,
 		"status": status, "death": death, "memorial": memorial, "reveal": reveal, "bio": bio, "hire_cost": hire_cost,
+		"waits": waits,
 	}
 
 
@@ -602,6 +604,7 @@ static func from_dict(d: Dictionary) -> Member:
 	m.days_used = int(d.get("days_used", 0))
 	m.reveal = int(d.get("reveal", 2))
 	m.hire_cost = int(d.get("hire_cost", 0))
+	m.waits = bool(d.get("waits", false))
 	for k in m.potential:
 		m.potential[k] = int(m.potential[k])
 	if not m.injury.is_empty():

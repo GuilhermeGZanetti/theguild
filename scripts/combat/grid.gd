@@ -7,6 +7,14 @@ const DIRS4: Array[Vector2i] = [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1),
 const DIRS8: Array[Vector2i] = [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1),
 		Vector2i(1, 1), Vector2i(1, -1), Vector2i(-1, 1), Vector2i(-1, -1)]
 const LEVEL_H := 0.5
+## Eye height above the ground at both ends of a sight line, in levels.
+const EYE_H := 1.75
+## How far (in tiles) a sight line may lean sideways to get past an obstacle
+## it only grazes: units are not points.
+const LOS_LEAN := 0.35
+## Full-cover props taller than a person: how many levels above their base a
+## viewer must stand to see over them. Any other full cover takes one.
+const TALL_PROPS := {"house": 4, "house_part": 4, "hut": 3, "hut_part": 3, "bell_tower": 6, "bell_tower_part": 6}
 
 var w := 0
 var h := 0
@@ -160,38 +168,48 @@ func cover_dirs(p: Vector2i) -> Array:
 	return out
 
 
-func line(a: Vector2i, b: Vector2i) -> Array[Vector2i]:
-	var out: Array[Vector2i] = []
-	var n := maxi(absi(b.x - a.x), absi(b.y - a.y)) * 2
-	if n == 0:
-		out.append(a)
-		return out
-	var last := Vector2i(-999, -999)
-	for i in n + 1:
-		var f := float(i) / n
-		var p := Vector2i(roundi(lerpf(a.x, b.x, f)), roundi(lerpf(a.y, b.y, f)))
-		if p != last:
-			out.append(p)
-			last = p
-	return out
-
-
-## Line of sight between two tiles. Tiles next to either end are ignored
-## (they are cover, not walls) so units can peek around corners.
+## Line of sight between two tiles, the same both ways. Tiles next to either
+## end are ignored (they are cover, not walls) so units can peek around
+## corners, and a line that only grazes an obstacle gets past by leaning a
+## little to one side. Full cover walls off only what stands no higher than
+## it: from a level above its base you see over a rock, a wall or a tree
+## (buildings need more, see TALL_PROPS).
 func los(a: Vector2i, b: Vector2i) -> bool:
-	var pts := line(a, b)
-	var ha := height(a) + 2.0
-	var hb := height(b) + 1.5
-	var total := float(pts.size() - 1)
-	for i in range(1, pts.size() - 1):
-		var p := pts[i]
-		if Rules.chebyshev(p, b) <= 1 or Rules.chebyshev(p, a) <= 1:
+	if b.x < a.x or (b.x == a.x and b.y < a.y):
+		# always traced from the same end, so rounding can never make it one-way
+		var s := a
+		a = b
+		b = s
+	if _sight_ray(a, b, 0.0):
+		return true
+	return _sight_ray(a, b, LOS_LEAN) or _sight_ray(a, b, -LOS_LEAN)
+
+
+## One sight line from `a` to `b`, shifted sideways by `lean` tiles.
+func _sight_ray(a: Vector2i, b: Vector2i, lean: float) -> bool:
+	var d := Vector2(b - a)
+	var n := maxi(absi(b.x - a.x), absi(b.y - a.y)) * 3
+	if n == 0:
+		return true
+	var start := Vector2(a) + Vector2(-d.y, d.x).normalized() * lean
+	var ha := height(a) + EYE_H
+	var hb := height(b) + EYE_H
+	var top := maxi(height(a), height(b))
+	var last := a
+	for i in range(1, n):
+		var f := float(i) / n
+		var q := start + d * f
+		var p := Vector2i(roundi(q.x), roundi(q.y))
+		if p == last:
+			continue
+		last = p
+		if not inb(p) or Rules.chebyshev(p, a) <= 1 or Rules.chebyshev(p, b) <= 1:
 			continue
 		var tl := t(p)
-		if tl["block"]:
+		var th := int(tl["h"])
+		if float(th) > lerpf(ha, hb, f):
 			return false
-		var line_h := lerpf(ha, hb, i / total)
-		if float(tl["h"]) > line_h:
+		if tl["block"] and th + int(TALL_PROPS.get(tl["prop"], 1)) > top:
 			return false
 	return true
 

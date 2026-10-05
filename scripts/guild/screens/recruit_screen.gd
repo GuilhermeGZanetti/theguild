@@ -60,6 +60,8 @@ func _card(m: Member, focused: bool) -> Control:
 	v.add_child(sl)
 	if m.bio != "":
 		v.add_child(UIKit.rich("[i][color=#%s]%s[/color][/i]" % [hex(dim), m.bio], 184, 8))
+	if m.waits:
+		v.add_child(UIKit.label("Waits at the bar until you make room", 8, UITheme.GREEN if not focused else UITheme.INK))
 	var cost := UIKit.hbox(4)
 	cost.add_child(UIKit.stat_row("gold", "Hire %d" % m.hire_cost if m.hire_cost > 0 else "Free", UITheme.GOLD if not focused else UITheme.INK))
 	cost.add_child(UIKit.stat_row("wage", "%d/wk" % m.wage(), dim))

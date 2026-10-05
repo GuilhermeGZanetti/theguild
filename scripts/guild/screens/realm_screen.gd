@@ -15,7 +15,7 @@ func screen_title() -> String:
 
 
 func subtitle() -> String:
-	return "Allied factions send reinforcements to the final battle"
+	return "Factions still Allied when the final battle comes fight beside you"
 
 
 func build() -> void:
@@ -78,11 +78,15 @@ func _faction(f: String) -> Control:
 	var chain := int(st["chain"])
 	var ctext := ""
 	if chain >= 2:
-		ctext = "Allied chain complete."
+		ctext = "Chain complete. "
 	elif rep >= 2 + chain:
 		ctext = "Chain mission available: \"%s\"." % fd["chain"][chain]
 	else:
 		ctext = "Reach %s to unlock \"%s\"." % [Rules.rep_name(2 + chain), fd["chain"][chain]]
+	if rep >= 3:
+		ctext += ("\n" if chain < 2 else "") + "Allied: while they stay Allied, they will fight beside you in the final battle and now and then send a %s to your tavern." % DB.classes[fd["unique_class"]]["name"]
+	elif chain >= 2:
+		ctext += "No longer Allied: win back their trust or they will not come to the final battle."
 	v.add_child(UIKit.rich("[color=#%s]Their answer:[/color] %s\n[color=#%s]%s[/color]" % [hex(UITheme.GOLD), fd["answer"], hex(UITheme.TEXT_DIM), ctext], 250, 8))
 	p.tooltip_text = fd["desc"]
 	return p

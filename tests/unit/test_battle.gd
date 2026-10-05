@@ -467,6 +467,69 @@ func test_exploring_members_walk_on_after_seeing_an_enemy():
 	assert_true("Enemy spotted!" in floats, "the sighting is still announced")
 
 
+## The farthest tile `p` can walk to this turn, and the way there.
+func _long_walk(b: Battle, p: BattleUnit) -> Array:
+	var reach := b.reachable_with_run(p)
+	var dest := p.pos
+	for c in reach:
+		if not reach[c].get("pass_only", false) and int(reach[c]["cost"]) <= b.move_budget(p) \
+				and int(reach[c]["cost"]) > int(reach[dest]["cost"]):
+			dest = c
+	return [dest, b.path_to(p, dest, reach)]
+
+
+func test_a_spotted_member_still_finishes_the_walk():
+	var b := _explore_battle()
+	var p: BattleUnit = b.explore_units()[0]
+	b.explore_select(p)
+	var e: BattleUnit = b.unit(b.pods[0]["units"][0])
+	# an unaware patrol close enough to spot the member's first step
+	var spot := Vector2i(-1, -1)
+	for c in b.grid.cells_in_radius(p.pos, 4):
+		if Rules.chebyshev(c, p.pos) >= 3 and b.grid.standable(c) and b.unit_at(c) == null and b.grid.los(c, p.pos):
+			spot = c
+			break
+	assert_ne(spot, Vector2i(-1, -1))
+	e.pos = spot
+	var walk := _long_walk(b, p)
+	var dest: Vector2i = walk[0]
+	assert_gt(walk[1].size(), 1, "the member has somewhere to walk")
+	assert_true(b.do_move(p, dest))
+	assert_eq(b.phase, "combat", "the patrol spotted the member")
+	assert_eq(p.pos, dest, "but the member still walks to the chosen tile")
+
+
+func test_seeing_a_new_enemy_in_combat_does_not_stop_the_walk():
+	var b := _explore_battle()
+	var p: BattleUnit = b.explore_units()[0]
+	for o in b.units:
+		if o.team == BattleUnit.TEAM_ENEMY:
+			b._add_status(o, "blind", 9, 0, null)
+	b._start_combat()
+	var walk := _long_walk(b, p)
+	var dest: Vector2i = walk[0]
+	var path: Array = walk[1]
+	assert_gt(path.size(), 1)
+	# an enemy hidden in the fog that comes into view halfway
+	var e: BattleUnit = b.unit(b.pods[0]["units"][0])
+	var start := p.pos
+	var hide := Vector2i(-1, -1)
+	for k in path.size() - 1:
+		p.pos = path[k]
+		for c in b._cells_seen_from(p):
+			if not b.vis.has(c) and not c in path and b.grid.standable(c) and b.unit_at(c) == null:
+				hide = c
+				break
+		if hide != Vector2i(-1, -1):
+			break
+	p.pos = start
+	assert_ne(hide, Vector2i(-1, -1), "found a fogged cell the walk reveals")
+	e.pos = hide
+	assert_true(b.do_move(p, dest))
+	assert_true(b.is_seen(e), "the walk revealed the enemy")
+	assert_eq(p.pos, dest, "the member keeps walking to the chosen tile")
+
+
 func test_unaware_targets_are_flanked():
 	var b := _explore_battle()
 	var e: BattleUnit = b.unit(b.pods[0]["units"][0])

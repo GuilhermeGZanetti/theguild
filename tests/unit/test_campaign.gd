@@ -118,6 +118,83 @@ func test_named_recruit_event():
 	assert_eq(m.level, 5)
 
 
+func _fill_barracks(c: Campaign) -> void:
+	var rng := RandomNumberGenerator.new()
+	while c.active_members().size() < c.roster_cap():
+		c.add_member(Member.create(rng, "warrior", "human", 1, 1, c.week))
+
+
+func test_owed_recruits_wait_at_the_bar_until_hired():
+	var c := _new()
+	_fill_barracks(c)
+	c.resolve_event("named_hesk", 0)
+	var hesk: Member = null
+	for r in c.recruits:
+		if r.name == "Old Hesk":
+			hesk = r
+	assert_not_null(hesk, "with the barracks full, Hesk waits in the tavern")
+	assert_true(hesk.waits)
+	for i in 3:
+		c.board.clear()
+		c.gold = 5000
+		c.end_week()
+	assert_true(hesk in c.recruits, "still waiting weeks later")
+	c = Campaign.from_dict(JSON.parse_string(JSON.stringify(c.to_dict())))
+	hesk = null
+	for r in c.recruits:
+		if r.name == "Old Hesk":
+			hesk = r
+	assert_not_null(hesk, "the wait survives a save")
+	assert_true(hesk.waits)
+	c.dismiss(c.active_members()[0])
+	assert_eq(c.hire(hesk), "", "free to hire once there is room")
+	assert_false(hesk.waits)
+	assert_false(hesk in c.recruits)
+
+
+func test_chain_champion_waits_when_the_barracks_are_full():
+	var c := _new()
+	_fill_barracks(c)
+	c.factions["saltborn"]["rep"] = 3
+	c.factions["saltborn"]["chain"] = 1
+	var m := c._make_mission("chain", "coast", "saltborn")
+	m["chain_step"] = 1
+	var rep := _won(c, m, c.available_members().slice(0, 4))
+	assert_string_contains(rep["recruit"], "Tidecaller")
+	c.board.clear()
+	c.end_week()
+	var champion: Member = null
+	for r in c.recruits:
+		if r.cls == "tidecaller" and r.waits:
+			champion = r
+	assert_not_null(champion, "the champion is not lost when the week ends")
+	assert_eq(champion.hire_cost, 0)
+	var said: String = " ".join(rep["faction"])
+	assert_string_contains(said, "As long as they stay Allied")
+
+
+func test_allies_send_their_unique_class_to_the_tavern():
+	var c := _new()
+	c.factions["lantern"]["rep"] = 3
+	var allied := 0
+	var weeks := 200
+	for i in weeks:
+		c.roll_recruits()
+		for r in c.recruits:
+			assert_false(r.cls in ["tidecaller", "graftwarden", "sandreaver"], "only allies send their own class")
+			if r.cls == "lanternbearer":
+				assert_eq(r.race, "mothkin")
+				assert_gt(r.hire_cost, 0, "an ordinary recruit: they still cost a fee")
+				assert_false(r.waits, "and leaves with the week like any other")
+				allied += 1
+	assert_between(allied, int(weeks * 0.15), int(weeks * 0.35), "about one week in four")
+	c.factions["lantern"]["rep"] = 2
+	for i in 50:
+		c.roll_recruits()
+		for r in c.recruits:
+			assert_ne(r.cls, "lanternbearer", "Trusted is not enough")
+
+
 func test_conflicting_missions_cancel_each_other():
 	var c := _new()
 	var ma := c._make_mission("rivalry", "coast", "saltborn")

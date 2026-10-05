@@ -81,12 +81,9 @@ func _build_backdrop() -> void:
 	wv.bounds = Rect2(0, 0, grid.w, grid.h)
 	var fp := map_view.cell_top(spot)
 	wv.focus(fp + Vector3(0, 0, 0), true)
+	# the camera holds still: a slow turn makes the pixel art shimmer
 	wv.yaw = 20.0
 	wv.yaw_target = 20.0
-
-
-func _process(delta: float) -> void:
-	wv.yaw_target += delta * 4.0
 	var bv := wv.basis_vectors()
 	for uv in units:
 		uv.set_camera(deg_to_rad(wv.yaw), bv["fwd"], bv["right"])
@@ -100,11 +97,14 @@ func _build_menu() -> void:
 	shade.size = Vector2(170, vs.y)
 	shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(shade)
-	var title := UIKit.title("A Guilda", 48)
-	title.position = Vector2(14, 20)
+	# title and tagline stay inside the shaded column, as wide as the buttons
+	var title := UIKit.title("A Guilda", 42)
+	title.position = Vector2(16, 22)
 	add_child(title)
 	var sub := UIKit.label("Write your name before the Hush forgets it.", 9, UITheme.TEXT_DIM)
-	sub.position = Vector2(16, 72)
+	sub.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	sub.custom_minimum_size.x = 138
+	sub.position = Vector2(16, 70)
 	add_child(sub)
 	menu_box = UIKit.vbox(4)
 	menu_box.position = Vector2(16, 110)

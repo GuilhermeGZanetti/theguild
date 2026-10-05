@@ -7,7 +7,7 @@ const PROPS := {
 	"rock_s": [1, true, false, false], "rock_l": [2, true, true, false], "boulder": [2, true, true, false],
 	"log": [1, true, false, true], "stump": [1, true, false, true], "crate": [1, true, false, true],
 	"crates": [2, true, true, true], "barrel": [1, true, false, true], "fence": [1, true, false, true],
-	"tree": [2, true, true, true], "tree_dead": [1, true, false, true], "palm": [1, true, false, true],
+	"tree": [2, true, true, true], "tree_dead": [1, true, false, true], "palm": [2, true, true, true],
 	"wall": [2, true, true, false], "wall_broken": [1, true, false, false], "pillar": [2, true, true, false],
 	"column_broken": [1, true, false, false], "statue": [2, true, true, false], "shrine": [2, true, true, false],
 	"lantern_post": [0, true, false, false], "post": [1, true, false, true], "boat": [2, true, true, true],

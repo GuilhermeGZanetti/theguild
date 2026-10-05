@@ -597,13 +597,12 @@ func do_move(u: BattleUnit, dest: Vector2i) -> bool:
 					emit({"t": "vision", "cells": vis.keys()})
 				else:
 					walked_vis[walked.size() - 1] = vis.keys()
-			if _detection_step(u):
+			# a member always walks on to the chosen tile, seen or not; only a
+			# patrol that spots the squad stops where it stands
+			if _detection_step(u) and u.team != BattleUnit.TEAM_PLAYER:
 				halt = true
 			if _new_foe_seen(u, known):
 				spotted = true
-				# exploring, the member walks on; only an unaware pod spotting them stops the move
-				if phase != "explore":
-					halt = true
 		if (stop or halt or not u.active() or u.has_status("root")) and _alone_on(u, u.pos):
 			break
 	if not walked.is_empty():
