@@ -143,6 +143,7 @@ Drives the real scenes end to end: new guild, hub, board, squad, an auto-played 
 
 ```bash
 godot --headless --path . --export-release "Windows Desktop" build/windows/AGuilda.exe
+& "C:\Users\guigo\Desktop\godot\Godot_v4.7.2-stable_win64_console.exe" --headless --path . --export-release "Windows Desktop" build/windows/AGuilda.exe
 ```
 
 ```bash
