@@ -830,8 +830,8 @@ def track_jungle(seed=61, layer=False):
 
 
 # The Ember Wood: a battle waltz in G minor, 3/4. The motif stretches over
-# four bars; a cello calls it, harp keeps the waltz turning, shrine bells and
-# crackling embers sit between the beats.
+# four bars; a cello calls it, harp keeps the waltz turning, shrine bells
+# sit between the beats.
 AUTUMN_THEME_PROG = [("G2", "m"), ("G2", "m"), ("Eb3", "M"), ("Bb2", "M"), ("F3", "M"), ("C3", "m"), ("D3", "M"), ("D3", "M")]
 AUTUMN_PROG = ([("G2", "m"), ("G2", "m"), ("Eb3", "M"), ("Bb2", "M"), ("G2", "m"), ("G2", "m"), ("C3", "m"), ("D3", "M")]
                + AUTUMN_THEME_PROG
@@ -851,7 +851,6 @@ def track_autumn(seed=71, layer=False):
     if layer:
         def extra(ci, ch, b0):
             tr.at(b0 + 2.75, drum("block", rng), 0.6)
-            tr.at(b0, crackle(3 * tr.beat, rng, 30.0), 0.12)
         return danger_layer(tr, chords, 12, "shaker", (1.5, 2.5), lambda f, d: fiddle(f, d, rng, vib=0, harm=6), extra=extra)
     for ci, ch in enumerate(chords):
         b0 = ci * 3
@@ -881,13 +880,11 @@ def track_autumn(seed=71, layer=False):
         elif ci % 8 == 7:
             for k in range(3):
                 tr.at(b0 + 2 + k / 3, drum("tom", rng, 0.6 + 0.15 * k), 0.6)
-        # shrine bells and embers
+        # shrine bells
         if ci % 2 == 0:
             tr.at(b0, bell(freq(ch[2] + 36), 2.5, 1.3), 0.16)
         if ci % 4 == 2:
             tr.at(b0 + 1.5, bell(freq(root + 36), 2.5, 1.5), 0.1)
-        if ci % 4 == 0:
-            tr.at(b0, crackle(12 * tr.beat, rng), 0.15)
     lay(tr, AUTUMN_CALL, 0, lambda f, d: fiddle(f, d, rng, vib=5.0), 0.7)
     for start in (24, 72):
         lay(tr, AUTUMN_THEME, start, lambda f, d: fiddle(f, d, rng, vib=6.5), 0.4)
