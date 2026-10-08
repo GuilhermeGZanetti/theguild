@@ -6,7 +6,7 @@
     "potential_bias": ["hp", "defense"],
     "branches": {
       "guardian": {"name": "Guardian", "title": "knight", "skills": ["brace", "iron_hide", "taunt", "shield_wall", "sentinel", "bastion"]},
-      "warlord": {"name": "Warlord", "title": "berserker", "skills": ["cleave", "battle_hunger", "sunder", "whirlwind", "headlong_charge", "rampage"]}
+      "warlord": {"name": "Warlord", "title": "berserker", "skills": ["cleave", "battle_hunger", "sunder", "headlong_charge", "blitz", "rampage"]}
     }
   },
   "rogue": {
@@ -40,29 +40,29 @@
     }
   },
   "tidecaller": {
-    "name": "Tidecaller", "role": "Saltborn control mage. Pulls, pushes and drowns.", "faction": "saltborn", "race": "tidefolk", "melee": false, "basic": "harpoon", "start_skill": "undertow", "look": "tidecaller", "weapon_family": "trident", "armor_family": "medium", "wage": 20,
+    "name": "Tidecaller", "role": "Saltborn control mage. Pushes and drowns, or harpoons and reels in.", "faction": "saltborn", "race": "tidefolk", "melee": false, "basic": "harpoon", "start_skill": "undertow", "look": "tidecaller", "weapon_family": "trident", "armor_family": "medium", "wage": 20,
     "base": {"hp": 48, "defense": 7, "dodge": 12, "speed": 36, "move": 4, "crit": 8, "attack": 16, "accuracy": 74, "range": 3, "resolve": 42},
     "growth": {"hp": 10.5, "defense": 1.8, "dodge": 1.5, "speed": 1.5, "crit": 1.2, "attack": 3.15, "accuracy": 3.15, "resolve": 3.3},
     "potential_bias": ["hp", "attack"],
     "branches": {
-      "tides": {"name": "Tides", "title": "stormcaller", "skills": ["riptide", "drown", "tidal_wave", "drowning_depths", "maelstrom", "tsunami"]},
-      "deep": {"name": "Deep", "title": "leviathan", "skills": ["saltblood", "barbed_harpoon", "anchor_stance", "kraken_grip", "leviathan_hide", "call_of_the_deep"]}
+      "tides": {"name": "Tides", "title": "stormcaller", "skills": ["riptide", "drown", "tidal_wave", "drowning_depths", "surge", "tsunami"]},
+      "harpoon": {"name": "Harpoon", "title": "harpooneer", "skills": ["barbed_harpoon", "blood_in_the_water", "anchor_stance", "kraken_grip", "gutting_harpoon", "drag_to_the_depths"]}
     }
   },
   "lanternbearer": {
-    "name": "Lanternbearer", "role": "Conclave support. Reveals the hidden and cleanses the Hush.", "faction": "lantern", "race": "mothkin", "melee": false, "basic": "light_bolt", "start_skill": "lantern_flare", "look": "lanternbearer", "weapon_family": "lantern", "armor_family": "robe", "wage": 20,
+    "name": "Lanternbearer", "role": "Conclave light-bearer. Blinds, stuns and marks, or keeps allies sharp and remembered.", "faction": "lantern", "race": "mothkin", "melee": false, "basic": "light_bolt", "start_skill": "lantern_flare", "look": "lanternbearer", "weapon_family": "lantern", "armor_family": "robe", "wage": 20,
     "base": {"hp": 38, "defense": 4, "dodge": 14, "speed": 44, "move": 5, "crit": 8, "attack": 15, "accuracy": 78, "range": 4, "resolve": 60},
     "growth": {"hp": 8.4, "defense": 1.05, "dodge": 1.8, "speed": 1.95, "crit": 1.2, "attack": 2.85, "accuracy": 3.45, "resolve": 4.8},
     "potential_bias": ["resolve", "accuracy"],
     "branches": {
-      "light": {"name": "Light", "title": "beaconkeeper", "skills": ["reveal", "cleansing_light", "searing_light", "far_light", "judgement", "dawn"]},
-      "archive": {"name": "Archive", "title": "archivist", "skills": ["kindle", "lantern_ward", "shepherd", "remembrance", "keeper_of_names", "unforgetting"]}
+      "light": {"name": "Light", "title": "beaconkeeper", "skills": ["reveal", "dazzle", "searing_flash", "afterglow", "judgement", "dawn"]},
+      "archive": {"name": "Archive", "title": "archivist", "skills": ["kindle", "guiding_light", "shepherd", "remembrance", "hall_of_lanterns", "unforgetting"]}
     }
   },
   "graftwarden": {
     "name": "Graftwarden", "role": "Rootwarden guardian. Roots enemies; zone of control reaches 2 tiles.", "faction": "rootwardens", "race": "barkborn", "melee": true, "basic": "staff_strike", "start_skill": "entangle", "look": "graftwarden", "weapon_family": "graftstaff", "armor_family": "heavy", "wage": 20,
-    "base": {"hp": 60, "defense": 10, "dodge": 4, "speed": 28, "move": 4, "crit": 5, "attack": 15, "accuracy": 72, "range": 1, "resolve": 50},
-    "growth": {"hp": 13.2, "defense": 2.55, "dodge": 0.9, "speed": 1.2, "crit": 0.75, "attack": 2.85, "accuracy": 3.0, "resolve": 3.9},
+    "base": {"hp": 60, "defense": 10, "dodge": 4, "speed": 28, "move": 4, "crit": 5, "attack": 17, "accuracy": 72, "range": 1, "resolve": 50},
+    "growth": {"hp": 13.2, "defense": 2.55, "dodge": 0.9, "speed": 1.2, "crit": 0.75, "attack": 3.0, "accuracy": 3.0, "resolve": 3.9},
     "potential_bias": ["hp", "defense"],
     "passives": ["deep_roots"],
     "branches": {
@@ -72,7 +72,7 @@
   },
   "sandreaver": {
     "name": "Sandreaver", "role": "Caravan skirmisher. Burrows and resurfaces anywhere in range.", "faction": "glass", "race": "khepri", "melee": true, "basic": "slash", "start_skill": "glass_edge", "look": "sandreaver", "weapon_family": "glassblades", "armor_family": "light", "wage": 20,
-    "base": {"hp": 44, "defense": 7, "dodge": 16, "speed": 50, "move": 5, "crit": 18, "attack": 18, "accuracy": 74, "range": 1, "resolve": 30},
+    "base": {"hp": 44, "defense": 7, "dodge": 16, "speed": 50, "move": 5, "crit": 18, "attack": 16, "accuracy": 74, "range": 1, "resolve": 30},
     "growth": {"hp": 9.0, "defense": 1.5, "dodge": 2.25, "speed": 2.25, "crit": 2.25, "attack": 3.45, "accuracy": 3.15, "resolve": 2.4},
     "potential_bias": ["crit", "attack"],
     "branches": {

@@ -446,9 +446,14 @@ func show_preview(pv: Dictionary, at: Vector2) -> void:
 		return
 	var sd := DB.skill(pv["skill"])
 	preview_body.add_child(UIKit.header(sd.get("name", ""), 10))
+	var order := 0
 	for row in pv["targets"]:
 		var b := UIKit.vbox(0)
 		var line := "[b]%s[/b]" % row["name"]
+		if pv.has("path"):
+			# a chain of leaps: the foes in the order they are struck
+			order += 1
+			line = "[b]%d. %s[/b]" % [order, row["name"]]
 		if row.get("ally", false):
 			line = "[color=#e86050][b]%s  (ALLY!)[/b][/color]" % row["name"]
 		if row.get("sure", false):

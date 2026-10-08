@@ -8,7 +8,7 @@
   "pyromancer": {"name": "Pyromancer", "class": "mystic", "branch": "elemental", "desc": "Fire that falls where it will and spreads.", "stat": {"attack": 3}},
   "oracle": {"name": "Oracle", "class": "mystic", "branch": "restoration", "desc": "Sees a moment ahead. Stronger heals and steady allies.", "stat": {"resolve": 8, "hp": 6}},
   "stormcaller": {"name": "Stormcaller", "class": "tidecaller", "branch": "tides", "desc": "Commands the sea itself.", "stat": {"attack": 2, "accuracy": 3}},
-  "leviathan": {"name": "Leviathan", "class": "tidecaller", "branch": "deep", "desc": "As hard to move as the deep.", "stat": {"hp": 10, "defense": 2}},
+  "harpooneer": {"name": "Harpooneer", "class": "tidecaller", "branch": "harpoon", "desc": "Hooks its prey and never lets go.", "stat": {"attack": 2, "hp": 6}},
   "beaconkeeper": {"name": "Beaconkeeper", "class": "lanternbearer", "branch": "light", "desc": "A living lighthouse against the Hush.", "stat": {"attack": 2, "accuracy": 3}},
   "archivist": {"name": "Archivist", "class": "lanternbearer", "branch": "archive", "desc": "Keeps every name, and every friend, from fading.", "stat": {"resolve": 8, "hp": 6}},
   "oakheart": {"name": "Oakheart", "class": "graftwarden", "branch": "grove", "desc": "An ancient guardian that shelters its grove.", "stat": {"hp": 10, "defense": 2}},

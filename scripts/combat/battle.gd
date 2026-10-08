@@ -3,6 +3,8 @@ extends RefCounted
 ## Turn-based combat rules. Headless: every state change is appended to
 ## `events` so the 3D view can animate it and tests/AI can run without it.
 
+const CONTROL := ["stun", "paralysis", "fear", "root", "pinned", "blind", "marked", "taunted"]
+
 var grid: BattleGrid
 var units: Array = []
 var rng := RandomNumberGenerator.new()
@@ -39,6 +41,7 @@ var objective_area := {}       # {"center": Vector2i, "r": int}
 var route: Array = []          # the trail from the squad's start to the objective
 var par_rounds := 8
 var _alerting := false
+var _tally_src: BattleUnit = null  # who to credit for damage with no attacker (DoT, terrain)
 
 
 func _init() -> void:
@@ -202,26 +205,34 @@ func _begin_turn(u: BattleUnit) -> void:
 		u.def_cur = minf(u.max_def(), u.def_cur + u.def_regen)
 	var tile := grid.t(u.pos)
 	var fx: Dictionary = tile["fx"]
+	var maker := unit(int(fx.get("owner", -1)))
 	if fx.get("kind", "") == "sanctuary" and int(fx.get("team", -1)) == u.team:
-		_heal(u, 6, null)
+		_heal(u, 6, maker)
 	if fx.get("kind", "") == "flood" and not u.swims and not u.floats and u.team != int(fx.get("team", -1)):
+		_tally_src = maker
 		_damage_raw(u, 4, null, "drown")
+		_tally_src = null
 	if fx.get("kind", "") == "fire":
-		_apply_status(null, u, "burn", 100, 2, 3)
+		_apply_status(maker, u, "burn", 100, 2, 3)
 	var regen := int(u.mod("self_regen", 0))
+	var healer := u
 	for a in allies_of(u, true):
 		if int(a.mod("aura_regen", 0)) > 0 and Rules.chebyshev(a.pos, u.pos) <= 2:
+			if int(a.mod("aura_regen", 0)) + int(u.mod("self_regen", 0)) > regen:
+				healer = a
 			regen = maxi(regen, int(a.mod("aura_regen", 0)) + int(u.mod("self_regen", 0)))
 	if regen > 0 and u.hp < u.max_hp():
-		_heal(u, regen, null)
+		_heal(u, regen, healer)
 	for s in u.statuses.duplicate():
+		_tally_src = unit(int(s.get("source", -1)))
 		match s["id"]:
 			"poison", "burn":
 				_damage_raw(u, int(s.get("power", 3)), null, s["id"])
 			"bleed":
 				_damage_raw(u, int(s.get("power", 3)) * int(s.get("stacks", 1)), null, "bleed")
 			"regen":
-				_heal(u, int(s.get("power", 4)), null)
+				_heal(u, int(s.get("power", 4)), _tally_src)
+		_tally_src = null
 		if not u.active():
 			end_turn(u)
 			return
@@ -567,12 +578,12 @@ func do_move(u: BattleUnit, dest: Vector2i) -> bool:
 			emit({"t": "move", "uid": u.uid, "path": walked.duplicate(), "vis": walked_vis.duplicate()})
 			walked.clear()
 			walked_vis.clear()
-			_apply_status(null, u, "bleed", 100, 2, 3)
+			_apply_status(unit(int(fx.get("owner", -1))), u, "bleed", 100, 2, 3)
 		elif fx.get("kind", "") == "fire":
 			emit({"t": "move", "uid": u.uid, "path": walked.duplicate(), "vis": walked_vis.duplicate()})
 			walked.clear()
 			walked_vis.clear()
-			_apply_status(null, u, "burn", 70, 2, 3)
+			_apply_status(unit(int(fx.get("owner", -1))), u, "burn", 70, 2, 3)
 		# overwatch
 		for o in hostiles_of(u):
 			if not u.active():
@@ -756,6 +767,8 @@ func valid_targets(u: BattleUnit, skill_id: String, from := Vector2i(-99, -99)) 
 				if _in_skill_range(u, s, from, o.pos) and _los_ok(u, s, from, o.pos):
 					if s.get("range", {}).get("kind", "") == "charge" and _charge_path(u, from, o.pos).is_empty():
 						continue
+					if s.get("aoe", {}).get("shape", "") == "blitz" and _blitz_land(u, o, from) == Vector2i(-1, -1):
+						continue
 					out.append(o.pos)
 		"ally", "ally_or_self":
 			for o in units:
@@ -834,6 +847,11 @@ func affected(u: BattleUnit, skill_id: String, target: Vector2i, from := Vector2
 				cells.append(c)
 		"cone":
 			cells = cone_cells(from, target, int(aoe.get("len", 3)))
+		"blitz":
+			var foes: Array = []
+			for h in blitz_hops(u, skill_id, target, from):
+				foes.append(unit(int(h["uid"])))
+			return foes
 		"chain":
 			var first := unit_at(target)
 			var chain: Array = []
@@ -960,7 +978,78 @@ func aoe_cells(u: BattleUnit, skill_id: String, target: Vector2i) -> Array:
 				if Rules.chebyshev(n, u.pos) == 1:
 					cells.append(n)
 			return cells
+		"blitz":
+			var foes: Array = []
+			for h in blitz_hops(u, skill_id, target):
+				foes.append(unit(int(h["uid"])).pos)
+			return foes
 	return [target]
+
+
+## Blitz: the leaps of a chain attack aimed at the foe on `target`, as
+## [{"uid", "land"}]. Each foe is struck from the free tile beside it nearest
+## to the previous landing; the next foe is the nearest one within reach of the
+## last that also has room to land beside it.
+func blitz_hops(u: BattleUnit, skill_id: String, target: Vector2i, from := Vector2i(-99, -99)) -> Array:
+	if from == Vector2i(-99, -99):
+		from = u.pos
+	var aoe: Dictionary = DB.skill(skill_id).get("aoe", {})
+	var o := unit_at(target)
+	var hops: Array = []
+	if o == null or not u.hostile_to(o):
+		return hops
+	var cur := from
+	var struck := {}
+	for j in int(aoe.get("jumps", 2)) + 1:
+		var land := _blitz_land(u, o, cur)
+		if land == Vector2i(-1, -1):
+			break
+		hops.append({"uid": o.uid, "land": land})
+		struck[o.uid] = true
+		cur = land
+		var nxt: BattleUnit = null
+		var nd := 999
+		for h in hostiles_of(u):
+			if struck.has(h.uid) or h.hidden or not knows(u, h):
+				continue
+			var d := Rules.distance(o.pos, h.pos)
+			if d <= int(aoe.get("r", 2)) and d < nd and _blitz_land(u, h, cur) != Vector2i(-1, -1):
+				nd = d
+				nxt = h
+		if nxt == null:
+			break
+		o = nxt
+	return hops
+
+
+## Where a Blitz leap at `o` lands, coming from `cur`: right there if already
+## beside it, else the nearest free tile beside it; (-1, -1) if none.
+func _blitz_land(u: BattleUnit, o: BattleUnit, cur: Vector2i) -> Vector2i:
+	if Rules.chebyshev(cur, o.pos) == 1:
+		return cur
+	var best := Vector2i(-1, -1)
+	var bd := 1e9
+	for n in grid.neighbors8(o.pos):
+		var occ := unit_at(n)
+		if not grid.standable(n, u.swims, u.floats) or (occ != null and occ != u):
+			continue
+		var d := float(Rules.distance(cur, n))
+		if d < bd:
+			bd = d
+			best = n
+	return best
+
+
+func _blitz_leap(u: BattleUnit, o: BattleUnit, land: Vector2i, skill_id: String, again: bool) -> void:
+	var s := DB.skill(skill_id)
+	if land != u.pos and unit_at(land) == null:
+		u.pos = land
+		emit({"t": "move", "uid": u.uid, "path": [land], "fast": true})
+		if u.team == BattleUnit.TEAM_PLAYER:
+			update_vision(u)
+	_face(u, o.pos)
+	if again:
+		emit({"t": "skill", "uid": u.uid, "skill": skill_id, "target": o.pos, "anim": s.get("anim", "attack"), "fx": s.get("fx", "slash"), "name": ""})
 
 
 # ====================================================================== attack math
@@ -1044,6 +1133,8 @@ func damage_mult(att: BattleUnit, target: BattleUnit, eff: Dictionary) -> float:
 		m += float(att.mod("water_dmg", 0.0))
 	if target.hush and float(eff.get("vs_hush", 0.0)) > 0:
 		m += float(eff.get("vs_hush", 0.0))
+	if float(att.mod("bleed_dmg", 0.0)) > 0 and target.has_status("bleed"):
+		m += float(att.mod("bleed_dmg", 0.0))
 	if not target.alerted:
 		m += float(att.mod("ambush_dmg", 0.0))
 	if int(eff.get("swarm", 0)) > 0:
@@ -1078,6 +1169,14 @@ func preview(att: BattleUnit, skill_id: String, target_cell: Vector2i, from := V
 		from = att.pos
 	var s := DB.skill(skill_id)
 	var out := {"targets": [], "skill": skill_id}
+	var land_of := {}
+	if s.get("aoe", {}).get("shape", "") == "blitz":
+		var path: Array = []
+		for h in blitz_hops(att, skill_id, target_cell, from):
+			land_of[int(h["uid"])] = h["land"]
+			if path.is_empty() or path[-1] != h["land"]:
+				path.append(h["land"])
+		out["path"] = path
 	for o in affected(att, skill_id, target_cell, from):
 		var row := {"uid": o.uid, "name": o.name}
 		if friendly_fire(s) and not att.hostile_to(o):
@@ -1086,7 +1185,7 @@ func preview(att: BattleUnit, skill_id: String, target_cell: Vector2i, from := V
 			match eff["t"]:
 				"damage":
 					if not row.has("hit"):
-						var ctx := attack_context(att, o, s, eff, from)
+						var ctx := attack_context(att, o, s, eff, land_of.get(o.uid, from))
 						row.merge(ctx)
 						var lo_roll := -1.0
 						if eff.get("sure", false):
@@ -1129,6 +1228,8 @@ func _status_chance_for(att: BattleUnit, o: BattleUnit, eff: Dictionary) -> int:
 		base += float(att.mod("burn_chance", 0))
 	if sid in ["poison", "bleed"]:
 		base += float(att.mod("dot_chance", 0))
+	if sid in ["blind", "stun"]:
+		base += float(att.mod("glare_chance", 0))
 	var c := Rules.status_chance(base, att.level, o.level, resolve_of(o))
 	if o.boss and sid in ["paralysis", "stun", "fear", "root"]:
 		c = c / 2
@@ -1163,6 +1264,7 @@ func use_skill(u: BattleUnit, skill_id: String, target: Vector2i) -> bool:
 	if not target in valid_targets(u, skill_id):
 		return false
 	var s := DB.skill(skill_id)
+	u.add_tally("use:" + skill_id, 1)
 	var cd := int(s.get("cd", 0))
 	if cd > 0:
 		cd = maxi(1, cd + int(u.mod("cooldown", 0)))
@@ -1186,6 +1288,10 @@ func use_skill(u: BattleUnit, skill_id: String, target: Vector2i) -> bool:
 			emit({"t": "move", "uid": u.uid, "path": path, "fast": true})
 	var targets := affected(u, skill_id, target)
 	var hit_map := {}
+	var land_of := {}
+	if s.get("aoe", {}).get("shape", "") == "blitz":
+		for h in blitz_hops(u, skill_id, target):
+			land_of[int(h["uid"])] = h["land"]
 	for eff in s.get("effects", []):
 		var et: String = eff["t"]
 		if et == "restore_def" and eff.get("self", false):
@@ -1232,6 +1338,8 @@ func use_skill(u: BattleUnit, skill_id: String, target: Vector2i) -> bool:
 					if not o.alive() and et != "stabilize":
 						continue
 					if et == "damage":
+						if land_of.has(o.uid):
+							_blitz_leap(u, o, land_of[o.uid], skill_id, targets.find(o) > 0)
 						var did_hit := _resolve_damage(u, o, s, eff)
 						hit_map[o.uid] = hit_map.get(o.uid, false) or did_hit
 						continue
@@ -1260,8 +1368,11 @@ func _apply_effect(u: BattleUnit, o: BattleUnit, s: Dictionary, eff: Dictionary)
 					power *= 1.0 + float(u.mod("burn_power", 0.0))
 				if eff["id"] in ["poison", "bleed"]:
 					power *= 1.0 + float(u.mod("dot_power", 0.0))
+				var dur := int(eff.get("dur", 1))
+				if eff["id"] in ["blind", "marked"]:
+					dur += int(u.mod("glare_dur", 0))
 				if rng.randi_range(1, 100) <= ch:
-					_add_status(o, eff["id"], int(eff.get("dur", 1)), power, u)
+					_add_status(o, eff["id"], dur, power, u)
 				else:
 					emit({"t": "float", "uid": o.uid, "text": "Resisted", "kind": "info"})
 		"heal":
@@ -1317,13 +1428,24 @@ func _apply_effect(u: BattleUnit, o: BattleUnit, s: Dictionary, eff: Dictionary)
 		"reset_cds":
 			o.cds.clear()
 			emit({"t": "float", "uid": o.uid, "text": "Refreshed", "kind": "good"})
+		"reduce_cds":
+			# the skill being cast keeps its own fresh cooldown
+			var cut := false
+			for k in o.cds.keys():
+				if o == u and DB.skill(k).get("name", "") == s.get("name", ""):
+					continue
+				if int(o.cds[k]) > 0:
+					o.cds[k] = maxi(0, int(o.cds[k]) - int(eff.get("amount", 1)))
+					cut = true
+			if cut:
+				emit({"t": "float", "uid": o.uid, "text": "Refreshed", "kind": "good"})
 
 
 func erase_skill(o: BattleUnit) -> void:
-	for a in allies_of(o, true):
-		if int(a.mod("aura_memory", 0)) > 0 and Rules.chebyshev(a.pos, o.pos) <= int(a.mod("aura_memory", 0)):
-			emit({"t": "float", "uid": o.uid, "text": "Remembered", "kind": "good"})
-			return
+	var fx: Dictionary = grid.t(o.pos)["fx"]
+	if fx.get("kind", "") == "sanctuary" and int(fx.get("team", -1)) == o.team:
+		emit({"t": "float", "uid": o.uid, "text": "Remembered", "kind": "good"})
+		return
 	var pool: Array = []
 	for sk in o.skills:
 		if sk != o.basic and not sk in o.erased:
@@ -1359,6 +1481,7 @@ func _resolve_damage(att: BattleUnit, o: BattleUnit, s: Dictionary, eff: Diction
 	var roll := rng.randi_range(1, 100)
 	if roll > int(ctx["hit"]):
 		emit({"t": "miss", "uid": o.uid, "src": att.uid, "fx": s.get("fx", "slash")})
+		o.add_tally("dodged", 1)
 		if int(o.mod("riposte", 0)) > 0 and o.active() and Rules.chebyshev(o.pos, att.pos) == 1 and not extra.get("riposte", false):
 			emit({"t": "float", "uid": o.uid, "text": "Riposte!", "kind": "info"})
 			_face(o, att.pos)
@@ -1386,6 +1509,7 @@ func _resolve_damage(att: BattleUnit, o: BattleUnit, s: Dictionary, eff: Diction
 		emit({"t": "float", "uid": o.uid, "text": "Carapace", "kind": "info"})
 	var res := Rules.apply_defense(raw, o.defense_now(), pierce_of(att, eff))
 	var dmg: int = res["damage"]
+	o.add_tally("blocked", maxi(0, roundi(raw) - dmg))
 	o.def_cur = maxf(0.0, o.def_cur - float(res["wear"]))
 	emit({"t": "hit", "uid": o.uid, "src": att.uid, "dmg": dmg, "crit": crit, "crit_def": crit_def, "def": o.def_cur, "fx": s.get("fx", "slash"), "absorbed": roundi(raw) - dmg})
 	if crit and int(att.mod("crit_bleed", 0)) > 0 and o.active():
@@ -1399,8 +1523,13 @@ func _resolve_damage(att: BattleUnit, o: BattleUnit, s: Dictionary, eff: Diction
 			_add_status(o, "poison", 3, 4.0 * (1.0 + float(att.mod("dot_power", 0.0))), att)
 	var melee_hit := not bool(ctx["ranged"])
 	_apply_damage(o, dmg, att)
-	if melee_hit and int(o.mod("barbs", 0)) > 0 and att.active() and o.alive() and att != o:
-		_damage_raw(att, int(o.mod("barbs", 0)), o, "thorns")
+	if float(att.mod("lifesteal", 0.0)) > 0 and att.active() and att.hostile_to(o):
+		var gain := roundi(dmg * float(att.mod("lifesteal", 0.0)))
+		if gain > 0:
+			_heal(att, gain, att)
+	var barbs := int(o.mod("barbs", 0)) + roundi(o.max_def() * float(o.mod("barbs_pct", 0.0)))
+	if melee_hit and barbs > 0 and att.active() and o.alive() and att != o:
+		_damage_raw(att, barbs, o, "thorns")
 	return true
 
 
@@ -1438,6 +1567,9 @@ func _apply_damage(o: BattleUnit, dmg: int, src: BattleUnit) -> void:
 		o.hp = 1
 		emit({"t": "float", "uid": o.uid, "text": "Lucky!", "kind": "good"})
 	o.hp_lost += before - maxi(0, o.hp)
+	var credit: BattleUnit = src if src else _tally_src
+	if credit and credit != o:
+		credit.add_tally("dealt" if credit.hostile_to(o) else "ff", before - maxi(0, o.hp))
 	_check_boss_phase(o, before)
 	if o.hp > 0:
 		return
@@ -1466,6 +1598,9 @@ func _kill(o: BattleUnit, src: BattleUnit, cause: String) -> void:
 	o.statuses.clear()
 	if o.carrying >= 0:
 		_drop_body(o)
+	var credit: BattleUnit = src if src else _tally_src
+	if credit and credit != o and credit.hostile_to(o):
+		credit.add_tally("kills", 1)
 	if src and src != o and src.hostile_to(o):
 		src.kills += 1
 		if int(src.mod("rampage", 0)) > 0 and src.active() and src.acted and not src.rampage_used and src.hostile_to(o):
@@ -1499,6 +1634,8 @@ func _morale_shock(victim: BattleUnit, src: BattleUnit) -> void:
 func _heal(o: BattleUnit, amount: int, src: BattleUnit) -> void:
 	if o.state == "dead":
 		return
+	if src and not src.hostile_to(o):
+		src.add_tally("healed", maxi(1, amount) if o.state == "downed" else mini(o.max_hp(), o.hp + amount) - o.hp)
 	if o.state == "downed":
 		o.state = "active"
 		o.hp = maxi(1, amount)
@@ -1525,6 +1662,11 @@ func _add_status(o: BattleUnit, sid: String, dur: int, power: float, src: Battle
 			existing["stacks"] = mini(int(def["stacks"]), int(existing.get("stacks", 1)) + 1)
 	else:
 		o.statuses.append({"id": sid, "dur": dur, "power": power, "stacks": 1, "source": src.uid if src else -1})
+	if src and src != o:
+		if def.get("bad", true) and src.hostile_to(o) and sid in CONTROL:
+			src.add_tally("cc", 1)
+		elif not def.get("bad", true) and not src.hostile_to(o):
+			src.add_tally("buffs", 1)
 	emit({"t": "status", "uid": o.uid, "id": sid, "dur": dur})
 	if sid == "fear" and o.has_status("overwatch"):
 		o.remove_status("overwatch")

@@ -290,6 +290,55 @@ func test_ai_avoids_burning_its_friends():
 	assert_true(foe.alive())
 
 
+func test_blitz_leaps_along_a_chain_of_foes():
+	var b := _flat_battle(14, 10)
+	var p := b.add_unit(_warrior(0, Vector2i(2, 5)))
+	p.skills.append("blitz")
+	var a := b.add_unit(_warrior(1, Vector2i(4, 5)))
+	var c := b.add_unit(_warrior(1, Vector2i(6, 5)))
+	var d := b.add_unit(_warrior(1, Vector2i(8, 6)))
+	b.add_unit(_warrior(1, Vector2i(12, 2)))
+	b.start()
+	var tg := b.valid_targets(p, "blitz")
+	assert_true(Vector2i(4, 5) in tg)
+	assert_false(Vector2i(6, 5) in tg, "the first foe is at most 2 tiles away")
+	var pv := b.preview(p, "blitz", Vector2i(4, 5))
+	var order: Array = []
+	for row in pv["targets"]:
+		order.append(int(row["uid"]))
+	assert_eq(order, [a.uid, c.uid, d.uid], "struck in chain order; the far foe is out of reach")
+	assert_eq(b.aoe_cells(p, "blitz", Vector2i(4, 5)), [a.pos, c.pos, d.pos], "the foes to be struck are highlighted")
+	var path: Array = pv["path"]
+	assert_eq(path.size(), 3, "one landing per foe")
+	for i in path.size():
+		assert_eq(Rules.chebyshev(path[i], [a, c, d][i].pos), 1, "each landing is beside its foe")
+	b._begin_turn(p)
+	b.pop_events()
+	assert_true(b.use_skill(p, "blitz", Vector2i(4, 5)))
+	assert_eq(p.pos, path[-1], "the member ends where the preview showed")
+	var struck := {}
+	for e in b.pop_events():
+		if e.get("t", "") in ["hit", "miss"] and int(e.get("src", -1)) == p.uid:
+			struck[int(e["uid"])] = int(struck.get(int(e["uid"]), 0)) + 1
+	assert_eq(struck, {a.uid: 1, c.uid: 1, d.uid: 1}, "one swing at each foe")
+
+
+func test_battle_hunger_heals_from_damage_dealt():
+	var b := _flat_battle()
+	var p := b.add_unit(_warrior(0, Vector2i(2, 2)))
+	var foe := b.add_unit(_warrior(1, Vector2i(3, 2)))
+	b.start()
+	p.mods["lifesteal"] = 0.5
+	p.hp = 10
+	var s := DB.skill(p.basic)
+	for i in 30:
+		if b._resolve_damage(p, foe, s, s["effects"][0]):
+			break
+	var dealt := foe.max_hp() - foe.hp
+	assert_gt(dealt, 0)
+	assert_eq(p.hp, 10 + roundi(dealt * 0.5))
+
+
 func test_overkill_kills_outright():
 	var b := _flat_battle()
 	var p := b.add_unit(_warrior(0, Vector2i(2, 2)))

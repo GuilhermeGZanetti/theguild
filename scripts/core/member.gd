@@ -29,7 +29,7 @@ const OLD_HUMAN := {"a": ["f", "a"], "b": ["m", "a"], "c": ["f", "b"]}
 const CONFLICTS := [["tough", "frail"], ["swift", "sluggish"], ["frugal", "greedy"], ["fast_learner", "dullard"], ["brave", "coward"], ["hardy", "slow_healer"], ["keen", "clumsy"]]
 const GROWTH_STATS := ["hp", "defense", "dodge", "speed", "crit", "attack", "accuracy", "resolve"]
 const LOADOUT := 5          # active skills carried into battle besides the basic attack
-const PROGRESSION := 3      # bump when leveling rules change: older saves are converted
+const PROGRESSION := 4      # bump when leveling rules or skill trees change: older saves are converted
 
 var id := 0
 var name := ""
@@ -524,6 +524,14 @@ func _migrate_short_trees() -> void:
 	prog = PROGRESSION
 
 
+## Saves from before a skill-tree rework (the Oct 2026 Tidecaller,
+## Lanternbearer and Warlord trees): skills that left the trees or moved to a
+## taken row free their row for a new pick.
+func _migrate_tree_changes() -> void:
+	_refit_skills()
+	prog = PROGRESSION
+
+
 ## Rebuilds the learned skills on the current trees: the start skill and class
 ## passives, then every old tree skill that still exists, fits the level and
 ## has its row free. The loadout keeps its order where it can.
@@ -615,8 +623,10 @@ static func from_dict(d: Dictionary) -> Member:
 		m.gender = parts[2] if parts.size() > 2 and parts[2] in ["m", "f"] else "m"
 	if m.prog < 2 and DB.classes.has(m.cls):
 		m._migrate_progression(m.level)
-	elif m.prog < PROGRESSION and DB.classes.has(m.cls):
+	elif m.prog < 3 and DB.classes.has(m.cls):
 		m._migrate_short_trees()
+	elif m.prog < PROGRESSION and DB.classes.has(m.cls):
+		m._migrate_tree_changes()
 	if not DB.subclasses.has(m.subclass):
 		m.subclass = ""
 	if int(m.palette.get("v", 1)) < PALETTE_VERSION and DB.races.has(m.race) and DB.classes.has(m.cls):

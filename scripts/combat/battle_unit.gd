@@ -64,6 +64,16 @@ var crits_taken := 0
 var overwatch_left := 0
 var target_uid := -1
 var objective_role := ""
+## What this unit did over the battle, for balance reports: HP dealt to foes
+## ("dealt") and to friends ("ff"), damage its Defense absorbed ("blocked"),
+## HP restored ("healed"), foes finished ("kills", damage over time included),
+## control effects landed on foes ("cc"), buffs given to others ("buffs") and
+## how often each skill was used ("use:<skill>").
+var tally := {}
+
+
+func add_tally(key: String, v: int) -> void:
+	tally[key] = int(tally.get(key, 0)) + v
 
 
 func alive() -> bool:

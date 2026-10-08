@@ -296,8 +296,8 @@ Helping a faction often costs its rival Power:
 
 |Faction|Unique class|Unique equipment|
 |-|-|-|
-|Saltborn Compact|Tidecaller: pulls and pushes units, drowns tiles|Coral armor: regenerates 5 Defense per turn|
-|Lantern Conclave|Lanternbearer: reveals hidden units, cleanses Hush effects|Memory lantern: allies in 2 tiles are immune to fear|
+|Saltborn Compact|Tidecaller: pushes units and floods tiles, or harpoons, bleeds and reels foes in|Coral armor: regenerates 5 Defense per turn|
+|Lantern Conclave|Lanternbearer: blinds, stuns and marks foes, or sharpens allies and guards their memories from the Hush|Memory lantern: allies in 2 tiles are immune to fear|
 |Rootwardens|Graftwarden: roots enemies, extends ZOC to 2 tiles|Barkskin: +2 max Defense per quest survived|
 |Glass Caravans|Sandreaver: burrows and resurfaces anywhere in range|Glass blades: +20 Crit, shatter after 5 crits|
 

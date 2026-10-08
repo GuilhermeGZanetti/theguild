@@ -870,7 +870,11 @@ func _update_hover() -> void:
 				overlay.show_cells("aoe", cells, Color(1.0, 0.4, 0.15, 0.4), Color(1.0, 0.5, 0.2, 0.95), 0.0, EDGE_BOLD)
 			else:
 				overlay.show_cells("aoe", cells, C_AOE, Color(1, 0.85, 0.4, 0.9))
-			hud.show_preview(battle.preview(active, selected_skill, hover_cell), mp)
+			var pv := battle.preview(active, selected_skill, hover_cell)
+			if pv.has("path"):
+				# leaps (Blitz): each landing, the hollow square where the member ends
+				overlay.show_leaps(pv["path"], Color(1, 1, 1, 0.95))
+			hud.show_preview(pv, mp)
 		elif hu:
 			hud.show_info(hu, mp, battle)
 		return

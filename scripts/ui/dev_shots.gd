@@ -23,6 +23,8 @@ func _ready() -> void:
 			await _autoplay(parts[1] if parts.size() > 1 else "clear")
 		"lineup":
 			await _lineup(parts[1] if parts.size() > 1 else "")
+		"blitz":
+			await _blitz()
 		_:
 			pass
 	await _save()
@@ -217,6 +219,86 @@ func _scene(which: String) -> void:
 		await get_tree().create_timer(1.5).timeout
 	else:
 		await get_tree().create_timer(3.5).timeout
+
+
+## Aiming Blitz: the foes it will strike, in order, and where the Warlord lands.
+func _blitz() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 21
+	var m := Member.create(rng, "warrior", "human", 1, 6)
+	m.id = 1
+	m.auto_pick(rng, "warlord")
+	if not "blitz" in m.skills:
+		m.swap_pick(6)
+	m.loadout = ["blitz", "headlong_charge", "sunder", "cleave", "shield_bash"]
+	Game.battle = BattleFactory.build({"region": "carrow", "objective": "defense", "skulls": 2, "seed": 99, "par_rounds": 8}, [m], {"difficulty": 1})
+	var inst: Node = load("res://scenes/battle.tscn").instantiate()
+	add_child(inst)
+	var t := 0.0
+	while t < 40.0 and inst.state != "player":
+		await get_tree().process_frame
+		t += get_process_delta_time()
+	await get_tree().create_timer(0.6).timeout
+	while Dialogs.open > 0:
+		for c in inst.get_children():
+			if c is CanvasLayer:
+				c.queue_free()
+		await get_tree().process_frame
+	var b: Battle = inst.battle
+	var p: BattleUnit = inst.active
+	var spot := _chain_spot(b, p)
+	if spot.is_empty():
+		print("BLITZ no room for a chain")
+		return
+	p.pos = spot[0]
+	inst.view_cell[p.uid] = p.pos
+	inst.views[p.uid].position = inst.map_view.unit_pos(p.pos)
+	var n := 0
+	for o in b.units:
+		if o.team == BattleUnit.TEAM_ENEMY and o.active() and n < 3:
+			n += 1
+			o.pos = spot[n]
+			o.alerted = true
+			inst.view_cell[o.uid] = o.pos
+			inst.views[o.uid].position = inst.map_view.unit_pos(o.pos)
+	b.update_vision()
+	inst._apply_vision(b.vis.keys())
+	inst.mode = "target"
+	inst.selected_skill = "blitz"
+	inst._refresh_all()
+	inst.wv.focus(inst.map_view.cell_top(spot[2]), true)
+	await get_tree().create_timer(0.4).timeout
+	inst.mouse_override = inst.wv.world_to_screen(inst.map_view.cell_top(spot[1]))
+	await get_tree().process_frame
+	inst._update_hover()
+	print("BLITZ preview ", b.preview(p, "blitz", spot[1]).get("path", []), " foes ", spot.slice(1))
+	await get_tree().create_timer(0.5).timeout
+	# the map alone, without the preview panel over the chain
+	inst.hud.preview.visible = false
+	await _save_as("blitz_map")
+	inst.hud.preview.visible = true
+
+
+## A flat, free stretch of ground near the member: [member, foe 1, foe 2, foe 3],
+## each foe two leaps on from the last.
+func _chain_spot(b: Battle, p: BattleUnit) -> Array:
+	var cands := b.grid.all_cells()
+	cands.sort_custom(func(x, y): return Rules.distance(x, p.pos) < Rules.distance(y, p.pos))
+	for c in cands:
+		for d: Vector2i in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+			for side: int in [1, -1]:
+				var perp: Vector2i = Vector2i(d.y, d.x) * side
+				var cells := [c, c + d * 2, c + d * 4, c + d * 5 + perp * 2]
+				var room := cells + [c + d, c + d * 3, c + d * 4 + perp, c + d * 5 + perp]
+				var ok := true
+				for r in room:
+					var u: BattleUnit = b.unit_at(r)
+					if not b.grid.standable(r) or b.grid.height(r) != b.grid.height(c) or (u != null and u != p):
+						ok = false
+						break
+				if ok:
+					return cells
+	return []
 
 
 ## A patrolled battle playing itself, captured every few seconds.

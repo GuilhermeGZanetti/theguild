@@ -302,13 +302,81 @@ func eval_skill(u: BattleUnit, skill_id: String, tgt: Vector2i, from: Vector2i) 
 			"pull", "push":
 				total += 3.0
 			"terrain":
-				total += 6.0
+				if eff.get("kind", "") == "sanctuary":
+					total += 5.0 * pv["targets"].size()
+				else:
+					total += 6.0
+	# effects the preview does not price (skills that use the move stay out:
+	# the plan has already spent it walking)
+	if not s.get("keeps_action", false):
+		var extra := _support_value(u, s, pv, tgt, from)
+		if extra > 0.0:
+			total += extra
+			any = true
 	if not any and s.get("target", "") in ["tile", "empty_tile"]:
 		return 0.0
 	# the basic attack is always a fine fallback, specials a little better
 	if not s.get("basic", false):
 		total *= 1.05
 	return total
+
+
+## Worth of the effects the preview leaves out: strikes on landing after a
+## teleport, self buffs, restored Defense, cooldowns, cleansing, lost skills.
+func _support_value(u: BattleUnit, s: Dictionary, pv: Dictionary, tgt: Vector2i, from: Vector2i) -> float:
+	var v := 0.0
+	var threatened := false
+	for o in b.hostiles_of(u):
+		if o.state == "active" and not o.hidden and Rules.distance(from, o.pos) <= int(o.stat("move")) + int(o.stat("range")) + 1:
+			threatened = true
+			break
+	var allies: Array = []
+	for row in pv["targets"]:
+		var o: BattleUnit = b.unit(row["uid"])
+		if o != null and not u.hostile_to(o):
+			allies.append(o)
+	for eff in s.get("effects", []):
+		match eff["t"]:
+			"splash":
+				var dmg_eff := {"t": "damage", "mult": eff.get("mult", 0.8), "crit": eff.get("crit", 0)}
+				for o in b.hostiles_of(u):
+					if o.hidden or Rules.chebyshev(o.pos, tgt) > int(eff.get("r", 1)):
+						continue
+					var ctx := b.attack_context(u, o, s, dmg_eff, tgt)
+					var raw := u.stat("attack") * float(dmg_eff["mult"]) * b.damage_mult(u, o, dmg_eff)
+					var avg := float(Rules.apply_defense(raw, o.defense_now(), b.pierce_of(u, dmg_eff))["damage"])
+					var hit: float = ctx["hit"] / 100.0
+					v += hit * avg * (1.0 + ctx["crit"] / 100.0 * (Rules.CRIT_MULT - 1.0))
+					if avg >= o.hp:
+						v += 22.0 * hit
+			"self_status":
+				if threatened:
+					v += STATUS_VALUE.get(eff["id"], 4.0) + float(eff.get("power", 0)) * 0.25
+			"restore_def":
+				if eff.get("self", false):
+					if threatened:
+						v += (u.max_def() - u.def_cur) * 0.7
+				else:
+					for o in allies:
+						v += (o.max_def() - o.def_cur) * 0.5
+			"reset_cds", "reduce_cds":
+				var cap := 4 if eff["t"] == "reset_cds" else int(eff.get("amount", 1))
+				for o in allies:
+					for k in o.cds:
+						if o == u and DB.skill(k).get("name", "") == s.get("name", ""):
+							continue
+						v += minf(float(o.cds[k]), cap) * 2.5
+			"restore_skills":
+				for o in allies:
+					v += 12.0 * o.erased.size()
+			"cleanse":
+				for o in allies:
+					for st in o.statuses:
+						if DB.statuses.get(st["id"], {}).get("bad", false):
+							v += STATUS_VALUE.get(st["id"], 4.0) * (4.0 if st["id"] in ["poison", "bleed", "burn"] else 1.0) * 0.8
+			"hasten":
+				v += 4.0 * allies.size()
+	return v
 
 
 func position_score(u: BattleUnit, tile: Vector2i, hostiles: Array) -> float:

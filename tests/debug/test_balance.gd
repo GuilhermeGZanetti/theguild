@@ -25,8 +25,8 @@ func _gear(m: Member) -> void:
 
 
 ## An average Normal member: average potential, no traits.
-func _reference(cls: String, level: int, branch := "") -> Member:
-	var m := Member.create(rng, cls, "human", 1, 1)
+func _reference(cls: String, level: int, branch := "", race := "human") -> Member:
+	var m := Member.create(rng, cls, race, 1, 1)
 	m.traits = []
 	for k in Member.GROWTH_STATS:
 		m.potential[k] = 2
@@ -178,4 +178,91 @@ func test_story_table():
 		_batch("story %s" % sid, m, int(s["skulls"]), 12)
 		if sid == "final":
 			_batch("story final, 1 ally", m, int(s["skulls"]), 12, 4, {"allied_factions": ["saltborn"]})
+	assert_true(true)
+
+
+## Every class tree side by side. Squads of four trees drawn so each tree
+## fights equally often (pure branch, average potential, the five
+## highest-level active skills carried), against a quest of their level, in
+## every region and objective. Prints one TREE line of sums per tree so slices
+## run in parallel can be merged: BAL_LEVELS="3,5,7" BAL_N="96" (battles per
+## level) BAL_PARTS="2" BAL_PART="0". SKILL lines count each skill's uses.
+const TREE_REGIONS := ["carrow", "coast", "stilts", "ember", "dunes", "unremembered"]
+const TREE_KEYS := ["dealt", "ff", "taken", "blocked", "dodged", "healed", "kills", "cc", "buffs"]
+
+
+func _tree_member(cls: String, branch: String, level: int, id: int) -> Member:
+	var m := _reference(cls, level, branch, DB.classes[cls].get("race", "human"))
+	m.id = id
+	var acts := m.active_skills()
+	acts.sort_custom(func(a, b): return int(DB.skill(a).get("level", 1)) > int(DB.skill(b).get("level", 1)))
+	m.loadout = acts.slice(0, Member.LOADOUT)
+	return m
+
+
+func test_tree_table():
+	var trees: Array = []
+	for cls in DB.classes:
+		for br in DB.classes[cls]["branches"]:
+			trees.append("%s/%s" % [cls, br])
+	var n := int(_env_list("BAL_N", [64])[0])
+	var parts := int(_env_list("BAL_PARTS", [1])[0])
+	var part := int(_env_list("BAL_PART", [0])[0])
+	var per := trees.size() / 4
+	for level in _env_list("BAL_LEVELS", [3, 5, 7]):
+		var sums := {}
+		for tr in trees:
+			sums[tr] = {"n": 0, "wins": 0, "downed": 0, "dead": 0}
+		for i in n:
+			if i % parts != part:
+				continue
+			# one shuffle of every tree feeds `per` battles
+			var perm := trees.duplicate()
+			var shuf := RandomNumberGenerator.new()
+			shuf.seed = 7000 + level * 131 + (i / per) * 17
+			for k in range(perm.size() - 1, 0, -1):
+				var j := shuf.randi_range(0, k)
+				var tmp = perm[k]
+				perm[k] = perm[j]
+				perm[j] = tmp
+			var picks: Array = perm.slice((i % per) * 4, (i % per) * 4 + 4)
+			rng.seed = 9000 + level * 101 + i * 13
+			var squad: Array = []
+			for k in picks.size():
+				var parts_tr: PackedStringArray = picks[k].split("/")
+				squad.append(_tree_member(parts_tr[0], parts_tr[1], level, k + 1))
+			var m := {"region": TREE_REGIONS[(i / 3) % TREE_REGIONS.size()], "objective": ["clear", "hunt", "defense"][i % 3],
+				"skulls": level, "par_rounds": 8, "turns": 5 + (level + 1) / 2, "seed": rng.randi()}
+			var b := BattleFactory.build(m, squad, {"difficulty": 1})
+			var guard := 0
+			while not b.over and guard < 1500:
+				guard += 1
+				b.auto_step()
+				b.pop_events()
+			if not b.over:
+				b._finish("retreat")
+			for u in b.units:
+				if u.team != BattleUnit.TEAM_PLAYER or u.npc or not u.member in squad:
+					continue
+				var tr: String = picks[squad.find(u.member)]
+				var row: Dictionary = sums[tr]
+				row["n"] += 1
+				row["wins"] += 1 if b.result == "victory" else 0
+				row["downed"] += 1 if u.was_downed else 0
+				row["dead"] += 1 if u.state == "dead" else 0
+				for k in TREE_KEYS:
+					var v: int = u.hp_lost if k == "taken" else int(u.tally.get(k, 0))
+					row[k] = int(row.get(k, 0)) + v
+				for k in u.tally:
+					if k.begins_with("use:"):
+						row[k] = int(row.get(k, 0)) + int(u.tally[k])
+		for tr in trees:
+			var row: Dictionary = sums[tr]
+			var line := "TREE|%d|%s|%d|%d|%d|%d" % [level, tr, row["n"], row["wins"], row["downed"], row["dead"]]
+			for k in TREE_KEYS:
+				line += "|%d" % int(row.get(k, 0))
+			gut.p(line)
+			for k in row:
+				if k.begins_with("use:"):
+					gut.p("SKILL|%d|%s|%s|%d" % [level, tr, k.substr(4), int(row[k])])
 	assert_true(true)

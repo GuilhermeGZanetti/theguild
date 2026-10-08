@@ -108,6 +108,24 @@ func test_ten_level_saves_move_to_the_short_trees():
 	assert_eq(old.pending_picks(), DB.LEVEL_CAP - 1 - 3, "the freed rows wait for a pick")
 
 
+func test_reworked_trees_free_the_rows_of_removed_skills():
+	var m := Member.create(rng, "tidecaller", "tidefolk", 1, 1)
+	var d := m.to_dict()
+	d["prog"] = 3
+	d["level"] = 6
+	# saltblood and maelstrom left the trees; barbed_harpoon moved from row 3
+	# to row 2, where riptide already sits
+	d["skills"] = [m.class_data()["start_skill"], "riptide", "barbed_harpoon", "saltblood", "tidal_wave", "maelstrom"]
+	d["loadout"] = ["undertow", "maelstrom", "riptide"]
+	var old := Member.from_dict(d)
+	assert_eq(old.prog, Member.PROGRESSION)
+	assert_eq(old.level, 6)
+	assert_false("maelstrom" in old.loadout or "saltblood" in old.skills, "removed skills are gone")
+	assert_true("riptide" in old.skills and "tidal_wave" in old.skills)
+	assert_false("barbed_harpoon" in old.skills, "never two skills of one row")
+	assert_eq(old.pending_picks(), 6 - 1 - 2, "the freed rows wait for a pick")
+
+
 func test_two_quests_a_week_reach_the_cap_late_in_a_campaign():
 	## The cap should come from steady service, not from the first half.
 	var m := Member.create(rng, "warrior", "human", 1)

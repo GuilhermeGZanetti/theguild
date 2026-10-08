@@ -123,14 +123,38 @@ func show_path(path: Array, color: Color, danger_cells := []) -> void:
 			col = Color(1.0, 0.35, 0.25, 0.95)
 		if i == path.size() - 1:
 			# destination: hollow square
-			var e := 0.06
-			_rect(st, c.x + 0.5 - r, c.y + 0.5 - r, c.x + 0.5 + r, c.y + 0.5 - r + e, y, col)
-			_rect(st, c.x + 0.5 - r, c.y + 0.5 + r - e, c.x + 0.5 + r, c.y + 0.5 + r, y, col)
-			_rect(st, c.x + 0.5 - r, c.y + 0.5 - r, c.x + 0.5 - r + e, c.y + 0.5 + r, y, col)
-			_rect(st, c.x + 0.5 + r - e, c.y + 0.5 - r, c.x + 0.5 + r, c.y + 0.5 + r, y, col)
+			_hollow(st, c, r, 0.06, y, col)
 		else:
 			_rect(st, c.x + 0.5 - r, c.y + 0.5 - r, c.x + 0.5 + r, c.y + 0.5 + r, y, col)
 	layers["path"].mesh = st.commit()
+
+
+## Leaps (Blitz): a hollow square on each landing, and a bigger, filled one
+## where the leaper ends.
+func show_leaps(path: Array, color: Color) -> void:
+	if path.is_empty():
+		clear("path")
+		return
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for i in path.size():
+		var c: Vector2i = path[i]
+		var y := _y(c) + 0.01
+		if i == path.size() - 1:
+			var r := 0.4
+			var e := 0.08
+			_hollow(st, c, r, e, y, color)
+			_rect(st, c.x + 0.5 - r + e, c.y + 0.5 - r + e, c.x + 0.5 + r - e, c.y + 0.5 + r - e, y, Color(color.r, color.g, color.b, color.a * 0.4))
+		else:
+			_hollow(st, c, 0.28, 0.05, y, color)
+	layers["path"].mesh = st.commit()
+
+
+func _hollow(st: SurfaceTool, c: Vector2i, r: float, e: float, y: float, col: Color) -> void:
+	_rect(st, c.x + 0.5 - r, c.y + 0.5 - r, c.x + 0.5 + r, c.y + 0.5 - r + e, y, col)
+	_rect(st, c.x + 0.5 - r, c.y + 0.5 + r - e, c.x + 0.5 + r, c.y + 0.5 + r, y, col)
+	_rect(st, c.x + 0.5 - r, c.y + 0.5 - r, c.x + 0.5 - r + e, c.y + 0.5 + r, y, col)
+	_rect(st, c.x + 0.5 + r - e, c.y + 0.5 - r, c.x + 0.5 + r, c.y + 0.5 + r, y, col)
 
 
 func show_cursor(c: Vector2i, color: Color) -> void:
