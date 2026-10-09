@@ -765,7 +765,7 @@ func valid_targets(u: BattleUnit, skill_id: String, from := Vector2i(-99, -99)) 
 				if taunter >= 0 and unit(taunter) and unit(taunter).active() and o.uid != taunter:
 					continue
 				if _in_skill_range(u, s, from, o.pos) and _los_ok(u, s, from, o.pos):
-					if s.get("range", {}).get("kind", "") == "charge" and _charge_path(u, from, o.pos).is_empty():
+					if s.get("range", {}).get("kind", "") == "charge" and _charge_path(u, from, o.pos, _charges_diagonally(s)).is_empty():
 						continue
 					if s.get("aoe", {}).get("shape", "") == "blitz" and _blitz_land(u, o, from) == Vector2i(-1, -1):
 						continue
@@ -1177,6 +1177,12 @@ func preview(att: BattleUnit, skill_id: String, target_cell: Vector2i, from := V
 			if path.is_empty() or path[-1] != h["land"]:
 				path.append(h["land"])
 		out["path"] = path
+	# a charge strikes from the tile it ends on (flanks and cover from there)
+	var strike_from := from
+	if s.get("range", {}).get("kind", "") == "charge":
+		var cp := _charge_path(att, from, target_cell, _charges_diagonally(s))
+		if not cp.is_empty():
+			strike_from = cp[-1]
 	for o in affected(att, skill_id, target_cell, from):
 		var row := {"uid": o.uid, "name": o.name}
 		if friendly_fire(s) and not att.hostile_to(o):
@@ -1185,7 +1191,7 @@ func preview(att: BattleUnit, skill_id: String, target_cell: Vector2i, from := V
 			match eff["t"]:
 				"damage":
 					if not row.has("hit"):
-						var ctx := attack_context(att, o, s, eff, land_of.get(o.uid, from))
+						var ctx := attack_context(att, o, s, eff, land_of.get(o.uid, strike_from))
 						row.merge(ctx)
 						var lo_roll := -1.0
 						if eff.get("sure", false):
@@ -1282,7 +1288,7 @@ func use_skill(u: BattleUnit, skill_id: String, target: Vector2i) -> bool:
 	emit({"t": "skill", "uid": u.uid, "skill": skill_id, "target": target, "anim": s.get("anim", "attack"), "fx": s.get("fx", "slash"), "name": s.get("name", "")})
 	# charge: move next to target first
 	if s.get("range", {}).get("kind", "") == "charge":
-		var path := _charge_path(u, u.pos, target)
+		var path := _charge_path(u, u.pos, target, _charges_diagonally(s))
 		if path.size() > 0:
 			u.pos = path[-1]
 			emit({"t": "move", "uid": u.uid, "path": path, "fast": true})
@@ -1400,7 +1406,7 @@ func _apply_effect(u: BattleUnit, o: BattleUnit, s: Dictionary, eff: Dictionary)
 				emit({"t": "armor_break", "uid": o.uid, "value": o.def_cur, "loss": loss})
 		"push":
 			if o.active():
-				_push(u, o, int(eff.get("dist", 1)), eff.get("stun", false), 1)
+				_push(u, o, int(eff.get("dist", 1)), eff.get("stun", false), 1, _charges_diagonally(s))
 		"pull":
 			if o.active():
 				_push(u, o, int(eff.get("dist", 1)), false, -1)
@@ -1677,19 +1683,23 @@ func _apply_status(src: BattleUnit, o: BattleUnit, sid: String, chance: int, dur
 		_add_status(o, sid, dur, power, src)
 
 
-func _push(src: BattleUnit, o: BattleUnit, dist: int, stun_on_hit: bool, sign_dir: int) -> void:
+## Knocks `o` away from `src` (or drags it closer for sign_dir -1) along the
+## main axis; `diagonal` keeps an exact diagonal (a diagonal charge's knockback).
+func _push(src: BattleUnit, o: BattleUnit, dist: int, stun_on_hit: bool, sign_dir: int, diagonal := false) -> void:
 	if o.boss:
 		emit({"t": "float", "uid": o.uid, "text": "Immovable", "kind": "info"})
 		return
 	var d := o.pos - src.pos
 	var dir := Vector2i(signi(d.x), 0) if absi(d.x) >= absi(d.y) else Vector2i(0, signi(d.y))
+	if diagonal and absi(d.x) == absi(d.y):
+		dir = Vector2i(signi(d.x), signi(d.y))
 	dir *= sign_dir
 	var path: Array = []
 	var p := o.pos
 	var collided := false
 	for i in dist:
 		var n := p + dir
-		if not grid.inb(n) or not grid.standable(n, o.swims, o.floats) or unit_at(n) != null or n == src.pos or grid.height(n) - grid.height(p) > 1:
+		if not grid.inb(n) or not grid.standable(n, o.swims, o.floats) or unit_at(n) != null or n == src.pos or grid.height(n) - grid.height(p) > 1 or _squeezed(p, dir):
 			collided = true
 			break
 		p = n
@@ -1709,22 +1719,37 @@ func _push(src: BattleUnit, o: BattleUnit, dist: int, stun_on_hit: bool, sign_di
 			_add_status(o, "stun", 1, 0, src)
 
 
-func _charge_path(u: BattleUnit, from: Vector2i, target: Vector2i) -> Array:
+## The tiles a charge crosses to end beside `target`: a straight line, or an
+## exact diagonal for charges that allow it ("diagonal" in the skill's range).
+func _charge_path(u: BattleUnit, from: Vector2i, target: Vector2i, diagonal := false) -> Array:
 	var d := target - from
-	if d.x != 0 and d.y != 0:
+	if d.x != 0 and d.y != 0 and not (diagonal and absi(d.x) == absi(d.y)):
 		return []
 	var dir := Vector2i(signi(d.x), signi(d.y))
 	var path: Array = []
 	var p := from
 	while p + dir != target:
 		var n := p + dir
-		if grid.step_cost(p, n, u.swims, u.floats) < 0 or unit_at(n) != null:
+		if grid.step_cost(p, n, u.swims, u.floats) < 0 or unit_at(n) != null or _squeezed(p, dir):
 			return []
 		path.append(n)
 		p = n
 		if path.size() > 6:
 			return []
 	return path if path.size() >= 1 else []
+
+
+## A diagonal step from `p` that would slip between two solid corners.
+func _squeezed(p: Vector2i, dir: Vector2i) -> bool:
+	if dir.x == 0 or dir.y == 0:
+		return false
+	var a := p + Vector2i(dir.x, 0)
+	var c := p + Vector2i(0, dir.y)
+	return (not grid.inb(a) or grid.t(a)["solid"]) and (not grid.inb(c) or grid.t(c)["solid"])
+
+
+func _charges_diagonally(s: Dictionary) -> bool:
+	return s.get("range", {}).get("diagonal", false)
 
 
 func _place_terrain(u: BattleUnit, cells: Array, eff: Dictionary) -> void:

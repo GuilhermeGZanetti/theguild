@@ -29,11 +29,19 @@ static func open(parent: Node) -> void:
 	var sp := HBoxContainer.new()
 	sp.add_child(UIKit.label("Combat speed", 10))
 	sp.add_child(UIKit.spacer())
-	for s in [1.0, 1.5, 2.0]:
+	var speeds := [1.0, 1.5, 2.0]
+	var speed_btns: Array = []
+	var mark_speed := func():
+		for i in speed_btns.size():
+			UIKit.set_style(speed_btns[i], "btn_green" if is_equal_approx(Settings.combat_speed, speeds[i]) else "")
+	for s in speeds:
 		var b := UIKit.button("x%s" % str(s), func():
 			Settings.combat_speed = s
-			Settings.save_settings(), "btn_green" if Settings.combat_speed == s else "", 34)
+			Settings.save_settings()
+			mark_speed.call(), "", 34)
+		speed_btns.append(b)
 		sp.add_child(b)
+	mark_speed.call()
 	v.add_child(sp)
 	v.add_child(_check("Fullscreen", Settings.fullscreen, func(x): Settings.fullscreen = x; Settings.apply()))
 	v.add_child(_check("Show tile grid", Settings.show_grid, func(x): Settings.show_grid = x))

@@ -27,6 +27,8 @@ func _ready() -> void:
 			await _blitz()
 		"bestiary":
 			await _bestiary(parts.slice(1))
+		"settings":
+			await _settings()
 		_:
 			pass
 	await _save()
@@ -258,6 +260,21 @@ func _scene(which: String) -> void:
 		await get_tree().create_timer(1.5).timeout
 	else:
 		await get_tree().create_timer(3.5).timeout
+
+
+## The settings window after picking combat speed x1.5 (the pick must light up;
+## the saved speed is put back afterwards).
+func _settings() -> void:
+	var keep: float = Settings.combat_speed
+	SettingsPanel.open(self)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	for b in find_children("*", "Button", true, false):
+		if b.text == "x1.5":
+			b.pressed.emit()
+	await _save()
+	Settings.combat_speed = keep
+	Settings.save_settings()
 
 
 ## Aiming Blitz: the foes it will strike, in order, and where the Warlord lands.

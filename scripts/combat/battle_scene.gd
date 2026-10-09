@@ -1304,8 +1304,8 @@ func _walk(uv: UnitView, u: BattleUnit, path: Array, fast: bool, knock: bool, vi
 		var d: Vector2i = c - Vector2i(roundi(from.x - 0.5), roundi(from.z - 0.5))
 		if not knock:
 			uv.face(Vector2i(signi(d.x), signi(d.y)) if absi(d.x) >= absi(d.y) else Vector2i(0, signi(d.y)))
-		# two tiles in one step: vaulting a half cover
-		var vault := not knock and absi(d.x) + absi(d.y) >= 2
+		# two tiles in one step: vaulting a half cover (a diagonal step is one tile)
+		var vault := not knock and maxi(absi(d.x), absi(d.y)) >= 2
 		var hop := vault or absf(target.y - from.y) > 0.1
 		var arc := 0.7 if vault else 0.25
 		var tw := uv.create_tween()

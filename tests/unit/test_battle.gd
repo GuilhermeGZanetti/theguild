@@ -323,6 +323,40 @@ func test_blitz_leaps_along_a_chain_of_foes():
 	assert_eq(struck, {a.uid: 1, c.uid: 1, d.uid: 1}, "one swing at each foe")
 
 
+func test_headlong_charge_runs_diagonals():
+	var b := _flat_battle(12, 12)
+	var p := b.add_unit(_warrior(0, Vector2i(2, 2)))
+	p.skills.append("headlong_charge")
+	var foe := b.add_unit(_warrior(1, Vector2i(5, 5)))
+	var slanted := b.add_unit(_warrior(1, Vector2i(5, 3)))
+	b.start()
+	var tg := b.valid_targets(p, "headlong_charge")
+	assert_true(foe.pos in tg, "an exact diagonal can be charged")
+	assert_false(slanted.pos in tg, "a slanted line cannot")
+	b._begin_turn(p)
+	b.pop_events()
+	assert_true(b.use_skill(p, "headlong_charge", foe.pos))
+	assert_eq(p.pos, Vector2i(4, 4), "ends beside the foe on the diagonal")
+	assert_eq(foe.pos, Vector2i(6, 6), "knocked back along the diagonal")
+	# enemy charges keep to straight lines
+	var e := b.add_unit(_warrior(1, Vector2i(8, 8)))
+	e.skills.append("e_charge")
+	var q := b.add_unit(_warrior(0, Vector2i(10, 10)))
+	assert_false(q.pos in b.valid_targets(e, "e_charge"))
+
+
+func test_a_diagonal_charge_cannot_squeeze_between_corners():
+	var b := _flat_battle(12, 12)
+	var p := b.add_unit(_warrior(0, Vector2i(2, 2)))
+	p.skills.append("headlong_charge")
+	var foe := b.add_unit(_warrior(1, Vector2i(5, 5)))
+	b.grid.t(Vector2i(3, 2))["solid"] = true
+	b.start()
+	assert_true(foe.pos in b.valid_targets(p, "headlong_charge"), "one corner is passable")
+	b.grid.t(Vector2i(2, 3))["solid"] = true
+	assert_false(foe.pos in b.valid_targets(p, "headlong_charge"), "two corners close the gap")
+
+
 func test_battle_hunger_heals_from_damage_dealt():
 	var b := _flat_battle()
 	var p := b.add_unit(_warrior(0, Vector2i(2, 2)))

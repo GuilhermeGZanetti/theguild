@@ -100,11 +100,7 @@ static func button(text: String, cb: Callable, style := "", min_w := 0) -> Butto
 	var b := Button.new()
 	b.text = text
 	b.focus_mode = Control.FOCUS_NONE
-	style = style.trim_prefix("btn_")
-	if style != "":
-		var ui := "res://assets/sprites/ui/"
-		for pair in [["normal", "normal"], ["hover", "hover"], ["pressed", "pressed"], ["disabled", "disabled"]]:
-			b.add_theme_stylebox_override(pair[0], UITheme.tex_box(ui + "btn_%s_%s.png" % [style, pair[1]], 3, Vector4(6, 2, 6, 3)))
+	set_style(b, style)
 	if min_w > 0:
 		b.custom_minimum_size.x = min_w
 	b.pressed.connect(func():
@@ -112,6 +108,16 @@ static func button(text: String, cb: Callable, style := "", min_w := 0) -> Butto
 		cb.call())
 	b.mouse_entered.connect(func(): Audio.sfx("ui_hover", 0.05, -14.0))
 	return b
+
+
+## Skins a button with one of the btn_* textures ("" = the theme's default).
+static func set_style(b: Button, style: String) -> void:
+	style = style.trim_prefix("btn_")
+	for state in ["normal", "hover", "pressed", "disabled"]:
+		if style == "":
+			b.remove_theme_stylebox_override(state)
+		else:
+			b.add_theme_stylebox_override(state, UITheme.tex_box("res://assets/sprites/ui/btn_%s_%s.png" % [style, state], 3, Vector4(6, 2, 6, 3)))
 
 
 static func icon_button(tex: Texture2D, cb: Callable, tip := "", size := 18) -> Button:
