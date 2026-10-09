@@ -118,7 +118,14 @@ func _launch() -> void:
 		Audio.stop_music(0.6)
 		Audio.sfx("battle_start", 0.0, -2.0)
 		Scenes.go("res://scenes/battle.tscn")
-	if campaign.ironman:
-		Dialogs.confirm(hub, "March out?", "Ironman: the battle is saved as it starts. Quitting mid-battle abandons the mission.", go, "March Out")
+	var march := func():
+		if campaign.ironman:
+			Dialogs.confirm(hub, "March out?", "Ironman: the battle is saved as it starts. Quitting mid-battle abandons the mission.", go, "March Out")
+		else:
+			go.call()
+	# the last stand is balanced for a guild with allies beside it
+	if mission.get("story_id", "") == "final" and campaign.allied_factions().is_empty():
+		Dialogs.confirm(hub, "The Final Battle", "This is the final battle! But you don't have any allies. Are you sure you want to fight alone? The Hush is strong here.",
+			march, "Fight Alone")
 	else:
-		go.call()
+		march.call()

@@ -21,7 +21,7 @@ const PROPS := {
 }
 
 ## Objectives played on big patrolled maps under fog of war.
-const EXPLORE := ["clear", "hunt", "retrieve", "rescue", "escort"]
+const EXPLORE := ["clear", "hunt", "retrieve", "rescue", "escort", "final"]
 ## A ground that stands out from the biome's own patches: the trail must read at a glance.
 const TRAIL_GROUND := {"town": "dirt", "hush_town": "dirt", "coast": "stonepath", "jungle": "planks",
 	"autumn": "stonepath", "desert": "cobble", "hush": "cobble"}
@@ -71,12 +71,13 @@ func generate(mission: Dictionary, p_rng: RandomNumberGenerator, squad_size: int
 		if objective == "escort":
 			w = 18
 			h = 40
+		elif objective == "final":
+			# the long road to the Heart: a third more ground than a hunt
+			w = 25
+			h = 42
 	elif objective == "escort":
 		w = 14
 		h = 20
-	elif objective == "final":
-		w = 17
-		h = 17
 	elif objective in ["survive", "defense"]:
 		w = 18
 		h = 20
@@ -442,12 +443,6 @@ func _objective_props(objective: String, mission: Dictionary, out: Dictionary) -
 				_clear(p)
 				g.t(p)["obj"] = {"kind": "captive", "name": "Captive"}
 				reserved[p] = true
-		"final":
-			var spots := _far_spots(3, 4)
-			for p in spots:
-				_clear(p)
-				g.t(p)["obj"] = {"kind": "page"}
-				reserved[p] = true
 		"defense":
 			var op: Vector2i = out["object_spawn"]
 			for p in g.cells_in_radius(op, 1):
@@ -458,7 +453,7 @@ func _objective_props(objective: String, mission: Dictionary, out: Dictionary) -
 			var vp: Vector2i = out["vip_spawn"]
 			_clear(vp)
 	# hidden chest (bonus objective)
-	if rng.randf() < 0.6 and objective != "final":
+	if rng.randf() < 0.6:
 		var spots := _far_spots(1, 2)
 		if spots.size() > 0 and g.t(spots[0])["obj"].is_empty():
 			_clear(spots[0])
@@ -780,8 +775,23 @@ func _explore_layout(objective: String) -> Dictionary:
 		if Rules.chebyshev(c, start) >= 10 and Rules.chebyshev(c, oc) >= area_r + 3:
 			band.append(i)
 	var n_pods := clampi(band.size() / 6, 1, 3) if not band.is_empty() else 0
+	var picks: Array = []
 	for k in n_pods:
-		var i: int = band[clampi(roundi((k + 0.5) * band.size() / float(n_pods)), 0, band.size() - 1)]
+		picks.append(band[clampi(roundi((k + 0.5) * band.size() / float(n_pods)), 0, band.size() - 1)])
+	if objective == "final":
+		# three pods evenly down the long road, far enough apart to be fought
+		# one at a time, and the Unnamed's own at the Heart
+		picks.clear()
+		var y0 := start.y - 8
+		var y1 := oc.y + area_r + 5
+		for k in 3:
+			var ty := roundi(lerpf(y0, y1, k / 2.0))
+			var best := 0
+			for i in trail.size():
+				if absi(trail[i].y - ty) < absi(trail[best].y - ty):
+					best = i
+			picks.append(best)
+	for i in picks:
 		var tp: Vector2i = trail[i]
 		var side := -1 if rng.randf() < 0.5 else 1
 		var station := _find_spot(tp + Vector2i(side * rng.randi_range(2, 4), rng.randi_range(-1, 1)), 3)
@@ -938,6 +948,28 @@ func _explore_objectives(objective: String, mission: Dictionary, out: Dictionary
 			reserved[spot] = true
 		"escort":
 			_clear(out["vip_spawn"])
+		"final":
+			# a ledger page beside each pod on the road; any left over lie at the Heart
+			var spots: Array = []
+			for pd in out["pods"]:
+				if pd["objective"] or spots.size() >= 3:
+					continue
+				var st: Vector2i = pd["cells"][0]
+				var p := _find_spot(st + Vector2i(signi(oc.x - st.x), -1), 3)
+				if p != Vector2i(-1, -1):
+					spots.append(p)
+					reserved[p] = true
+			while spots.size() < 3:
+				var p := _find_spot(oc + Vector2i(rng.randi_range(-r + 1, r - 1), rng.randi_range(-1, 2)), r)
+				if p == Vector2i(-1, -1):
+					break
+				spots.append(p)
+				reserved[p] = true
+			for p in spots:
+				_clear(p)
+				g.t(p)["obj"] = {"kind": "page"}
+				reserved[p] = true
+			return
 	if rng.randf() < 0.6:
 		var spots := _far_spots(1, 2)
 		if spots.size() > 0 and g.t(spots[0])["obj"].is_empty():

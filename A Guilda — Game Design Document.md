@@ -319,13 +319,15 @@ The Hush is the campaign's doom meter, like XCOM's panic bar. It is a grey silen
 
 |Change|Value|
 |-|-|
-|Every week|+2|
+|Every week|+2 in weeks 1–2, then +1 more every two weeks, up to +6 from week 9|
 |Ignored Hush Breach mission|+3 to +8|
 |Member dies without a Memorial record|+1|
 |Faction collapses|+15|
 |Hush Breach mission completed|−5 to −10|
 |Story mission completed|−10|
 |Lantern Conclave Allied|−1 per week|
+
+Story missions alone cannot hold the Hush back. A guild that wins four to six Breaches over a 15-17 week campaign stays Fading at worst; one that ignores them is Forgetting by mid-campaign and reaches Unremembered before the end.
 
 |Hush|Stage|Effects|
 |-|-|-|
@@ -415,8 +417,10 @@ The Unnamed is the founder of the old guild, the one whose emblem hangs over the
 Final mission:
 
 * Set in the Unremembered: a world built from forgotten things — vanished villages, the old guild, and the player's own dead members.
-* Dead members without a Memorial record return as Echoes, with their names, stats and skills.
-* Allied factions send reinforcements.
+* A long road under fog to the Heart (a third more ground than a hunt map) held by four pods. Each pod has two of the realm's apex creatures taken by the Hush (a brute and a striker, drained to grey) and one or two Hush foes. The Unnamed waits with the last pod.
+* Each pod on the road watches one of the three pages of the old ledger.
+* Dead members without a Memorial record return as Echoes, with their names, stats and skills. Each Echo takes the place of a pod's striker, beside the Unnamed first, so many dead do not make the fight much bigger.
+* Allied factions send reinforcements. The fight is balanced for two allies; marching out with none asks the player to confirm.
 * The Unnamed erases one squad skill per phase. Recovering pages of the old ledger during the fight restores her name and weakens her.
 
 ### Endings

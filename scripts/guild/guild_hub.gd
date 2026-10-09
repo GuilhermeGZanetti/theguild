@@ -405,7 +405,7 @@ func _end_week_pressed() -> void:
 		text += "\n[color=#%s]You cannot pay everyone. Unpaid members may leave.[/color]" % UITheme.RED.to_html(false)
 	if not ignored.is_empty():
 		text += "\n\nMissions left on the board will expire:\n" + "\n".join(ignored)
-	text += "\n\nThe Hush grows by 2 each week."
+	text += "\n\nThe Hush grows by %d this week, and faster as the weeks pass." % campaign.weekly_hush()
 	Dialogs.confirm(self, "End Week %d?" % campaign.week, text, _do_end_week, "End Week")
 
 

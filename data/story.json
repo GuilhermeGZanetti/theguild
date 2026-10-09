@@ -62,9 +62,9 @@
     },
     "final": {
       "act": 3, "min_week": 1, "min_renown": 0, "region": "unremembered", "objective": "final", "skulls": 7, "days": 4,
-      "title": "The Heart of the Hush", "boss": "the_unnamed", "enemies": {"hollow": 3, "quietling": 1}, "hush_map": 5, "pages": 3,
-      "client": "The founder, in fading ink", "letter": "This is the page I kept blank for you. She waits at the Heart: the Unnamed, who was one of us before the Hush wrote over her. She will take your skills one by one, as she took our names. Three pages of the old ledger lie scattered around her. Recover them, read her name aloud, and she will break. Those of yours who were never written in the Memorial will stand beside her. Forgive them. Then end this.",
-      "brief": "The Unnamed erases one of your skills in every phase of the fight. Recover the three lost pages of the old ledger during the battle to restore her name and break her. Your fallen who were never written in the Memorial will walk beside her.",
+      "title": "The Heart of the Hush", "boss": "the_unnamed", "pods": {"count": 4, "skulls": 6, "hush": [1, 2], "hush_pool": {"hollow": 7, "quietling": 3}}, "hush_map": 5, "pages": 3,
+      "client": "The founder, in fading ink", "letter": "This is the page I kept blank for you. She waits at the Heart: the Unnamed, who was one of us before the Hush wrote over her. She will take your skills one by one, as she took our names. The road to her is long, and the Hush keeps on it the greatest beasts of every land it has swallowed, grey now as ash. Three pages of the old ledger lie along that road, each one watched. Recover them, read her name aloud, and she will break. Those of yours who were never written in the Memorial will walk among her guards. Forgive them. Then end this.",
+      "brief": "A long road under fog to the Heart, held by four packs of the realm's greatest beasts, greyed by the Hush. Each pack on the road watches a lost page of the old ledger: recover all three to restore the Unnamed's name and break her. She erases one of your skills in every phase of the fight. Your fallen who were never written in the Memorial walk among her guards.",
       "outro": "",
       "reward": {"gold": 0, "renown": 100}
     }

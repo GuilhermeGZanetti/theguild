@@ -35,6 +35,19 @@ func test_week_costs_wages_and_raises_hush():
 	assert_eq(c.week, 2)
 
 
+func test_the_hush_creeps_faster_as_weeks_pass():
+	var steps: Array = []
+	for w in range(1, 13):
+		steps.append(Rules.weekly_hush(w))
+	assert_eq(steps, [2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 6, 6])
+	var c := _new()
+	c.week = 9
+	c.board.clear()
+	var h := c.hush
+	c.end_week()
+	assert_eq(c.hush, h + 6, "late weeks feed the Hush three times as fast")
+
+
 func test_ignored_breach_raises_hush():
 	var c := _new()
 	c.board = [c._make_mission("breach", "coast")]
@@ -356,6 +369,9 @@ func test_simulated_campaign_runs():
 	## An autopilot plays 20 weeks with AI battles to catch crashes and
 	## sanity-check the economy.
 	for seed_value in [7, 11]:
+		# map generation also draws from the global generator: pin it so the
+		# run does not depend on which tests ran before
+		seed(seed_value)
 		var c := _new(seed_value)
 		var bot := AutoPilot.new(c)
 		var weeks := 0

@@ -179,6 +179,14 @@ static func time_of_day(seed_value: int) -> String:
 	return "day" if k < 11 else ("dusk" if k < 16 else "night")
 
 
+## How far the Hush creeps on its own at the end of `week`: +2 the first two
+## weeks, one more every two weeks after, up to +6 from week 9. A guild that
+## leaves the Breaches alone is Forgetting by mid-campaign; four to six won
+## Breaches keep it Fading at worst.
+static func weekly_hush(week: int) -> int:
+	return mini(6, 2 + (maxi(week, 1) - 1) / 2)
+
+
 static func hush_stage(hush: int) -> int:
 	if hush >= 100:
 		return 4

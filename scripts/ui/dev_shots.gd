@@ -129,6 +129,9 @@ func _lineup(only: String) -> void:
 ## Enemies in their battle colours, two rows, a brigand first for scale:
 ## "bestiary" shows the apex creatures, "bestiary_<id>_<id>" any enemies.
 func _bestiary(ids: Array) -> void:
+	# "bestiary_faded": as the Hush shows them on the road to the Heart
+	var fade := "faded" in ids
+	ids.erase("faded")
 	if ids.is_empty():
 		for rid in DB.regions:
 			ids.append_array(DB.regions[rid].get("apex", {}).keys())
@@ -148,7 +151,7 @@ func _bestiary(ids: Array) -> void:
 		var d: Dictionary = DB.enemies[ids[i]]
 		var uv := UnitView.new()
 		mv.add_child(uv)
-		uv.setup(d["sprite"], d.get("palette", {}), wv.pitch)
+		uv.setup(d["sprite"], BattleFactory.faded(d.get("palette", {})) if fade and i > 0 else d.get("palette", {}), wv.pitch)
 		var col := i % per_row
 		var row := i / per_row
 		uv.position = mv.unit_pos(Vector2i(4 + col * 2 + row * 4, 14 - col * 2 + row * 4))

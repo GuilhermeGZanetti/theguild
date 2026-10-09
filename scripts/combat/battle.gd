@@ -2050,10 +2050,11 @@ func _check_end() -> void:
 	if objective.get("failed", false):
 		_finish("failed")
 		return
+	# the guild's own members: allied champions cannot carry the fight alone
 	var active_players := 0
 	var extracted := 0
 	for u in units:
-		if u.team == BattleUnit.TEAM_PLAYER and not u.npc:
+		if u.team == BattleUnit.TEAM_PLAYER and not u.npc and u.objective_role != "ally":
 			if u.active() and u.carried_by < 0:
 				active_players += 1
 			if u.state == "extracted":

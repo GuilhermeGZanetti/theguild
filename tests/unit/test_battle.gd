@@ -394,10 +394,6 @@ func test_apex_creatures_join_the_hardest_quests():
 	var picked := BattleFactory.pick_enemies(s5, r, 0, {})
 	assert_eq(picked.size(), 5)
 	assert_eq(picked.count("hollow"), 2, "only the region's own foes are swapped")
-	# the last stand keeps its own cast
-	var fin := {"region": "unremembered", "objective": "final", "skulls": 7, "category": "story", "boss": "the_unnamed", "enemies": {"hollow": 3, "quietling": 1}}
-	for e in BattleFactory.pick_enemies(fin, r, 0, {}):
-		assert_false(DB.regions["unremembered"]["apex"].has(e), "no apex creature in the final battle")
 	# a Hush incursion on a hard quest is led by one of the Hush's own apex creatures
 	var hushed := BattleFactory.pick_enemies({"region": "dunes", "objective": "clear", "skulls": 6}, r, 0, {"hush_stage": 1})
 	var hush_apex := 0
@@ -405,6 +401,65 @@ func test_apex_creatures_join_the_hardest_quests():
 		if DB.regions["unremembered"]["apex"].has(e):
 			hush_apex += 1
 	assert_eq(hush_apex, 1)
+
+
+func _final_mission(seed_value := 5) -> Dictionary:
+	var s: Dictionary = DB.story["missions"]["final"]
+	return {"region": s["region"], "objective": "final", "skulls": int(s["skulls"]), "category": "story", "story_id": "final",
+		"boss": s["boss"], "pods": s["pods"], "hush_map": int(s["hush_map"]), "seed": seed_value, "par_rounds": 9}
+
+
+func test_the_final_road_has_four_pods_of_greyed_apex_creatures():
+	var r := RandomNumberGenerator.new()
+	r.seed = 3
+	var groups := BattleFactory.final_groups(_final_mission(), r, [])
+	assert_eq(groups.size(), 4)
+	var pool: Dictionary = DB.story["missions"]["final"]["pods"]["hush_pool"]
+	for i in groups.size():
+		var g: Array = groups[i]
+		var apex := g.filter(func(e): return BattleFactory._is_apex(e))
+		var brutes := apex.filter(func(e): return int(DB.enemies[e]["stats"]["hp"]) >= 70)
+		assert_eq([apex.size(), brutes.size()], [2, 1], "a brute and a striker in pod %d" % i)
+		var foes := g.filter(func(e): return pool.has(e))
+		assert_between(foes.size(), 1, 2, "one or two Hush foes")
+		assert_eq(g.has("the_unnamed"), i == groups.size() - 1, "the Unnamed waits with the last pod")
+	# the guild's unrecorded dead take the strikers' places, beside her first
+	r.seed = 3
+	var dead: Array = [{"name": "A"}, {"name": "B"}]
+	var with_dead := BattleFactory.final_groups(_final_mission(), r, dead)
+	for i in groups.size():
+		assert_eq(with_dead[i].size(), groups[i].size(), "no pod grows")
+	assert_true(with_dead[3].any(func(e): return e is Dictionary and e["echo"]["name"] == "A"))
+	assert_true(with_dead[2].any(func(e): return e is Dictionary and e["echo"]["name"] == "B"))
+
+
+func test_the_final_battle_is_a_long_road():
+	var c := Campaign.new()
+	c.new_game("Test Guild", 1, false, 7)
+	var squad := c.available_members().slice(0, 3)
+	var dead: Array = [c.roster[3].to_dict()]
+	var b := BattleFactory.build(_final_mission(11), squad, {"echoes": dead, "allied_factions": ["saltborn", "glass"]})
+	assert_eq([b.grid.w, b.grid.h], [25, 42], "a third more ground than a hunt")
+	assert_true(b.explore and b.fog)
+	assert_eq(b.pods.size(), 4)
+	var pages := 0
+	for p in b.grid.all_cells():
+		if b.grid.t(p)["obj"].get("kind", "") == "page":
+			pages += 1
+	assert_eq(pages, 3)
+	var greyed := 0
+	var echoes := 0
+	for u in b.units:
+		if u.team == BattleUnit.TEAM_ENEMY and BattleFactory._is_apex(u.enemy_id):
+			greyed += 1
+			assert_true(u.hush, "taken by the Hush")
+			assert_ne(u.palette, DB.enemies[u.enemy_id].get("palette", {}), "drained of colour")
+		if u.echo:
+			echoes += 1
+	assert_eq(greyed, 7, "eight apex creatures, one striker replaced by the Echo")
+	assert_eq(echoes, 1)
+	assert_eq(b.unit(int(b.objective["target_uid"])).enemy_id, "the_unnamed")
+	assert_eq(b.team_units(BattleUnit.TEAM_PLAYER).size(), 5, "three members and two champions")
 
 
 func test_apex_creatures_are_complete():
@@ -682,10 +737,10 @@ func test_defense_and_survive_keep_one_fight_under_fog():
 		assert_eq(b.phase, "combat")
 
 
-func test_final_battle_has_no_fog():
+func test_final_battle_is_patrolled_under_fog():
 	var b := _explore_battle("final", "unremembered")
-	assert_false(b.fog)
-	assert_false(b.explore)
+	assert_true(b.fog)
+	assert_true(b.explore, "the road to the Heart is walked, pod by pod")
 
 
 ## A Normal member with average potential, no traits, every skill row taken

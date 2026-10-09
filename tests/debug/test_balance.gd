@@ -118,7 +118,7 @@ func _batch(label: String, mission: Dictionary, level: int, n := 16, size := 4, 
 		# who acts in the first turns of combat
 		var seen := 0
 		var guard := 0
-		while not b.over and guard < 900:
+		while not b.over and guard < 4000:
 			guard += 1
 			b.auto_step()
 			for e in b.pop_events():
@@ -175,12 +175,29 @@ func test_story_table():
 		var m := {"region": s["region"], "objective": s["objective"], "skulls": int(s["skulls"]), "category": "story",
 			"turns": int(s.get("turns", 6)), "caches": int(s.get("caches", 3)), "par_rounds": 9,
 			"hush_map": int(s.get("hush_map", 0))}
-		for k in ["boss", "enemies", "biome", "elite_count"]:
+		for k in ["boss", "enemies", "biome", "elite_count", "pods"]:
 			if s.has(k):
 				m[k] = s[k]
-		_batch("story %s x%d" % [sid, size], m, int(s["skulls"]), 12, size)
-		if sid == "final":
-			_batch("story final, 1 ally x%d" % size, m, int(s["skulls"]), 12, size, {"allied_factions": ["saltborn"]})
+		if sid != "final":
+			_batch("story %s x%d" % [sid, size], m, int(s["skulls"]), 12, size)
+			continue
+		# the last stand by allied factions (BAL_ALLIES="0,2") and Echoes of
+		# the unrecorded dead (BAL_ECHOES="0,4"); BAL_N battles each. Tuning
+		# overrides for its pods: BAL_POD_SKULLS="6", BAL_POD_HUSH="1,1".
+		m["pods"] = m.get("pods", {}).duplicate(true)
+		if OS.get_environment("BAL_POD_SKULLS") != "":
+			m["pods"]["skulls"] = int(_env_list("BAL_POD_SKULLS", [7])[0])
+		if OS.get_environment("BAL_POD_HUSH") != "":
+			m["pods"]["hush"] = _env_list("BAL_POD_HUSH", [1, 2])
+		var allies := ["saltborn", "rootwardens", "glass", "lantern"]
+		for na in _env_list("BAL_ALLIES", [0, 1, 2, 3]):
+			for ne in _env_list("BAL_ECHOES", [0]):
+				var dead: Array = []
+				rng.seed = 31337
+				for e in _squad(5, ne):
+					dead.append(e.to_dict())
+				_batch("final, %d allies %d echoes x%d" % [na, ne, size], m, int(s["skulls"]), int(_env_list("BAL_N", [12])[0]), size,
+					{"allied_factions": allies.slice(0, na), "echoes": dead})
 	assert_true(true)
 
 

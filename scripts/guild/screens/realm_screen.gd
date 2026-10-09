@@ -108,7 +108,7 @@ func _hush() -> Control:
 	var ev: String = DB.events["hush_stages"].get(Rules.hush_stage_name(stage).to_lower(), "")
 	if ev != "":
 		v.add_child(UIKit.rich("[color=#%s]%s[/color]" % [hex(UITheme.TEXT_DIM), ev], 580, 8))
-	v.add_child(UIKit.rich("It grows by 2 each week, and when breaches and the story are ignored. Victories against the Hush and names carved into the Memorial hold it back. At 100 the realm is forgotten.", 580, 8))
+	v.add_child(UIKit.rich("It grows every week, faster as the weeks pass (+%d this week, up to +%d), and when breaches and the story are ignored. Victories against the Hush and names carved into the Memorial hold it back. At 100 the realm is forgotten." % [campaign.weekly_hush(), Rules.weekly_hush(99)], 580, 8))
 	var flags: Array = []
 	for k in FLAG_TEXT:
 		if campaign.flags.get(k, false):

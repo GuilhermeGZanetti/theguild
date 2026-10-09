@@ -103,6 +103,12 @@ func hush_stage() -> int:
 	return Rules.hush_stage(hush)
 
 
+## What the Hush gains on its own at the end of this week (the Lantern
+## Conclave's alliance holds back one).
+func weekly_hush() -> int:
+	return Rules.weekly_hush(week) - (1 if "lantern" in allied_factions() else 0)
+
+
 func roster_cap() -> int:
 	return int(DB.facilities["barracks"]["roster"][facilities["barracks"]])
 
@@ -640,6 +646,8 @@ func _story_mission(sid: String) -> Dictionary:
 		m["biome"] = s["biome"]
 	if s.has("elite_count"):
 		m["elite_count"] = s["elite_count"]
+	if s.has("pods"):
+		m["pods"] = s["pods"]
 	m["ignore"] = {"story": true}
 	return m
 
@@ -1108,10 +1116,8 @@ func end_week() -> Dictionary:
 			m.add_xp(train_xp, rng)
 			rep["training"] += 1
 		m.days_used = 0
-	# the Hush advances
-	change_hush(2)
-	if "lantern" in allied_factions():
-		change_hush(-1)
+	# the Hush advances, faster as the weeks go by
+	change_hush(weekly_hush())
 	var stage := hush_stage()
 	for rid in regions:
 		if rid == "unremembered":

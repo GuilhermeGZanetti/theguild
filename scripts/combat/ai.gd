@@ -536,7 +536,7 @@ func explore_goal() -> Vector2i:
 	for o in b.units:
 		if o.objective_role in ["vip", "captive"] and o.active() and o.team == BattleUnit.TEAM_PLAYER:
 			return _nearest_cell(o.pos, _extract_cells())
-	if typ == "hunt":
+	if typ in ["hunt", "final"]:
 		var tgt := b.unit(int(b.objective.get("target_uid", -1)))
 		if tgt and tgt.alive():
 			return tgt.pos

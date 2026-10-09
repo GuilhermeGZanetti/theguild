@@ -142,8 +142,8 @@ static func build(mission: Dictionary, squad: Array, ctx: Dictionary) -> Battle:
 	if b.grid.biome in ["hush", "hush_town"]:
 		b.grid.time = "day"   # inside the Hush there is only grey
 	b.objective = {"type": objective, "turns": int(mission.get("turns", 6)), "n": int(mission.get("caches", 3)), "found": 0}
-	# fog of war everywhere but the last stand; patrolled maps for the rest
-	b.fog = objective != "final"
+	# fog of war everywhere; patrolled maps for most objectives
+	b.fog = true
 	b.explore = map.get("explore", false)
 	b.par_rounds = int(mission.get("par_rounds", 8))
 	if b.explore:
@@ -162,12 +162,16 @@ static func build(mission: Dictionary, squad: Array, ctx: Dictionary) -> Battle:
 	# rolled from the mission alone: the map (and so the squad size) never changes the force
 	var force_rng := RandomNumberGenerator.new()
 	force_rng.seed = int(mission.get("seed", 1)) + 7919
-	var enemy_list: Array = pick_enemies(mission, force_rng, hush_level, ctx)
+	var enemy_list: Array = []
+	if objective == "final":
+		_spawn_pods(b, map["pods"], final_groups(mission, force_rng, ctx.get("echoes", [])), mission, hush_level)
+	else:
+		enemy_list = pick_enemies(mission, force_rng, hush_level, ctx)
+		if b.explore:
+			_place_pods(b, map["pods"], enemy_list, mission, hush_level)
+			enemy_list = []
 	var espawns: Array = map["enemy_spawns"]
 	var ei := 0
-	if b.explore:
-		_place_pods(b, map["pods"], enemy_list, mission, hush_level)
-		enemy_list = []
 	for eid in enemy_list:
 		if ei >= espawns.size():
 			break
@@ -180,16 +184,6 @@ static func build(mission: Dictionary, squad: Array, ctx: Dictionary) -> Battle:
 			b.objective["target_uid"] = eu.uid
 			b.objective["target_name"] = eu.name
 			eu.elite = true
-	# echoes of the unrecorded dead in the final battle
-	if objective == "final":
-		var echoes: Array = ctx.get("echoes", [])
-		for md in echoes.slice(0, 4):
-			if ei >= espawns.size():
-				break
-			var ech := echo_unit(md, b.skulls, b.rng)
-			ech.pos = espawns[ei]
-			ei += 1
-			b.add_unit(ech)
 	# hunt target when not a named boss
 	if objective == "hunt" and not b.objective.has("target_uid"):
 		for u in b.units:
@@ -299,6 +293,20 @@ static func _place_pods(b: Battle, pod_defs: Array, enemy_list: Array, mission: 
 			continue
 		groups[used[gi % used.size()]].append(rest.pop_front())
 		gi += 1
+	_spawn_pods(b, pod_defs, groups, mission, hush_level)
+
+
+## Puts each group at its pod's station (the last one guards the objective).
+## A group entry is an enemy id, or {"echo": member dict} for an Echo of the
+## guild's unrecorded dead.
+static func _spawn_pods(b: Battle, pod_defs: Array, groups: Array, mission: Dictionary, hush_level: int) -> void:
+	if pod_defs.is_empty():
+		return
+	while groups.size() < pod_defs.size():
+		groups.push_front([])
+	while groups.size() > pod_defs.size():
+		var extra: Array = groups.pop_front()   # fewer stations: the nearest groups merge
+		groups[0].append_array(extra)
 	# a crowded station sends its extra enemies to the nearest one with room
 	for i in pod_defs.size():
 		while groups[i].size() > pod_defs[i]["cells"].size():
@@ -314,12 +322,22 @@ static func _place_pods(b: Battle, pod_defs: Array, enemy_list: Array, mission: 
 		var cells: Array = pod_defs[i]["cells"]
 		var uids: Array = []
 		var ci := 0
-		for eid in groups[i]:
+		for entry in groups[i]:
 			while ci < cells.size() and b.unit_at(cells[ci]) != null:
 				ci += 1
 			if ci >= cells.size():
 				break
-			var eu := enemy_unit(eid, b.skulls, hush_level, b.rng, b.difficulty)
+			var eu: BattleUnit
+			if entry is Dictionary:
+				eu = echo_unit(entry["echo"], b.skulls, b.rng)
+			else:
+				# the last stand's pods may fight a skull below its boss ("pods": {"skulls"})
+				var sk := b.skulls if entry == mission.get("boss", "") else int(mission.get("pods", {}).get("skulls", b.skulls))
+				eu = enemy_unit(entry, sk, hush_level, b.rng, b.difficulty)
+				if mission.get("objective", "") == "final" and _is_apex(entry):
+					# the realm's apex creatures, taken by the Hush
+					eu.palette = faded(eu.palette)
+					eu.hush = true
 			eu.pos = cells[ci]
 			ci += 1
 			eu.facing = Vector2i(0, 1)
@@ -327,12 +345,81 @@ static func _place_pods(b: Battle, pod_defs: Array, enemy_list: Array, mission: 
 			eu.pod = b.pods.size()
 			b.add_unit(eu)
 			uids.append(eu.uid)
-			if mission.get("boss", "") == eid and not b.objective.has("target_uid"):
+			if not entry is Dictionary and mission.get("boss", "") == entry and not b.objective.has("target_uid"):
 				b.objective["target_uid"] = eu.uid
 				b.objective["target_name"] = eu.name
 				eu.elite = true
 		if not uids.is_empty():
 			b.pods.append({"units": uids, "alerted": false, "route": pod_defs[i]["route"], "wp": 0, "objective": pod_defs[i]["objective"]})
+
+
+## The last stand: every pod on the way to the Heart holds two of the realm's
+## apex creatures taken by the Hush (a brute and a striker) and one or two Hush
+## foes ("pods" in the story mission); the Unnamed waits with the last pod.
+## Echoes of the unrecorded dead take the striker's place (a fallen member is
+## about as dangerous), beside the Unnamed first and then back down the trail,
+## so many dead do not swell the force.
+static func final_groups(mission: Dictionary, rng: RandomNumberGenerator, echoes: Array) -> Array:
+	var spec: Dictionary = mission.get("pods", {})
+	var brutes: Array = []
+	var strikers: Array = []
+	for r in DB.regions:
+		for eid in DB.regions[r].get("apex", {}):
+			if int(DB.enemies[eid]["stats"]["hp"]) >= 70:
+				brutes.append(eid)
+			else:
+				strikers.append(eid)
+	brutes.sort()
+	strikers.sort()
+	_shuffle(brutes, rng)
+	_shuffle(strikers, rng)
+	var hush_n: Array = spec.get("hush", [1, 2])
+	var pool: Dictionary = spec.get("hush_pool", {"hollow": 7, "quietling": 3})
+	var groups: Array = []
+	for i in int(spec.get("count", 4)):
+		var g: Array = [brutes[i % brutes.size()], strikers[i % strikers.size()]]
+		for j in rng.randi_range(int(hush_n[0]), int(hush_n[-1])):
+			g.append(_weighted(pool, rng))
+		groups.append(g)
+	if mission.has("boss"):
+		groups[-1].push_front(mission["boss"])
+	var gi := groups.size() - 1
+	for md in echoes:
+		if gi < 0:
+			break
+		var g: Array = groups[gi]
+		for k in g.size():
+			if g[k] is String and strikers.has(g[k]):
+				g[k] = {"echo": md}
+				break
+		gi -= 1
+	return groups
+
+
+static func _shuffle(a: Array, rng: RandomNumberGenerator) -> void:
+	for i in range(a.size() - 1, 0, -1):
+		var j := rng.randi_range(0, i)
+		var t = a[i]
+		a[i] = a[j]
+		a[j] = t
+
+
+static func _is_apex(eid: String) -> bool:
+	for r in DB.regions:
+		if DB.regions[r].get("apex", {}).has(eid):
+			return true
+	return false
+
+
+## A palette drained most of the way to grey, as the Hush leaves what it takes.
+static func faded(palette: Dictionary, amount := 0.8) -> Dictionary:
+	var out := {}
+	for slot in UnitPalette.SLOTS:
+		var c := UnitPalette.to_color(palette.get(slot, UnitPalette.DEFAULTS[slot]))
+		var l := c.r8 * 0.3 + c.g8 * 0.59 + c.b8 * 0.11
+		var grey := [l * 0.85 + 20, l * 0.85 + 22, l * 0.85 + 30]
+		out[slot] = [roundi(lerpf(c.r8, grey[0], amount)), roundi(lerpf(c.g8, grey[1], amount)), roundi(lerpf(c.b8, grey[2], amount))]
+	return out
 
 
 static func _weighted(pool: Dictionary, rng: RandomNumberGenerator) -> String:
