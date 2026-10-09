@@ -21,6 +21,7 @@ import bpy  # noqa: E402
 from mathutils import Vector  # noqa: E402
 import bl_common as C  # noqa: E402
 import characters as CH  # noqa: E402
+import creatures as CR  # noqa: E402
 
 # (name, frames) — shared with sprites_post.py and the game (unit_sprite.gd)
 ANIMS = [("idle", 4), ("walk", 4), ("attack", 4), ("cast", 4), ("hit", 2),
@@ -64,6 +65,17 @@ def variants():
     v.append({"id": "quietling", "rig": "floater", "kind": "quietling", "canvas": 64})
     v.append({"id": "unwritten", "rig": "humanoid", "race": "unwritten", "look": "unwritten", "hair": "a", "canvas": 96})
     v.append({"id": "unnamed", "rig": "humanoid", "race": "unnamed", "look": "unnamed", "hair": "a", "canvas": 128})
+    # the regions' apex creatures (creatures.py)
+    for vid, race, canvas, scale in (("knell_dancer", "knell", 64, 1.0), ("bellguard", "automaton", 96, 1.6),
+                                     ("reed_mantis", "mantis", 64, 1.0), ("ashen_huntress", "ashen", 64, 1.0),
+                                     ("mourning_oak", "oak", 96, 1.45), ("nameless_monument", "monument", 96, 1.45)):
+        v.append({"id": vid, "rig": "humanoid", "race": race, "look": race, "hair": "a", "canvas": canvas, "scale": scale})
+    v.append({"id": "gale_manta", "rig": "floater", "kind": "manta", "canvas": 64})
+    v.append({"id": "sunflare_wasp", "rig": "floater", "kind": "wasp", "canvas": 64})
+    v.append({"id": "paper_wraith", "rig": "floater", "kind": "paper", "canvas": 64})
+    v.append({"id": "bellshell_hermit", "rig": "scorpion", "kind": "crab", "canvas": 96, "scale": 1.35})
+    v.append({"id": "scarab_juggernaut", "rig": "scorpion", "kind": "beetle", "canvas": 96, "scale": 1.45})
+    v.append({"id": "mudback_toad", "rig": "quad", "kind": "toad", "canvas": 96, "scale": 1.35})
     return v
 
 
@@ -76,7 +88,7 @@ class Rig(dict):
 
 def build_humanoid(spec, bandage=False):
     race, look = spec["race"], spec["look"]
-    tall = CH.tall_of(spec) if race in CH.RACES else {"unwritten": 1.3, "unnamed": 1.55}.get(race, 1.0)
+    tall = CH.tall_of(spec) if race in CH.RACES else CR.TALL.get(race, {"unwritten": 1.3, "unnamed": 1.55}.get(race, 1.0))
     R = Rig()
     root = C.pivot("root")
     body = C.pivot("body", (0, 0, 0), root)
@@ -96,6 +108,9 @@ def build_humanoid(spec, bandage=False):
 
     if race in CH.RACES:
         CH.build(R, spec, bandage)
+        return R
+    if race in CR.HUMANOIDS:
+        CR.HUMANOIDS[race](R, spec)
         return R
 
     # ---- enemies: toads, the hollow and the two bosses
@@ -215,6 +230,8 @@ def cleaver(hand):
 # ======================================================================
 def build_floater(spec):
     kind = spec["kind"]
+    if kind in CR.FLOATERS:
+        return CR.FLOATERS[kind](spec)
     R = Rig(kind=kind)
     root = C.pivot("root")
     body = C.pivot("body", (0, 0, 0.55), root)
@@ -284,6 +301,8 @@ def build_serpent(spec):
 
 
 def build_quad(spec):
+    if spec.get("kind") in CR.QUADS:
+        return CR.QUADS[spec["kind"]](spec)
     R = Rig(kind="deer")
     root = C.pivot("root")
     body = C.pivot("body", (0, 0, 0.58), root)
@@ -317,6 +336,8 @@ def build_quad(spec):
 
 
 def build_scorpion(spec):
+    if spec.get("kind") in CR.CRAWLERS:
+        return CR.CRAWLERS[spec["kind"]](spec)
     R = Rig(kind="scorpion")
     root = C.pivot("root")
     body = C.pivot("body", (0, 0, 0.26), root)
@@ -363,13 +384,15 @@ def reset_pose(R):
         if obj.type == "EMPTY" and obj.name != "yaw" and not obj.get("static"):
             C.set_rot(obj)
     R["root"].location = (0, 0, 0)
-    if R.get("kind") in ("stinger", "spirit"):
+    if "base" in R:
+        R["body"].location = (0, 0, R["base"])
+    elif R.get("kind") in ("stinger", "spirit"):
         R["body"].location = (0, 0, 0.55)
     elif R.get("kind") == "quietling":
         R["body"].location = (0, 0, 0.3)
-    elif R.get("kind") == "deer":
+    elif R.get("kind") in ("deer", "toad"):
         R["body"].location = (0, 0, 0.58)
-    elif R.get("kind") == "scorpion":
+    elif R.get("kind") in ("scorpion", "crab", "beetle"):
         R["body"].location = (0, 0, 0.26)
     elif "hips" in R:
         R["body"].location = (0, 0, 0)
@@ -382,13 +405,16 @@ def pose_humanoid(R, anim, f, n):
     look = R["look"]
     hips, torso, head, body = R["hips"], R["torso"], R["head"], R["body"]
     aR, aL, lR, lL = R["armR"], R["armL"], R["legR"], R["legL"]
-    ranged = look in ("ranger",)
+    ranged = look in ("ranger", "ashen")
     caster = look in ("mystic", "lanternbearer", "graftwarden", "unnamed", "hollow")
     # neutral hold
-    C.set_rot(aR, -25 if look != "ranger" else 8, 0, -8)
-    C.set_rot(aL, 8 if look not in ("warrior", "ranger") else -30, 0, 8)
-    if look == "ranger":
+    C.set_rot(aR, -25 if not ranged else 8, 0, -8)
+    C.set_rot(aL, 8 if look not in ("warrior", "ranger", "ashen") else -30, 0, 8)
+    if ranged:
         C.set_rot(aL, -35, 0, 18)
+    if look == "mantis":   # scythes folded up before the chest
+        C.set_rot(aR, -70, 0, -12)
+        C.set_rot(aL, -70, 0, 12)
     if look in ("mystic", "lanternbearer", "graftwarden", "tidecaller", "unwritten"):
         C.set_rot(aR, -12, 0, -10)
     if "crown" in R:
@@ -420,9 +446,9 @@ def pose_humanoid(R, anim, f, n):
         body.location = (0, 0, 0.03 * c)
         C.set_rot(lR, 32 * s, 0, 0)
         C.set_rot(lL, -32 * s, 0, 0)
-        if look not in ("ranger",):
+        if look not in ("ranger", "ashen", "mantis"):
             C.set_rot(aL, -25 * s + (-20 if look == "warrior" else 0), 0, 8)
-        if look not in ("mystic", "lanternbearer", "graftwarden", "tidecaller", "unwritten"):
+        if look not in ("mystic", "lanternbearer", "graftwarden", "tidecaller", "unwritten", "mantis"):
             C.set_rot(aR, 25 * s - 20, 0, -8)
         C.set_rot(torso, 6, 0, 5 * s)
     elif anim == "attack":
@@ -442,7 +468,7 @@ def pose_humanoid(R, anim, f, n):
             C.set_rot(aL, l, 0, 12)
             body.location = (0, dy, 0)
             C.set_rot(torso, [-8, -12, 14, 5][f], 0, 0)
-        elif look in ("rogue", "sandreaver", "tidecaller", "unwritten"):
+        elif look in ("rogue", "sandreaver", "tidecaller", "unwritten", "knell", "mantis"):
             poses = [(20, 15, 0.03, 18), (-95, 10, -0.14, -20), (-85, -70, -0.16, 22), (-30, 0, -0.04, 0)]
             r, l, dy, tw = poses[f]
             C.set_rot(aR, r, 0, -10)
@@ -499,7 +525,7 @@ def pose_humanoid(R, anim, f, n):
 def pose_floater(R, anim, f, n):
     ph = f / n
     body = R["body"]
-    base = {"stinger": 0.55, "spirit": 0.55, "quietling": 0.3}[R["kind"]]
+    base = R.get("base") or {"stinger": 0.55, "spirit": 0.55, "quietling": 0.3}[R["kind"]]
     wob = 0.0
     lean = 0.0
     sx = sz = 1.0
@@ -529,6 +555,19 @@ def pose_floater(R, anim, f, n):
         body.location = (0, dy, base + wob)
     body.scale = (sx, sx, sz)
     C.set_rot(body, lean, 0, 0)
+    if "wings" in R:
+        if anim in ("idle", "walk"):
+            flap = (14 if anim == "idle" else 24) * math.sin(ph * 2 * math.pi)
+        elif anim == "attack":
+            flap = [-12, 30, 34, 4][f]
+        elif anim == "cast":
+            flap = [20, 34, 34, 6][f]
+        elif anim in ("hit", "dodge"):
+            flap = 24 * [1.0, 0.5][f]
+        else:
+            flap = -22 * (1.0 if anim == "downed" else [0.3, 0.6, 0.85, 1.0][f])
+        for (w, s) in R["wings"]:
+            C.set_rot(w, 0, -s * flap, 0)
     for (t, x, y, i) in R.get("tentacles", []):
         sp = t.data.splines[0]
         for j, p in enumerate(sp.points):
@@ -544,8 +583,9 @@ def pose_floater(R, anim, f, n):
                 reach = [0.0, 0.2, 0.28, 0.08][f]
             if anim == "cast":
                 reach = [0.05, 0.15, 0.18, 0.02][f]
-            R[hk].location = (s * (0.3 if R["kind"] == "spirit" else 0.16), -0.05 - reach,
-                              (0.1 if R["kind"] == "spirit" else 0.0) + reach * 0.8 + 0.02 * math.sin(ph * 6.28))
+            wide = R["kind"] in ("spirit", "paper")
+            R[hk].location = (s * (0.3 if wide else 0.16), -0.05 - reach,
+                              (0.1 if wide else 0.0) + reach * 0.8 + 0.02 * math.sin(ph * 6.28))
 
 
 def pose_serpent(R, anim, f, n):
@@ -648,6 +688,9 @@ def pose_scorpion(R, anim, f, n):
             C.set_rot(sp, -base - 18 * strike, 0, 0)
         C.set_rot(body, -8 * k, 0, 0)
         body.location = (0, -0.1 * strike, 0.26)
+        if not segs:   # no tail: the claws (or the horn) strike
+            for cp, sd in claws:
+                C.set_rot(cp, [-10, -45, -55, -15][f] if sd else [12, -20, -28, 4][f], 0, sd * 12)
     elif anim == "cast":
         for cp, sd in claws:
             C.set_rot(cp, [-20, -45, -50, -10][f], 0, sd * 15)
@@ -746,7 +789,7 @@ def render_variant(spec, out_root, quick=False):
             yaw.rotation_euler = (0, 0, math.radians(28))
             reset_pose(R)
             pose_humanoid(R, "idle", 0, 4)
-            big = R["race"] in ("unnamed", "unwritten")
+            big = R["race"] in ("unnamed", "unwritten") + CR.BIG
             if R["race"] in CH.RACES:
                 hz = (0.84 * R["tall"] + 0.265) * scale
                 portrait_camera(scene, Vector((0, 0, hz)), 0.86 * scale, 12)
@@ -761,6 +804,8 @@ def render_variant(spec, out_root, quick=False):
             kind = spec.get("kind")
             hz = {"deer": 0.75, "scorpion": 0.3, "serpent": 0.8, "quietling": 0.55, "stinger": 0.65, "spirit": 0.95}.get(kind, 0.6)
             size = {"deer": 1.5, "scorpion": 1.3, "serpent": 1.0, "quietling": 0.8, "stinger": 1.05, "spirit": 1.0}.get(kind, 1.2)
+            if kind in CR.PORTRAIT:
+                hz, size = CR.PORTRAIT[kind]
             base_scale = spec.get("scale", 1.0)
             portrait_camera(scene, Vector((0, 0, hz * scale)), size * CHAR_SCALE * (1 + (base_scale - 1) * 0.9), 22)
             C.render_to(os.path.join(out_dir, "portrait.png"))

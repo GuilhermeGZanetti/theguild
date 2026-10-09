@@ -382,14 +382,16 @@ Humans live everywhere, belong to no faction and are the most common recruits.
 
 ### Regions
 
-|Region|Faction|Biome|Typical enemies|
-|-|-|-|-|
-|Carrow|None (hub)|Town around the cracked Bell|—|
-|Coast of the Drowned Bells|Saltborn Compact|Beaches, shipwrecks, sunken towers|Stingers (giant jellyfish), reef raiders|
-|Lampwick Stilts|Lantern Conclave|Jungle canals, stilt villages|Canal serpents, lantern thieves|
-|The Ember Wood|Rootwardens|Autumn forest, shrines|Masked spirits, rot-deer|
-|The Sunken Dunes|Glass Caravans|Desert, ruins|Glass scorpions, toadfolk bandits|
-|The Unremembered|—|Inside the Hush|Hush creatures, Echoes|
+|Region|Faction|Biome|Typical enemies|Apex (6-7 skulls)|
+|-|-|-|-|-|
+|Carrow|None (hub)|Town around the cracked Bell|—|Knell Dancer (bell-cult assassin, leaps into the backline), Bellguard Automaton (walking bronze bell, tolls to Stun)|
+|Coast of the Drowned Bells|Saltborn Compact|Beaches, shipwrecks, sunken towers|Stingers (giant jellyfish), reef raiders|Gale Manta (sky-ray, gusts that hurl the squad), Bellshell Hermit (crab in a drowned bell, shuts in for half damage)|
+|Lampwick Stilts|Lantern Conclave|Jungle canals, stilt villages|Canal serpents, lantern thieves|Reed Mantis (hidden ambusher, huge critical strike), Mudback Toad (tongue drags prey in, regenerates)|
+|The Ember Wood|Rootwardens|Autumn forest, shrines|Masked spirits, rot-deer|Ashen Huntress (burnt barkborn sniper, burning arrows), Mourning Oak (grave tree, roots areas, thorny bark)|
+|The Sunken Dunes|Glass Caravans|Desert, ruins|Glass scorpions, toadfolk bandits|Sunflare Wasp (blinding wings, armour-piercing sting), Scarab Juggernaut (war-beetle, charges and knocks back)|
+|The Unremembered|—|Inside the Hush|Hush creatures, Echoes|Paper Wraith (strips buffs with storms of pages), Nameless Monument (erased statue, pins the squad in place)|
+
+Apex creatures are each region's most dangerous beasts: glass cannons (fast, deadly, fragile) and tanks (huge, slow, hard-hitting). They take the place of ordinary foes, one at 6 skulls and two at 7, so a fight never grows in numbers.
 
 |Hush creature|Behavior|
 |-|-|

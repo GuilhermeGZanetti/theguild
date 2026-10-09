@@ -18,6 +18,15 @@ const SKULL_DODGE := 2
 const SKULL_SPEED := 2
 const SKULL_CRIT := 1
 const SKULL_RESOLVE := 4
+## From this many skulls a region's apex creatures (its "apex" in regions.json)
+## take the place of ordinary foes: one at 6 skulls, two at 7.
+const APEX_SKULLS := 6
+## From 5 skulls the guild usually fields squads of five or six (the
+## Barracks): foes there are tougher than the per-skull growth alone.
+## Bosses keep their own tuning.
+const LATE_SKULLS := 5
+const LATE_HP := 1.1
+const LATE_ATTACK := 1.05
 
 
 static func member_unit(m: Member, resolve_bonus: int = 0) -> BattleUnit:
@@ -55,8 +64,9 @@ static func enemy_unit(eid: String, skulls: int, hush_level: int, rng: RandomNum
 	var k := maxi(0, skulls - 1)
 	var dm: float = [0.85, 1.0, 1.15][clampi(difficulty, 0, 2)]
 	var hush_m := 1.0 + 0.03 * hush_level
-	s["hp"] = roundi(float(s["hp"]) * (1.0 + SKULL_HP * k) * dm * hush_m)
-	s["attack"] = roundi(float(s["attack"]) * (1.0 + SKULL_ATTACK * k) * dm * hush_m)
+	var late: bool = skulls >= LATE_SKULLS and not d.get("boss", false)
+	s["hp"] = roundi(float(s["hp"]) * (1.0 + SKULL_HP * k) * dm * hush_m * (LATE_HP if late else 1.0))
+	s["attack"] = roundi(float(s["attack"]) * (1.0 + SKULL_ATTACK * k) * dm * hush_m * (LATE_ATTACK if late else 1.0))
 	s["defense"] = roundi(float(s["defense"]) * (1.0 + SKULL_DEFENSE * k))
 	s["accuracy"] = int(s["accuracy"]) + SKULL_ACCURACY * k
 	s["dodge"] = int(s["dodge"]) + SKULL_DODGE * k
@@ -81,8 +91,10 @@ static func enemy_unit(eid: String, skulls: int, hush_level: int, rng: RandomNum
 	u.palette = d.get("palette", {})
 	u.xp_value = int(d.get("xp", 12)) + 4 * int(k)
 	u.skulls = skulls
-	if eid in ["lantern_thief", "quietling"]:
-		u.hidden = true
+	for m in d.get("mods", {}):
+		u.mods[m] = d["mods"][m]
+	u.def_regen = int(u.mods.get("def_regen", 0))
+	u.hidden = d.get("hidden", false)
 	if u.boss:
 		u.mods["fearless"] = 1
 	return u
@@ -375,12 +387,35 @@ static func pick_enemies(mission: Dictionary, rng: RandomNumberGenerator, hush_l
 			for k in fixed:
 				for i in int(fixed[k]):
 					out.append(k)
+			if objective != "final":
+				_add_apex(out, region, skulls, rng)
 			return out
 	while out.size() < count - hush_extra:
 		out.append(_weighted(pool, rng))
+	if mission.get("category", "") != "training":
+		_add_apex(out, region, skulls, rng)
 	for i in hush_extra:
-		out.append("hollow" if rng.randf() < 0.7 else "quietling")
+		if i == 0 and skulls >= APEX_SKULLS:
+			out.append(_weighted(DB.regions["unremembered"]["apex"], rng))
+		else:
+			out.append("hollow" if rng.randf() < 0.7 else "quietling")
 	if ctx.get("ambush", false):
 		out.append(_weighted(pool, rng))
 		out.append(_weighted(pool, rng))
 	return out
+
+
+## Swaps ordinary foes of the region for its apex creatures on the hardest quests.
+static func _add_apex(out: Array, region: String, skulls: int, rng: RandomNumberGenerator) -> void:
+	var apex: Dictionary = DB.regions.get(region, {}).get("apex", {})
+	var n := skulls - APEX_SKULLS + 1
+	if apex.is_empty() or n <= 0:
+		return
+	var ordinary: Array = []
+	for i in out.size():
+		if DB.regions[region]["enemies"].has(out[i]):
+			ordinary.append(i)
+	for j in mini(n, ordinary.size()):
+		var i: int = ordinary[rng.randi() % ordinary.size()]
+		ordinary.erase(i)
+		out[i] = _weighted(apex, rng)

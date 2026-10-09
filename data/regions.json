@@ -2,37 +2,37 @@
   "carrow": {
     "name": "Carrow", "faction": "", "biome": "town", "desc": "The town around the cracked Bell. Home of the guild.",
     "places": ["the Old Market", "Bellwright Lane", "the Tanners' Row", "the Cracked Bell Square", "the Mill Road", "the Carrow Granary", "Wicker Bridge", "the Chandlers' Yard"],
-    "enemies": {"brigand": 5, "brigand_archer": 3}, "elite": ["brigand_captain"],
+    "enemies": {"brigand": 5, "brigand_archer": 3}, "elite": ["brigand_captain"], "apex": {"knell_dancer": 1, "bellguard_automaton": 1},
     "map_pos": [0.5, 0.52]
   },
   "coast": {
     "name": "Coast of the Drowned Bells", "faction": "saltborn", "biome": "coast", "desc": "Beaches, shipwrecks and sunken bell towers.",
     "places": ["Saltbone Beach", "the Sunken Belfry", "Wreckers' Cove", "the Tolling Shoals", "Gullrest Pier", "the Brineworks", "Kelp Hollow", "the Pearl Steps"],
-    "enemies": {"reef_raider": 4, "reef_harpooner": 3, "stinger": 4}, "elite": ["stinger_queen"],
+    "enemies": {"reef_raider": 4, "reef_harpooner": 3, "stinger": 4}, "elite": ["stinger_queen"], "apex": {"gale_manta": 1, "bellshell_hermit": 1},
     "map_pos": [0.18, 0.72]
   },
   "stilts": {
     "name": "Lampwick Stilts", "faction": "lantern", "biome": "jungle", "desc": "A stilt city over misty jungle canals.",
     "places": ["the Wickwater Canal", "Mothlight Terrace", "the Hanging Archive", "Reedmarket", "the Lantern Bridges", "Fogmoor Landing", "the Waxworks", "Copperleaf Docks"],
-    "enemies": {"canal_serpent": 4, "lantern_thief": 4, "thief_archer": 3}, "elite": ["serpent_elder"],
+    "enemies": {"canal_serpent": 4, "lantern_thief": 4, "thief_archer": 3}, "elite": ["serpent_elder"], "apex": {"reed_mantis": 1, "mudback_toad": 1},
     "map_pos": [0.78, 0.66]
   },
   "ember": {
     "name": "The Ember Wood", "faction": "rootwardens", "biome": "autumn", "desc": "A forest in endless autumn, full of shrines.",
     "places": ["the Grave Orchard", "Ashleaf Shrine", "the Hollow Oak", "Cinderfern Glade", "the Masked Path", "Russet Hollow", "the Weeping Stones", "Foxfire Ridge"],
-    "enemies": {"masked_spirit": 4, "rot_deer": 4}, "elite": ["rot_stag", "spirit_elder"],
+    "enemies": {"masked_spirit": 4, "rot_deer": 4}, "elite": ["rot_stag", "spirit_elder"], "apex": {"ashen_huntress": 1, "mourning_oak": 1},
     "map_pos": [0.3, 0.26]
   },
   "dunes": {
     "name": "The Sunken Dunes", "faction": "glass", "biome": "desert", "desc": "Desert and the ruins of forgotten cities.",
     "places": ["the Glass Wastes", "Scarab Gate", "the Half-Buried Arch", "Toadstone Well", "the Sunken Bazaar", "Dune Sea Wreck", "the Nameless Temple", "Red Mesa"],
-    "enemies": {"glass_scorpion": 4, "toad_bandit": 4, "toad_slinger": 3}, "elite": ["scorpion_matriarch"],
+    "enemies": {"glass_scorpion": 4, "toad_bandit": 4, "toad_slinger": 3}, "elite": ["scorpion_matriarch"], "apex": {"sunflare_wasp": 1, "scarab_juggernaut": 1},
     "map_pos": [0.72, 0.24]
   },
   "unremembered": {
     "name": "The Unremembered", "faction": "", "biome": "hush", "desc": "Inside the Hush. A world built from forgotten things.",
     "places": ["the Grey Shore", "the Vanished Village", "the Old Guildhall", "the Silent Belfry", "the Heart of the Hush"],
-    "enemies": {"hollow": 6, "quietling": 3}, "elite": ["unwritten"],
+    "enemies": {"hollow": 6, "quietling": 3}, "elite": ["unwritten"], "apex": {"paper_wraith": 1, "nameless_monument": 1},
     "map_pos": [0.5, 0.06]
   }
 }

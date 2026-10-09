@@ -339,6 +339,54 @@ func test_battle_hunger_heals_from_damage_dealt():
 	assert_eq(p.hp, 10 + roundi(dealt * 0.5))
 
 
+func test_apex_creatures_join_the_hardest_quests():
+	var r := RandomNumberGenerator.new()
+	for region in ["carrow", "coast", "stilts", "ember", "dunes"]:
+		var apex: Dictionary = DB.regions[region]["apex"]
+		for sk in [5, 6, 7]:
+			var counts := {}
+			for i in 30:
+				r.seed = 500 + i + sk * 37
+				var m := {"region": region, "objective": "clear", "skulls": sk}
+				var out := BattleFactory.pick_enemies(m, r, 0, {})
+				var n := 0
+				for e in out:
+					if apex.has(e):
+						n += 1
+				counts[n] = int(counts.get(n, 0)) + 1
+			assert_eq(counts, {maxi(0, sk - 5): 30}, "%s at %d skulls: %d apex creatures" % [region, sk, maxi(0, sk - 5)])
+	# story fights keep their size: an apex creature takes an ordinary foe's place
+	var s5 := {"region": "coast", "objective": "defense", "skulls": 6, "category": "story", "enemies": {"reef_raider": 2, "stinger": 1, "hollow": 2}}
+	var picked := BattleFactory.pick_enemies(s5, r, 0, {})
+	assert_eq(picked.size(), 5)
+	assert_eq(picked.count("hollow"), 2, "only the region's own foes are swapped")
+	# the last stand keeps its own cast
+	var fin := {"region": "unremembered", "objective": "final", "skulls": 7, "category": "story", "boss": "the_unnamed", "enemies": {"hollow": 3, "quietling": 1}}
+	for e in BattleFactory.pick_enemies(fin, r, 0, {}):
+		assert_false(DB.regions["unremembered"]["apex"].has(e), "no apex creature in the final battle")
+	# a Hush incursion on a hard quest is led by one of the Hush's own apex creatures
+	var hushed := BattleFactory.pick_enemies({"region": "dunes", "objective": "clear", "skulls": 6}, r, 0, {"hush_stage": 1})
+	var hush_apex := 0
+	for e in hushed:
+		if DB.regions["unremembered"]["apex"].has(e):
+			hush_apex += 1
+	assert_eq(hush_apex, 1)
+
+
+func test_apex_creatures_are_complete():
+	for rid in DB.regions:
+		for eid in DB.regions[rid].get("apex", {}):
+			var d: Dictionary = DB.enemies[eid]
+			assert_true(DB.units.has(d["sprite"]), "%s has a sprite" % eid)
+			for s in d["skills"]:
+				assert_false(DB.skill(s).is_empty(), "%s knows %s" % [eid, s])
+	var r := RandomNumberGenerator.new()
+	var oak := BattleFactory.enemy_unit("mourning_oak", 6, 0, r)
+	assert_gt(float(oak.mod("barbs_pct", 0.0)), 0.0, "mods come from the data")
+	assert_true(BattleFactory.enemy_unit("reed_mantis", 6, 0, r).hidden, "the mantis waits hidden")
+	assert_eq(BattleFactory.enemy_unit("scarab_juggernaut", 6, 0, r).def_regen, 4)
+
+
 func test_overkill_kills_outright():
 	var b := _flat_battle()
 	var p := b.add_unit(_warrior(0, Vector2i(2, 2)))
@@ -650,4 +698,4 @@ func test_a_quest_of_n_skulls_hits_like_level_n():
 		for cls in ["ranger", "mystic"]:
 			assert_between(_hits_to_drop(e, _reference(cls, level)), 1, 3, "a level-%d %s falls in 1-3 hits" % [level, cls])
 		assert_between(_hits_to_drop(e, _reference("warrior", level, "guardian")), 3, 7, "a level-%d Guardian takes 3-7 hits" % level)
-		assert_between(_hits_to_drop(_reference("warrior", level, "warlord"), e), 3, 5, "the brigand takes 3-5 hits at skull %d" % level)
+		assert_between(_hits_to_drop(_reference("warrior", level, "warlord"), e), 4, 6, "the brigand takes 4-6 hits at skull %d" % level)

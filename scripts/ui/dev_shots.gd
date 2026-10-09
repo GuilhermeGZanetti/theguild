@@ -25,6 +25,8 @@ func _ready() -> void:
 			await _lineup(parts[1] if parts.size() > 1 else "")
 		"blitz":
 			await _blitz()
+		"bestiary":
+			await _bestiary(parts.slice(1))
 		_:
 			pass
 	await _save()
@@ -115,6 +117,43 @@ func _lineup(only: String) -> void:
 	wv.focus(Vector3(7.0 + rows.size() * 1.5, 0.6, 7.0 + rows.size() * 1.5), true)
 	if rows.size() > 2:
 		wv.world_scale = maxi(1, wv.world_scale - 1)
+	for i in 40:
+		var bv := wv.basis_vectors()
+		for uv in views:
+			uv.set_camera(deg_to_rad(wv.yaw), bv["fwd"], bv["right"])
+		await get_tree().process_frame
+
+
+## Enemies in their battle colours, two rows, a brigand first for scale:
+## "bestiary" shows the apex creatures, "bestiary_<id>_<id>" any enemies.
+func _bestiary(ids: Array) -> void:
+	if ids.is_empty():
+		for rid in DB.regions:
+			ids.append_array(DB.regions[rid].get("apex", {}).keys())
+	ids.push_front("brigand")
+	var g := BattleGrid.new(30, 30)
+	g.biome = "town"
+	for c in g.all_cells():
+		g.t(c)["ground"] = "cobble" if (c.x + c.y) % 5 else "grass"
+	var wv := WorldView.new()
+	add_child(wv)
+	var mv := BattleMapView.new()
+	wv.world.add_child(mv)
+	mv.build(g, wv)
+	var views := []
+	var per_row := int(ceil(ids.size() / 2.0))
+	for i in ids.size():
+		var d: Dictionary = DB.enemies[ids[i]]
+		var uv := UnitView.new()
+		mv.add_child(uv)
+		uv.setup(d["sprite"], d.get("palette", {}), wv.pitch)
+		var col := i % per_row
+		var row := i / per_row
+		uv.position = mv.unit_pos(Vector2i(4 + col * 2 + row * 4, 14 - col * 2 + row * 4))
+		uv.face(Vector2i(1, 1))
+		views.append(uv)
+	wv.focus(Vector3(4.0 + per_row + 2.0, 0.6, 14.0 - per_row + 2.0 + 2.0), true)
+	wv.world_scale = maxi(1, wv.world_scale - 1)
 	for i in 40:
 		var bv := wv.basis_vectors()
 		for uv in views:

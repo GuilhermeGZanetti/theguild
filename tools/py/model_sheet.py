@@ -33,7 +33,16 @@ def parse(vid):
     return race, look, g
 
 
+ENEMIES = json.load(open(os.path.join(ROOT, "data", "enemies.json"), encoding="utf-8"))
+
+
 def palette_for(vid, pick=0):
+    # an enemy sprite shows in the colours of the first enemy that wears it
+    for e in ENEMIES.values():
+        if e.get("sprite") == vid:
+            pal = dict(BASE)
+            pal.update({k: tuple(v) for k, v in e.get("palette", {}).items()})
+            return pal
     race, look, g = parse(vid)
     pal = dict(BASE)
     rd = RACES.get(race, RACES["human"])
@@ -92,10 +101,11 @@ def main():
         pal = palette_for(vid, pick)
         row = Image.new("RGBA", (W, HI + 14), (196, 192, 180, 255))
         x = 0
+        cv = json.load(open(os.path.join(d, "meta.json")))["canvas"] * S.SS
         for di in (0, 1, 2):
             f = os.path.join(d, f"idle_{di}_0.png")
             if os.path.exists(f):
-                im = toon(Image.open(f), pal).crop((24, 0, 232, 208)).resize((HI, HI), Image.LANCZOS)
+                im = toon(Image.open(f), pal).crop((cv * 3 // 32, 0, cv * 29 // 32, cv * 26 // 32)).resize((HI, HI), Image.LANCZOS)
                 row.alpha_composite(im, (x, 0))
             x += HI
         for f in [f"idle_{di}_0.png" for di in range(4)] + ["attack_0_2.png"]:

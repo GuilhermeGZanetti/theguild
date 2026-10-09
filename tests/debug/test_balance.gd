@@ -3,7 +3,7 @@ extends GutTest
 ##   godot --headless --path . -s addons/gut/gut_cmdln.gd -gexit -gtest=res://tests/debug/test_balance.gd
 ## The targets: a skull-N quest is a hard fight for four level-N members;
 ## Rangers and Mystics drop in 1-3 hits, a Guardian Warrior takes 3-5, and
-## an ordinary enemy takes 3-5 hits from a member of its level.
+## an ordinary enemy takes 4-6 hits from a member of its level.
 
 var rng := RandomNumberGenerator.new()
 
@@ -141,7 +141,8 @@ func _batch(label: String, mission: Dictionary, level: int, n := 16, size := 4, 
 
 ## Filters for running slices in parallel processes: BAL_LEVELS="1,2",
 ## BAL_OBJ="clear,hunt,defense", BAL_REGIONS="carrow,coast", BAL_OFFSETS="0"
-## (skulls minus level), BAL_N="12".
+## (skulls minus level), BAL_N="12", BAL_SIZE="5" (squad size; the Barracks
+## sends five from level 2 and six from level 3).
 func _env_list(key: String, fallback: Array) -> Array:
 	var v := OS.get_environment(key)
 	if v == "":
@@ -154,6 +155,7 @@ func _env_list(key: String, fallback: Array) -> Array:
 
 func test_battle_table():
 	var n := int(_env_list("BAL_N", [12])[0])
+	var size := int(_env_list("BAL_SIZE", [4])[0])
 	for level in _env_list("BAL_LEVELS", [1, 2, 3, 4, 5, 6, 7]):
 		for obj in _env_list("BAL_OBJ", ["clear", "hunt", "defense"]):
 			for region in _env_list("BAL_REGIONS", [REGION_AT[level]]):
@@ -162,12 +164,13 @@ func test_battle_table():
 					if sk < 1 or sk > Rules.MAX_SKULLS:
 						continue
 					var m := {"region": region, "objective": obj, "skulls": sk, "par_rounds": 8, "turns": 5 + (sk + 1) / 2}
-					_batch("%s %s sk%d" % [region, obj, sk], m, level, n)
+					_batch("%s %s sk%d x%d" % [region, obj, sk, size], m, level, n, size)
 	assert_true(true)
 
 
 func test_story_table():
-	for sid in ["s1", "s2", "s3", "s4", "s5", "s6", "final"]:
+	var size := int(_env_list("BAL_SIZE", [4])[0])
+	for sid in _env_list("BAL_STORY", ["s1", "s2", "s3", "s4", "s5", "s6", "final"]):
 		var s: Dictionary = DB.story["missions"][sid]
 		var m := {"region": s["region"], "objective": s["objective"], "skulls": int(s["skulls"]), "category": "story",
 			"turns": int(s.get("turns", 6)), "caches": int(s.get("caches", 3)), "par_rounds": 9,
@@ -175,9 +178,9 @@ func test_story_table():
 		for k in ["boss", "enemies", "biome", "elite_count"]:
 			if s.has(k):
 				m[k] = s[k]
-		_batch("story %s" % sid, m, int(s["skulls"]), 12)
+		_batch("story %s x%d" % [sid, size], m, int(s["skulls"]), 12, size)
 		if sid == "final":
-			_batch("story final, 1 ally", m, int(s["skulls"]), 12, 4, {"allied_factions": ["saltborn"]})
+			_batch("story final, 1 ally x%d" % size, m, int(s["skulls"]), 12, size, {"allied_factions": ["saltborn"]})
 	assert_true(true)
 
 
