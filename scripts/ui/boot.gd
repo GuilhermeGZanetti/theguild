@@ -7,6 +7,12 @@ func _ready() -> void:
 	get_tree().root.theme = UITheme.build()
 	var args := OS.get_cmdline_user_args()
 	for a in args:
+		if a.begins_with("--trailer="):
+			# one shot of the trailer, filmed by tools/trailer/make.py
+			var tree := get_tree()
+			tree.create_timer(240.0, true, false, true).timeout.connect(func(): tree.quit(3))
+			Scenes.go("res://scenes/trailer.tscn", {"shot": a.substr(10)})
+			return
 		if a.begins_with("--shot="):
 			# watchdog: developer captures never hang
 			var tree := get_tree()

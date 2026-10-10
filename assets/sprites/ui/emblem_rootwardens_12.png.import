@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://clf4naiy0lby6"
-path="res://.godot/imported/barkborn.png-55335f646b85d5579dad7367e6e01f8d.ctex"
+uid="uid://jkidqvlwjupx"
+path="res://.godot/imported/emblem_rootwardens_12.png-0198adef0be6841129be7d8fbe45b3cc.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://concept_art/barkborn.png"
-dest_files=["res://.godot/imported/barkborn.png-55335f646b85d5579dad7367e6e01f8d.ctex"]
+source_file="res://assets/sprites/ui/emblem_rootwardens_12.png"
+dest_files=["res://.godot/imported/emblem_rootwardens_12.png-0198adef0be6841129be7d8fbe45b3cc.ctex"]
 
 [params]
 

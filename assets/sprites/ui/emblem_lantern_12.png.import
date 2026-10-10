@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://clf4naiy0lby6"
-path="res://.godot/imported/barkborn.png-55335f646b85d5579dad7367e6e01f8d.ctex"
+uid="uid://omkeb81hvwad"
+path="res://.godot/imported/emblem_lantern_12.png-8059f94faf7dcbf5c985d5a749ed1865.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://concept_art/barkborn.png"
-dest_files=["res://.godot/imported/barkborn.png-55335f646b85d5579dad7367e6e01f8d.ctex"]
+source_file="res://assets/sprites/ui/emblem_lantern_12.png"
+dest_files=["res://.godot/imported/emblem_lantern_12.png-8059f94faf7dcbf5c985d5a749ed1865.ctex"]
 
 [params]
 

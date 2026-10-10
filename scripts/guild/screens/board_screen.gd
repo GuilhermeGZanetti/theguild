@@ -84,7 +84,7 @@ func _card(m: Dictionary) -> Control:
 	var cl := UIKit.label(DB.missions["categories"][cat]["name"].to_upper(), 8, col, UITheme.pixel_font)
 	top.add_child(cl)
 	if m.get("faction", "") != "":
-		top.add_child(UIKit.tex_rect(load("res://assets/sprites/ui/emblem_%s_16.png" % m["faction"]), 0.625))
+		top.add_child(UIKit.tex_rect(load("res://assets/sprites/ui/emblem_%s_12.png" % m["faction"])))
 	top.add_child(UIKit.spacer())
 	var sk := UIKit.skulls(int(m["skulls"]))
 	top.add_child(sk)

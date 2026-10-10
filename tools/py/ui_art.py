@@ -10,6 +10,8 @@ import colorsys
 import numpy as np
 from PIL import Image, ImageDraw
 
+import emblems
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
 OUT = os.path.join(ROOT, "assets", "sprites", "ui")
@@ -350,6 +352,7 @@ def build_status_icons(statuses):
 
 # ====================================================================== emblems
 def emblem(size, colors, kind):
+    """The guild's own emblem (faction emblems live in emblems.py)."""
     img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
     c1, c2, c3 = colors
@@ -363,45 +366,18 @@ def emblem(size, colors, kind):
         d.rectangle([s * .27, s * .56, s * .73, s * .62], fill=c2, outline=(24, 16, 24))
         d.line([(s * .5, s * .22), (s * .44, s * .4), (s * .53, s * .5)], fill=(24, 16, 24), width=max(1, s // 32))
         d.ellipse([s * .46, s * .62, s * .54, s * .7], fill=c2, outline=(24, 16, 24))
-    elif kind == "saltborn":
-        d.ellipse([s * .1, s * .1, s * .9, s * .9], fill=c1, outline=(24, 16, 24))
-        d.pieslice([s * .25, s * .2, s * .75, s * .65], 180, 360, fill=c2, outline=(24, 16, 24))
-        for i in range(4):
-            x = s * (.3 + i * .13)
-            d.line([(x, s * .45), (x - s * .04, s * .62), (x, s * .78)], fill=c3, width=max(1, s // 24))
-    elif kind == "lantern":
-        d.ellipse([s * .1, s * .1, s * .9, s * .9], fill=c1, outline=(24, 16, 24))
-        d.rectangle([s * .35, s * .3, s * .65, s * .72], fill=c2, outline=(24, 16, 24))
-        d.rectangle([s * .42, s * .38, s * .58, s * .64], fill=c3)
-        d.polygon([(s * .3, s * .3), (s * .7, s * .3), (s * .5, s * .18)], fill=(24, 16, 24))
-    elif kind == "rootwardens":
-        d.ellipse([s * .1, s * .1, s * .9, s * .9], fill=c1, outline=(24, 16, 24))
-        d.polygon([(s * .5, s * .18), (s * .75, s * .5), (s * .5, s * .8), (s * .25, s * .5)], fill=c2, outline=(24, 16, 24))
-        d.line([(s * .5, s * .22), (s * .5, s * .78)], fill=(24, 16, 24), width=max(1, s // 24))
-        d.line([(s * .5, s * .45), (s * .65, s * .38)], fill=(24, 16, 24), width=max(1, s // 32))
-        d.line([(s * .5, s * .58), (s * .35, s * .5)], fill=(24, 16, 24), width=max(1, s // 32))
-    elif kind == "glass":
-        d.ellipse([s * .1, s * .1, s * .9, s * .9], fill=c1, outline=(24, 16, 24))
-        d.ellipse([s * .3, s * .32, s * .7, s * .72], fill=c2, outline=(24, 16, 24))
-        d.line([(s * .5, s * .32), (s * .5, s * .72)], fill=(24, 16, 24), width=max(1, s // 24))
-        for sx in (-1, 1):
-            d.line([(s * (.5 + sx * .18), s * .4), (s * (.5 + sx * .32), s * .3)], fill=(24, 16, 24), width=max(1, s // 32))
-            d.line([(s * (.5 + sx * .2), s * .6), (s * (.5 + sx * .34), s * .7)], fill=(24, 16, 24), width=max(1, s // 32))
-        d.ellipse([s * .44, s * .2, s * .56, s * .32], fill=c3, outline=(24, 16, 24))
     return img
 
 
 def build_emblems():
-    specs = {
-        "guild": ((146, 54, 50), (216, 176, 86), (240, 214, 150)),
-        "saltborn": ((44, 110, 128), (240, 150, 180), (150, 230, 240)),
-        "lantern": ((64, 48, 90), (206, 170, 90), (255, 230, 140)),
-        "rootwardens": ((96, 64, 40), (212, 120, 50), (240, 190, 90)),
-        "glass": ((92, 50, 96), (196, 120, 200), (170, 240, 240)),
-    }
+    specs = {"guild": ((146, 54, 50), (216, 176, 86), (240, 214, 150))}
     for k, cols in specs.items():
         for s in (16, 32, 64):
             emblem(s, cols, k).save(os.path.join(OUT, f"emblem_{k}_{s}.png"))
+    # the factions are hand-placed pixel art (tools/py/emblems.py)
+    for k in emblems.FACTIONS:
+        for s in (12, 16, 32, 64):
+            emblems.draw(k, s).save(os.path.join(OUT, f"emblem_{k}_{s}.png"))
     icon = emblem(64, specs["guild"], "guild").resize((256, 256), Image.NEAREST)
     bg = Image.new("RGBA", (256, 256), (0, 0, 0, 0))
     bg.alpha_composite(icon)
