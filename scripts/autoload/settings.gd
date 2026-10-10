@@ -3,7 +3,7 @@ extends Node
 
 const PATH := "user://settings.cfg"
 
-var fullscreen := false
+var fullscreen := true
 var master_volume := 0.8
 var music_volume := 0.7
 var sfx_volume := 0.8
